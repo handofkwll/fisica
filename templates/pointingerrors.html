@@ -1,0 +1,28 @@
+<%inherit file="base.html"/>
+
+<!-- do the plotting -->
+<%
+import matplotlib.pyplot as plt
+import os.path
+%>
+
+    <div class="row-fluid">
+      <table class="table table-condensed" summary="Pointing Errors">
+        <tbody>
+          <%
+          pointingerrors = context['data']['pointingerrors']
+          %>
+          % for k,v in pointingerrors.items():
+             <!-- don't render large arrays-->
+             % if k not in ['primary beam']:
+          <tr>
+            <td>${k}</td>
+            <td>${v}</td>
+          </tr>
+             % endif
+          % endfor
+        </tbody>
+      </table>
+    <div>
+
+<!-- link to the plot from html -->

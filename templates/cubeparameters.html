@@ -1,0 +1,24 @@
+<%
+import collections
+%>
+
+<%inherit file="base.html"/>
+
+    <div class="row-fluid">
+      <table class="table table-condensed" summary="Cube parameters">
+        <tbody>
+          <%
+          fts = context['data']['cubeparameters']
+          %>
+          % for k,v in fts.items():
+            <!-- don't render complicated objects-->
+            % if not isinstance(v, collections.Iterable):
+              <tr>
+                <td>${k}</td>
+                <td>${v}</td>
+              </tr>
+            % endif
+          % endfor
+        </tbody>
+      </table>
+    <div>

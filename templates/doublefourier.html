@@ -1,0 +1,181 @@
+<%inherit file="base.html"/>
+
+<!-- do the plotting -->
+<%
+import os.path
+
+frequency_axis = context['data']['doublefourier']['frequency axis']
+
+# construct html pages with sky model plane plots
+for iwn,wn in enumerate(frequency_axis):
+    link = os.path.join(context['dirname'], 'skymodelt0plane%s.html' % (wn))
+    with open(link, 'w') as f:
+        template = mylookup.get_template('skymodelplane.html')
+        context_copy = context.kwargs
+        context_copy['wn'] = wn
+        context_copy['iwn'] = iwn
+        context_copy['stagename'] = 'doublefourier'
+        context_copy['resultname'] = 'sky at time 0'
+        f.write(template.render(**context_copy))
+
+for iwn,wn in enumerate(frequency_axis):
+    link = os.path.join(context['dirname'],
+      'skymodelpbt0plane%s.html' % (wn))
+    with open(link, 'w') as f:
+        template = mylookup.get_template('skymodelplane.html')
+        context_copy = context.kwargs
+        context_copy['wn'] = wn
+        context_copy['iwn'] = iwn
+        context_copy['stagename'] = 'doublefourier'
+        context_copy['resultname'] = 'sky*beams at time 0'
+        f.write(template.render(**context_copy))
+
+for iwn,wn in enumerate(frequency_axis):
+    link = os.path.join(context['dirname'],
+      'skymodelfftt0plane%s.html' % (wn))
+    with open(link, 'w') as f:
+        template = mylookup.get_template('skymodelplane.html')
+        context_copy = context.kwargs
+        context_copy['wn'] = wn
+        context_copy['iwn'] = iwn
+        context_copy['stagename'] = 'doublefourier'
+        context_copy['resultname'] = 'skyfft at time 0'
+        f.write(template.render(**context_copy))
+
+link = os.path.join(context['dirname'], 'sourcespectrumbaseline.html')
+with open(link, 'w') as f:
+    template = mylookup.get_template('sourcespectrum.html')
+    context_copy = context.kwargs
+    context_copy['sourceid'] = 'baseline'
+    context_copy['spectrum'] = context['data']['doublefourier']\
+      ['skyfft spectrum at time 0']
+    f.write(template.render(**context_copy))
+
+link = os.path.join(context['dirname'], 'baselineffttest.html')
+with open(link, 'w') as f:
+    template = mylookup.get_template('sourcespectrum.html')
+    context_copy = context.kwargs
+    context_copy['sourceid'] = 'testfft'
+    context_copy['spectrum'] = context['data']['doublefourier']\
+      ['test FTS at time 0']
+    f.write(template.render(**context_copy))
+
+baselines = context['data']['doublefourier']['baseline interferograms'].keys()
+baseline_link = {}
+for baseline in baselines:
+    filename = 'interferogram_%s_%s.html' % baseline
+    filename = filename.replace('-', 'm')
+    baseline_link[baseline] = filename
+    link = os.path.join(context['dirname'], filename)
+    with open(link, 'w') as f:
+        template = mylookup.get_template('sourcespectrum.html')
+        context_copy = context.kwargs
+        context_copy['sourceid'] = '_%s_%s_fft' % (baseline)
+        context_copy['spectrum'] = context['data']['doublefourier']\
+          ['baseline interferograms'][baseline]
+        f.write(template.render(**context_copy))
+
+#times = context['data']['doublefourier']['skyfft check'].keys()
+#times.sort()
+#print 'times', times
+#time_link = {}
+#for t in times:
+#    filename = 'interferogram_%s.html' % t
+#    time_link[t] = filename
+#    link = os.path.join(context['dirname'], filename)
+#    print 'link', link
+#    with open(link, 'w') as f:
+#        template = mylookup.get_template('sourcespectrum.html')
+#        context_copy = context.kwargs
+#        context_copy['sourceid'] = '_%s_fft' % (t)
+#        context_copy['spectrum'] = context['data']['doublefourier']\
+#          ['skyfft check'][t]
+#        print 'before'
+#        f.write(template.render(**context_copy))
+#        print 'after'
+%>
+
+<!-- link to the plot pages from this page -->
+
+<h3>Sky Model Planes at t=0</h3>
+<div class="row">
+% for wn in frequency_axis:
+    <%
+    wnformatted = '%6.4gcm-1' % wn
+    %>
+  <div class="col-xs-6 col-md-3">
+    <a href="skymodelt0plane${wn}.html" class="thumbnail">
+      <img src="sky_at_time_0plane${wn}.png" alt="...">
+      <div>
+        <h4>${wnformatted}</h4>
+      </div>
+    </a>
+  </div>
+% endfor
+</div>
+
+<h3>Sky Model Planes*Pb at t=0</h3>
+<div class="row">
+% for wn in frequency_axis:
+    <%
+    wnformatted = '%6.4gcm-1' % wn
+    %>
+  <div class="col-xs-6 col-md-3">
+    <a href="skymodelpbt0plane${wn}.html" class="thumbnail">
+      <img src="sky_beams_at_time_0plane${wn}.png" alt="...">
+      <div>
+        <h4>${wnformatted}</h4>
+      </div>
+    </a>
+  </div>
+% endfor
+</div>
+
+<h3>Sky Model FFT at t=0</h3>
+<div class="row">
+% for wn in frequency_axis:
+    <%
+    wnformatted = '%6.4gcm-1' % wn
+    %>
+  <div class="col-xs-6 col-md-3">
+    <a href="skymodelfftt0plane${wn}.html" class="thumbnail">
+      <img src="skyfft_at_time_0plane${wn}.png" alt="...">
+      <div>
+        <h4>${wnformatted}</h4>
+      </div>
+    </a>
+  </div>
+% endfor
+</div>
+
+<h3>Measured spectrum at t=0</h3>
+<div>
+  <a href="sourcespectrumbaseline.html" class="thumbnail">
+    <img src="sourcespectrumbaseline.png" alt="...">
+  </a>
+</div>
+
+<h3>Measured interferogram at t=0</h3>
+<div>
+  <a href="baselineffttest.html" class="thumbnail">
+    <img src="sourcespectrumtestfft.png" alt="...">
+  </a>
+</div>
+
+<h3>Baseline Interferograms</h3>
+% for baseline in baselines:
+<div class="col-xs-6 col-md-3">
+  <a href="${baseline_link[baseline]}" class="thumbnail">
+    <img src="sourcespectrum_${baseline[0]}_${baseline[1]}_fft.png" alt="...">
+  </a>
+</div>
+% endfor
+
+##<h3>Check Interferograms</h3>
+##% for t in times:
+##<div class="col-xs-6 col-md-3">
+##  <a href="${time_link[t]}" class="thumbnail">
+##    <img src="sourcespectrum_${t}_fft.png" alt="...">
+##  </a>
+##</div>
+##% endfor

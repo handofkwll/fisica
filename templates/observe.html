@@ -1,0 +1,77 @@
+<%inherit file="base.html"/>
+
+<!-- do the plotting -->
+<%
+import os.path
+import numpy as np
+import common.commonobjects as co
+
+observed_framework = context['data']['observe']['observed_framework']
+
+scans = []
+data = []
+
+for config in observed_framework:
+    if config.fts_start:
+
+        if data:
+            # finish previous scan
+            # construct Spectrum object
+            axis = co.Axis(data=np.array(opd),
+              title='optical path difference', units='cm')
+            scan = co.Spectrum(data=np.array(data), flag=np.array(flag),
+              axis=axis, title='Detected interferogram',
+              units='W sr-1 m-2 Hz-1')
+            scans.append((scan, baseline))
+
+        # ready for next scan
+        data = []
+        flag = []
+        opd = []
+
+    if config.data is not None:
+        data.append(config.data)
+        flag.append(False)
+    else:
+        data.append(0.0)
+        flag.append(True)
+    opd.append(2.0 * 100.0 * config.fts_position)
+    baseline = (config.baseline_x, config.baseline_y)
+
+# deal with last scan
+if data:
+    axis = co.Axis(data=np.array(opd), title='optical path difference',
+      units='cm')
+    scan = co.Spectrum(data=np.array(data), flag=np.array(flag),
+      axis=axis, title='Detected interferogram', units='W sr-1 m-2 Hz-1')
+    scans.append((scan, baseline))
+
+# do plots
+baseline_link = {}
+
+for scan in scans:
+    # construct a page with the plot
+    data,baseline = scan
+
+    filename = 'interferogram_%s_%s.html' % baseline
+    filename = filename.replace('-', 'm')
+    baseline_link[baseline] = filename
+    link = os.path.join(context['dirname'], filename)
+    with open(link, 'w') as f:
+        template = mylookup.get_template('sourcespectrum.html')
+        context_copy = context.kwargs
+        context_copy['sourceid'] = '_%s_%s_fft' % (baseline)
+        context_copy['spectrum'] = data
+        f.write(template.render(**context_copy))
+%>
+
+# write html links
+
+<h3>Baseline Interferograms</h3>
+% for baseline in baseline_link.keys():
+<div class="col-xs-6 col-md-3">
+  <a href="${baseline_link[baseline]}" class="thumbnail">
+    <img src="sourcespectrum_${baseline[0]}_${baseline[1]}_fft.png" alt="...">
+  </a>
+</div>
+% endfor

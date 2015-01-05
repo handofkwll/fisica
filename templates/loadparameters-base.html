@@ -1,0 +1,23 @@
+<%inherit file="base.html"/>
+
+    <div class="container">
+
+      <!-- Substage tabs -->
+      <ul class="nav nav-tabs">
+      % for stage in context['data'].items():
+          % if 'substages' in stage[1].keys():
+              % for substage in stage[1]['substages'].items():
+                  % if (stage[0] == context['renderstage']) and (substage[0] == context['rendersubstage']):
+        <li class="active"><a href="#">${substage[0]}</a></li>
+                  % else:
+        <li><a href="${stage[0]}-${substage[0]}.html">${substage[0]}</a></li>
+                  % endif
+              % endfor
+          % endif
+      % endfor
+      </ul>
+
+    </div> <!-- /container -->
+
+    <!--render the main body of the inheriting class-->
+    ${next.body()}

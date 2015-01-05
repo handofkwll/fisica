@@ -1,0 +1,62 @@
+<%inherit file="base.html"/>
+
+<%
+import collections
+import matplotlib.pyplot as plt
+import os.path
+
+mylookup = context['mylookup']
+
+beamsgenerator = context['data']['primarybeams']
+wavenumbers = beamsgenerator['primary beam'].keys()
+%>
+
+<h2>Beam Generation Parameters</h2>
+
+<div class="row-fluid">
+  <table class="table table-condensed">
+    <tbody>
+    % for k,v in beamsgenerator.items():
+        <!-- don't render complicated objects-->
+        % if not isinstance(v, collections.Iterable):
+        <tr>
+          <td>${k}</td>
+          <td>${v}</td>
+        </tr>
+        % endif
+    % endfor
+    </tbody>
+  </table>
+<div>
+
+<%
+# construct html pages with primary beam plots
+for wn in wavenumbers:
+    link = os.path.join(context['dirname'], 'primary_beam%s.html' % (wn))
+    with open(link, 'w') as f:
+        template = mylookup.get_template('beamplot.html')
+        context_copy = context.kwargs
+        context_copy['wn'] = wn
+        context_copy['stage'] = 'primarybeams'
+        context_copy['beamtype'] = 'primary beam'
+        f.write(template.render(**context_copy))
+%>
+
+<!-- link to the plot pages from this page -->
+
+<h3>Primary Beams</h3>
+<div class="row">
+% for wn in beamsgenerator['primary beam'].keys():
+    <% 
+    wnformatted = '%6.4gcm-1' % wn 
+    %>
+  <div class="col-xs-6 col-md-3">
+    <a href="primary_beam${wn}.html" class="thumbnail">
+      <img src="primary_beam${wn}.png" alt="...">
+      <div>
+        <h4>${wnformatted}</h4>
+      </div>
+    </a>
+  </div>
+% endfor
+</div>

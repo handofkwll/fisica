@@ -1,0 +1,90 @@
+<%inherit file="base.html"/>
+
+<%
+import collections
+import os.path
+
+skygenerator = context['data']['skygenerator']
+frequency_axis = skygenerator['frequency axis']
+sources = skygenerator['sources']
+%>
+
+<h2>Sky Model Parameters</h2>
+
+<div class="row-fluid">
+  <table class="table table-condensed">
+    <tbody>
+    % for k,v in skygenerator.items():
+        <!-- don't render complicated objects-->
+        % if not isinstance(v, collections.Iterable):
+        <tr>
+            <td>${k}</td>
+            <td>${v}</td>
+        </tr>
+        % endif
+    % endfor
+    </tbody>
+  </table>
+</div>
+
+<%
+# construct html pages with sky model plane plots
+for iwn,wn in enumerate(frequency_axis):
+    link = os.path.join(context['dirname'], 'skymodelplane%s.html' % (wn))
+    with open(link, 'w') as f:
+        template = mylookup.get_template('skymodelplane.html')
+        context_copy = context.kwargs
+        context_copy['wn'] = wn
+        context_copy['iwn'] = iwn
+        context_copy['stagename'] = 'skygenerator'
+        context_copy['resultname'] = 'sky model'
+        f.write(template.render(**context_copy))
+
+# construct html pages with model source spectra plots
+for sourceid in sources.keys():
+    link = os.path.join(context['dirname'], 'sourcespectrum%s.html' % (
+      sourceid))
+    with open(link, 'w') as f:
+        template = mylookup.get_template('sourcespectrum.html')
+        context_copy = context.kwargs
+        context_copy['sourceid'] = sourceid
+        context_copy['spectrum'] = context['data']['skygenerator']['sources']\
+          [sourceid]['spectrum']
+
+        f.write(template.render(**context_copy))
+%>
+
+<!-- link to the plot pages from this page -->
+
+<h3>Sky Model Planes</h3>
+<div class="row">
+% for wn in frequency_axis:
+    <%
+    wnformatted = '%6.4gcm-1' % wn
+    %>
+  <div class="col-xs-6 col-md-3">
+    <a href="skymodelplane${wn}.html" class="thumbnail">
+      <img src="sky_modelplane${wn}.png" alt="...">
+      <div>
+        <h4>${wnformatted}</h4>
+      </div>
+    </a>
+  </div>
+% endfor
+</div>
+
+% if sources:
+    <h3>Model Source Spectra</h3>
+    <div class="row">
+    % for sourceid in sources.keys():
+      <div class="col-xs-6 col-md-3">
+        <a href="sourcespectrum${sourceid}.html" class="thumbnail">
+          <img src="sourcespectrum${sourceid}.png" alt="...">
+          <div>
+            <h4>Source${sourceid}</h4>
+          </div>
+        </a>
+      </div>
+    % endfor
+    </div>
+% endif

@@ -1,0 +1,51 @@
+<%inherit file="base.html"/>
+
+<!-- do the plotting -->
+<%
+import matplotlib.pyplot as plt
+import os.path
+import string
+
+_valid_chars = "_.%s%s" % (string.ascii_letters, string.digits)
+
+def _char_replacer(s):
+    '''A small utility function that echoes the argument or returns '_' if the
+    argument is in a list of forbidden characters.
+    '''
+    if s not in _valid_chars:
+        return '_'
+    return s
+
+def sanitize(text):
+    filename = ''.join(_char_replacer(c) for c in text)
+    return filename
+
+
+plt.figure()
+
+wn = context['wn']
+stage = context['stage']
+beamtype = context['beamtype']
+
+beam_image = context['data'][stage][beamtype][wn]
+plt.imshow(beam_image.data, interpolation='nearest', origin='lower',
+  aspect='equal', extent=[beam_image.axes[0].data[0],
+  beam_image.axes[0].data[-1], beam_image.axes[1].data[0],
+  beam_image.axes[1].data[-1]])
+plt.axis('image')
+
+plt.colorbar(orientation='vertical')
+plt.xlabel(beam_image.axes[0].title)
+plt.ylabel(beam_image.axes[1].title)
+plt.title(beam_image.title)
+
+sane_beamtype = sanitize(beamtype)
+filename = '%s%s.png' % (sane_beamtype, wn)
+plt.savefig(os.path.join(context['dirname'], filename), dpi=300)
+plt.close()
+%>
+
+<!-- link to the plot from html -->
+
+<img src='${sane_beamtype}${wn}.png' alt="The beam should appear here">
+

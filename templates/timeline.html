@@ -1,0 +1,107 @@
+<%inherit file="base.html"/>
+
+<!-- do the plotting -->
+<%
+import os.path
+import numpy as np
+import collections
+import common.commonobjects as co
+
+timeline = context['data']['timeline']
+times = timeline['obs_framework'].keys()
+times.sort()
+
+baseline_configs = collections.defaultdict(list)
+
+for t in times:
+    config = timeline['obs_framework'][t]
+    b = (config.baseline_x, config.baseline_y, config.baseline_z)
+    baseline_configs[b].append(config)
+
+baselines = baseline_configs.keys()
+baselines.sort()      
+
+baseline_scans = {}
+baseline_pointing1_x = {}
+baseline_pointing1_y = {}
+baseline_pointing2_x = {}
+baseline_pointing2_y = {}
+
+for b in baselines:
+    obs_time = []
+    smec_position = []
+    integrate_flag = []
+    pointing1_x = []
+    pointing1_y = []
+    pointing2_x = []
+    pointing2_y = []
+    
+    for config in baseline_configs[b]:
+        obs_time.append(config.time)
+        smec_position.append(config.smec_position)
+        integrate_flag.append(config.integrate)
+        pointing1_x.append(config.pointing1_x)
+        pointing1_y.append(config.pointing1_y)
+        pointing2_x.append(config.pointing2_x)
+        pointing2_y.append(config.pointing2_y)
+
+    axis = co.Axis(data=np.array(obs_time),
+      title='Time', units='s')
+
+    scan = co.Spectrum(data=np.array(smec_position),
+      flag=np.array(integrate_flag), 
+      axis=axis, title='SMEC position', units='m')
+    baseline_scans[b] = scan
+
+    scan = co.Spectrum(data=np.array(pointing1_x), 
+      axis=axis, title='collector 1 x offset', units='arcsec')
+    baseline_pointing1_x[b] = scan
+
+    scan = co.Spectrum(data=np.array(pointing1_y), 
+      axis=axis, title='collector 1 y offset', units='arcsec')
+    baseline_pointing1_y[b] = scan
+
+    scan = co.Spectrum(data=np.array(pointing2_x), 
+      axis=axis, title='collector 2 x offset', units='arcsec')
+    baseline_pointing2_x[b] = scan
+
+    scan = co.Spectrum(data=np.array(pointing2_y), 
+      axis=axis, title='collector 2 y offset', units='arcsec')
+    baseline_pointing2_y[b] = scan
+
+# do plots
+baseline_link = {}
+
+for b in baselines:
+    # construct a page with the plot
+    root = 'baseline_config_%s_%s_%s' % (b)
+    root = root.replace('-', 'm')
+
+    htmlfile = '%s.html' % root
+    baseline_link[b] = htmlfile
+    link = os.path.join(context['dirname'], htmlfile)
+    with open(link, 'w') as f:
+        template = mylookup.get_template('scan.html')
+        context_copy = context.kwargs
+        context_copy['sourceid'] = root
+        context_copy['smec'] = baseline_scans[b]
+        context_copy['pointing1_x'] = baseline_pointing1_x[b]
+        context_copy['pointing1_y'] = baseline_pointing1_y[b]
+        context_copy['pointing2_x'] = baseline_pointing2_x[b]
+        context_copy['pointing2_y'] = baseline_pointing2_y[b]
+        f.write(template.render(**context_copy))
+%>
+
+# write html links
+
+<h3>Baseline Configuration Sequences</h3>
+% for b in baseline_link.keys():
+<div class="col-xs-6 col-md-3">
+  <%
+  plotname = baseline_link[b].replace('html', 'png')
+  %>
+  <a href="${baseline_link[b]}" class="thumbnail">
+    <img src="${plotname}" alt="...">
+  </a>
+</div>
+% endfor

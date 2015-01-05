@@ -1,0 +1,52 @@
+<%inherit file="base.html"/>
+
+<!-- do the plotting -->
+<%
+import matplotlib.pyplot as plt
+import os.path
+import numpy as np
+
+plt.figure()
+
+sourceid = context['sourceid']
+spectrum = context['spectrum']
+
+try:
+    xaxis_data = spectrum.axis.data
+except:
+    xaxis_data = np.arange(len(spectrum.data))
+
+# sometimes xaxis is not monotonic
+xaxis_sort = np.argsort(xaxis_data)
+
+try:
+    xaxis_title = spectrum.axis.title
+except:
+    xaxis_title = None
+
+try:
+    xaxis_units = spectrum.axis.units
+except:
+    xaxis_units = None
+    
+if spectrum.data.dtype==np.complex:
+    plt.plot(xaxis_data[xaxis_sort], spectrum.data.real[xaxis_sort],
+      color='blue')
+    plt.plot(xaxis_data[xaxis_sort], spectrum.data.imag[xaxis_sort],
+      color='red')
+    plt.figtext(0.2, 0.25, 'real', color='blue')
+    plt.figtext(0.2, 0.2, 'imag', color='red')
+else:
+    plt.plot(xaxis_data[xaxis_sort], spectrum.data[xaxis_sort])
+
+plt.title('Source %s' % sourceid)
+xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
+plt.xlabel(xlabel)
+
+plt.savefig(os.path.join(context['dirname'], 'sourcespectrum%s.png' % sourceid))
+plt.close()
+%>
+
+<!-- link to the plot from html -->
+
+<img src='sourcespectrum${sourceid}.png' alt="Source spectrum">

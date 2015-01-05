@@ -1,0 +1,30 @@
+<%inherit file="loadparameters-base.html"/>
+
+    <div class="row-fluid">
+      <table class="table table-condensed" summary="parameters">
+        <tbody>
+          <tr>
+          <%
+          renderstage = context['renderstage']
+          rendersubstage = context['rendersubstage']
+          %>
+          % for name in context['data'][renderstage]['substages'][rendersubstage].keys():
+            <th>${name}</th>
+          % endfor
+          </tr>
+          <%
+          table = context['data'][renderstage]['substages'][rendersubstage]
+          names = table.keys()
+          rows = table[names[0]].keys()
+          %>
+          % for row in rows:
+          <tr>
+              % for name in names:
+            <th>${table[name][row]}</th>
+              % endfor
+          </tr>
+          % endfor
+
+        </tbody>
+      </table>
+    <div>

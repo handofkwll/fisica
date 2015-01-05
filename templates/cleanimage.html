@@ -1,0 +1,41 @@
+<%inherit file="base.html"/>
+
+<!-- do the plotting -->
+<%
+import os.path
+import numpy as np
+import common.commonobjects as co
+
+cleanimage = context['data']['cleanimage']
+frequency_axis = cleanimage['wavenumber [cm-1]']
+
+# construct html pages with sky model plane plots
+for iwn,wn in enumerate(frequency_axis):
+    link = os.path.join(context['dirname'], 'cleanimageplane%s.html' % (wn))
+    with open(link, 'w') as f:
+        template = mylookup.get_template('cleanimageplane.html')
+        context_copy = context.kwargs
+        context_copy['wn'] = wn
+        context_copy['iwn'] = iwn
+        context_copy['stagename'] = 'cleanimage'
+        f.write(template.render(**context_copy))
+%>
+
+<!-- link to the plot pages from this page -->
+
+<h3>Clean Image Planes</h3>
+<div class="row">
+% for wn in frequency_axis:
+    <%
+    wnformatted = '%6.4gcm-1' % wn
+    %>
+  <div class="col-xs-6 col-md-3">
+    <a href="cleanimageplane${wn}.html" class="thumbnail">
+      <img src="cleanimageplane${wn}.png" alt="...">
+      <div>
+        <h4>${wnformatted}</h4>
+      </div>
+    </a>
+  </div>
+% endfor
+</div>

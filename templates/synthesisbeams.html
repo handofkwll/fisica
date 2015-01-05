@@ -1,0 +1,94 @@
+<%inherit file="base.html"/>
+
+<%
+import collections
+import matplotlib.pyplot as plt
+import os.path
+
+mylookup = context['mylookup']
+
+synthesisbeams = context['data']['synthesisbeams']
+wavenumbers = synthesisbeams['dirty beam'].keys()
+print wavenumbers
+%>
+
+<h2>Synthesis Beams Generation Parameters</h2>
+
+<div class="row-fluid">
+  <table class="table table-condensed">
+    <tbody>
+    % for k,v in synthesisbeams.items():
+        <!-- don't render complicated objects-->
+        % if not isinstance(v, collections.Iterable):
+        <tr>
+          <td>${k}</td>
+          <td>${v}</td>
+        </tr>
+        % endif
+    % endfor
+    </tbody>
+  </table>
+<div>
+
+<%
+# construct html pages with dirty beam plots
+print 'dirty beams'
+for wn in wavenumbers:
+    print wn
+    link = os.path.join(context['dirname'], 'dirty_beam%s.html' % (wn))
+    with open(link, 'w') as f:
+        template = mylookup.get_template('beamplot.html')
+        context_copy = context.kwargs
+        context_copy['wn'] = wn
+        context_copy['stage'] = 'synthesisbeams'
+        context_copy['beamtype'] = 'dirty beam'
+        f.write(template.render(**context_copy))
+
+# construct html pages with clean beam plots
+print 'clean beams'
+for wn in wavenumbers:
+    link = os.path.join(context['dirname'], 'clean_beam%s.html' % (wn))
+    with open(link, 'w') as f:
+        template = mylookup.get_template('beamplot.html')
+        context_copy = context.kwargs
+        context_copy['wn'] = wn
+        context_copy['stage'] = 'synthesisbeams'
+        context_copy['beamtype'] = 'clean beam'
+        f.write(template.render(**context_copy))
+%>
+
+<!-- link to the plot pages from this page -->
+
+<h3>Dirty Beams</h3>
+<div class="row">
+% for wn in context['data']['synthesisbeams']['dirty beam'].keys():
+    <% 
+    wnformatted = '%6.4gcm-1' % wn 
+    %>
+  <div class="col-xs-6 col-md-3">
+    <a href="dirty_beam${wn}.html" class="thumbnail">
+      <img src="dirty_beam${wn}.png" alt="...">
+      <div>
+        <h4>${wnformatted}</h4>
+      </div>
+    </a>
+  </div>
+% endfor
+</div>
+
+<h3>Clean Beams</h3>
+<div class="row">
+% for wn in context['data']['synthesisbeams']['clean beam'].keys():
+    <% 
+    wnformatted = '%6.4gcm-1' % wn 
+    %>
+  <div class="col-xs-6 col-md-3">
+    <a href="clean_beam${wn}.html" class="thumbnail">
+      <img src="clean_beam${wn}.png" alt="...">
+      <div>
+        <h4>${wnformatted}</h4>
+      </div>
+    </a>
+  </div>
+% endfor
+</div>

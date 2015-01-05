@@ -1,0 +1,75 @@
+<%inherit file="base.html"/>
+
+<!-- do the plotting -->
+<%
+import matplotlib.pyplot as plt
+import numpy as np
+import os.path
+import string
+
+_valid_chars = "_.%s%s" % (string.ascii_letters, string.digits)
+
+def _char_replacer(s):
+    '''A small utility function that echoes the argument or returns '_' if the
+    argument is in a list of forbidden characters.
+    '''
+    if s not in _valid_chars:
+        return '_'
+    return s
+
+def sanitize(text):
+    filename = ''.join(_char_replacer(c) for c in text)
+    return filename
+
+
+plt.figure()
+
+iwn = context['iwn']
+stagename = context['stagename']
+resultname = context['resultname']
+
+sky_image = context['data'][stagename][resultname][:,:,iwn]
+spatial_axis = context['data'][stagename]['spatial axis']
+wn = context['wn'] 
+
+if sky_image.dtype==np.complex:
+    plt.subplot(211)
+    plt.imshow(sky_image.real, interpolation='nearest', origin='lower',
+      aspect='equal', extent=[spatial_axis[0], spatial_axis[-1],
+      spatial_axis[0], spatial_axis[-1]])
+#      vmax=np.max(sky_image.real)*1.1,
+#      vmin=np.min(sky_image.real)*0.9)
+    plt.colorbar(orientation='vertical')
+    plt.axis('image')
+    plt.title('Sky model real %6.4gcm-1' % wn)
+
+    plt.subplot(212)
+    plt.imshow(sky_image.imag, interpolation='nearest', origin='lower',
+      aspect='equal', extent=[spatial_axis[0], spatial_axis[-1],
+      spatial_axis[0], spatial_axis[-1]])
+#      vmax=np.max(sky_image.imag)*1.1,
+#      vmin=np.min(sky_image.imag)*0.9)
+    plt.colorbar(orientation='vertical')
+    plt.axis('image')
+    plt.title('Sky model imag %6.4gcm-1' % wn)
+
+else:
+    plt.imshow(sky_image, interpolation='nearest', origin='lower',
+      aspect='equal', extent=[spatial_axis[0], spatial_axis[-1],
+      spatial_axis[0], spatial_axis[-1]])
+#      vmax=np.max(sky_image)*1.1,
+#      vmin=np.min(sky_image)*0.9)
+    plt.colorbar(orientation='vertical')
+    plt.axis('image')
+    plt.title('Sky model real %6.4gcm-1' % wn)
+
+filename = '%splane%s.png' % (resultname, wn)
+filename = sanitize(filename)
+filename = os.path.join(context['dirname'], filename)
+plt.savefig(filename)
+plt.close()
+%>
+
+<!-- link to the plot from html -->
+
+<img src='${os.path.basename(filename)}' alt="The sky model should appear here<br>">

@@ -1,0 +1,43 @@
+<%inherit file="base.html"/>
+
+<!-- do the plotting -->
+<%
+import matplotlib.pyplot as plt
+import os.path
+
+fig, ax = plt.subplots()
+bxby = context['data']['uvmapgenerator']['bxby']
+ax.plot(list(bxby[:,0]) + list(-bxby[:,0]), list(bxby[:,1]) + list(-bxby[:,1]),
+  'go')
+ax.grid()
+plt.xlabel('u (m)')
+plt.ylabel('v (m)')
+plt.title('u-v plane')
+ax.axis('equal')
+
+plt.savefig(os.path.join(context['dirname'], 'uvmap.png'))
+plt.close()
+%>
+
+    <div class="row-fluid">
+      <table class="table table-condensed" summary="FTS parameters">
+        <tbody>
+          <%
+          uvmap = context['data']['uvmapgenerator']
+          %>
+          % for k,v in uvmap.items():
+             <!-- don't render large arrays-->
+             % if k not in ['bxby', 'obs_framework']:
+          <tr>
+            <td>${k}</td>
+            <td>${v}</td>
+          </tr>
+             % endif
+          % endfor
+        </tbody>
+      </table>
+    <div>
+
+<!-- link to the plot from html -->
+
+<img src='uvmap.png' alt="The UV map should appear here">

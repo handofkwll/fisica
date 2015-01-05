@@ -1,0 +1,60 @@
+<%inherit file="base.html"/>
+
+<!-- do the plotting -->
+<%
+import matplotlib.pyplot as plt
+import os.path
+import numpy as np
+
+plt.figure()
+
+sourceid = context['sourceid']
+smec = context['smec']
+pointing1_x = context['pointing1_x']
+pointing1_y = context['pointing1_y']
+pointing2_x = context['pointing2_x']
+pointing2_y = context['pointing2_y']
+
+try:
+    xaxis_data = smec.axis.data
+except:
+    xaxis_data = np.arange(len(smec.data))
+
+# sometimes xaxis is not monotonic
+xaxis_sort = np.argsort(xaxis_data)
+
+try:
+    xaxis_title = smec.axis.title
+except:
+    xaxis_title = None
+
+try:
+    xaxis_units = smec.axis.units
+except:
+    xaxis_units = None
+
+plt.subplot(211)
+plt.plot(xaxis_data[xaxis_sort][smec.flag[xaxis_sort]],
+  smec.data[xaxis_sort][smec.flag[xaxis_sort]], 'g.')
+plt.plot(xaxis_data[xaxis_sort][smec.flag[xaxis_sort]==False],
+  smec.data[xaxis_sort][smec.flag[xaxis_sort]==False], 'r.')
+plt.title('SMEC position')
+xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
+plt.xlabel(xlabel)
+
+plt.subplot(212)
+plt.plot(xaxis_data[xaxis_sort], pointing1_x.data[xaxis_sort])
+plt.plot(xaxis_data[xaxis_sort], pointing1_y.data[xaxis_sort])
+plt.plot(xaxis_data[xaxis_sort], pointing2_x.data[xaxis_sort])
+plt.plot(xaxis_data[xaxis_sort], pointing2_y.data[xaxis_sort])
+plt.title('Collectors Pointing')
+xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
+plt.xlabel(xlabel)
+
+plt.savefig(os.path.join(context['dirname'], '%s.png' % sourceid))
+plt.close()
+%>
+
+<!-- link to the plot from html -->
+
+<img src='${sourceid}.png' alt="Scan configuration">

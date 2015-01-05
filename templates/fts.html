@@ -1,0 +1,17 @@
+<%inherit file="base.html"/>
+
+    <div class="row-fluid">
+      <table class="table table-condensed" summary="FTS parameters">
+        <tbody>
+          <%
+          fts = context['data']['fts']
+          %>
+          % for k,v in fts.items():
+          <tr>
+            <td>${k}</td>
+            <td>${v}</td>
+          </tr>
+          % endfor
+        </tbody>
+      </table>
+    <div>
