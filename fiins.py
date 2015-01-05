@@ -18,7 +18,7 @@ import uvmapgenerator
 import uvspectra
 
 
-class Fiins(object):
+class pyfiins(object):
     """FISICA simulator.
     """
     def __init__(self, sky_spreadsheet='SkySparams.xlsx', sky_sheet='1point'):
@@ -29,7 +29,7 @@ class Fiins(object):
         # start parallel python (pp), find the number of CPUS available
         ppservers = ()
         self.job_server = pp.Server(ppservers=ppservers)
-        print 'fiins starting pp with %s workers' % \
+        print 'pyfiins starting pp with %s workers' % \
           self.job_server.get_ncpus()
 
     def simulate(self):
