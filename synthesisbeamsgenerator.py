@@ -5,52 +5,75 @@ import numpy as np
 
 import common.commonobjects as co
 
-def calculate_dirty_beam(npix, pixsize, wn, mult, bxbylist):
+def calculate_synthesis_beams(npix, pixsize, wn, bxbylist):
+    """Routine to calculate the dirty and clean beams on a 
+    sky map with npix x npix pixels of specified pixsize.
+    
+    npix      - x, y dim of square sky map
+    pixsize   - pixel size of sky map (radians)
+    wn        - wavenumber of observation (cm-1)
+    bxbylist  - list of baselines observed. Each baseline
+                stored as a tuple (bx, by) (metres)
+
+    returns:    
+    dirty_beam - npix by npix numpy array with dirty beam.
+    clean_beam - npix by npix numpy array with clean beam.
+
+    The dirty beam is constructed by calculating the Fourier
+    transform of the input list of measured baselines.
+
+    A Gaussian is fitted to the centre of the dirty beam and
+    the clean beam constructed from the fitted parameters.
+    """
+
     lamb = 1.0 / (wn * 100.0)
 
     # maximum baseline in the UV plane corresponds to the cube pixsize
     # at this wavelength
     maxbx = lamb / (2.0 * pixsize)
 
-    # oversample UV plane by factor 'mult' to reduce aliasing    
-    uv = numpy.zeros([mult*npix, mult*npix])
+    dirty_beam = numpy.zeros([npix, npix])
 
-    # populate uv plane with measured baselines
+    # get grid indices relative to centre of array [npix/2, npix/2]
+    grid = numpy.indices((npix, npix))
+    grid -= (npix/2 - 1)
+
+    # build up Fourier transform by coadding cosines corresponding to
+    # each baseline in the uv plane
     rpix = npix / 2
     for bxby in bxbylist:
-        ibx = int(round((bxby[0] / maxbx) * mult * rpix))
-        if ibx < 0:
-            ibx = mult*npix + ibx 
-        iby = int(round((bxby[1] / maxbx) * mult * rpix))
-        if iby < 0:
-            iby = mult*npix + iby 
-        uv[ibx,iby] = 1.0 
 
-    # fft the uv plane to get the dirty beam, shift beam centre from
-    # 0,0 to array centre
-    temp = numpy.fft.fft2(uv)
-    temp = numpy.fft.fftshift(temp)
+        # Used following to test algorithm. This baseline should
+        # produce a cosine wave with 1 cycle covering the x extent
+        # of the image.
+        #bxby = (lamb / (2.0 * rpix * pixsize), 0.0)
 
-    # calculate normalised intensity beam
-    temp *= numpy.conjugate(temp)
-    dirty_beam = numpy.abs(temp)
+        # length and angle of baseline relative to x axis
+        length = numpy.sqrt(bxby[0]**2 + bxby[1]**2) / maxbx
+        theta = numpy.arctan2(bxby[1], bxby[0])
+
+        contribution = grid[1] * numpy.cos(theta) + grid[0] * numpy.sin(theta)
+        contribution = numpy.cos(contribution * numpy.pi * length)
+
+        dirty_beam += contribution
+
+    # normalise
     dirty_beam /= numpy.max(dirty_beam)
 
-    # truncate beam pattern
-    dirty_beam = dirty_beam[
-      (mult-1)*rpix:(mult+1)*rpix, (mult-1)*rpix:(mult+1)*rpix]
+    # debug prints to show centre of beam - should be 1.0 at [npix/2-1,npix/2-1].
+    #centre = npix/2-1
+    #print dirty_beam[centre-1:centre+2, centre-1:centre+2]
 
-    # fit Gaussian to dirty beam
+    # fit Gaussian to centre of dirty beam and use this as the 'clean beam'
     shape = numpy.shape(dirty_beam)
     fitter = fitgaussian.FitGaussian()
     dirty_centre = numpy.array(dirty_beam[shape[0]/2-5:shape[0]/2+5,
       shape[1]/2-5:shape[1]/2+5])
     p = fitter.fitgaussian(dirty_centre)
 
-    # clean beam
+    # construct the clean beam
     cp = (1.0, float(shape[0])/2.0, float(shape[1])/2.0, p[3], p[4], p[5])
     rotgauss = fitter.gaussian(*cp)
-    bmax = numpy.max(dirty_beam)
     clean_beam = numpy.fromfunction(rotgauss, numpy.shape(dirty_beam))
 
     return dirty_beam, clean_beam
@@ -66,7 +89,7 @@ class SynthesisBeamsGenerator(object):
         self.job_server = job_server
 
     def run(self):
-        print 'Calculating synthesis dirty beam...'
+        print 'Calculating synthesis dirty beam and clean beam...'
 
         # gather configuration 
         uvmapgen = self.previous_results['uvmapgenerator']
@@ -83,11 +106,9 @@ class SynthesisBeamsGenerator(object):
         axis3 = co.Axis(data=wn, title='Frequency', units='cm-1')
 
         # calculate beam for each wavenumber in 'wn'
-        # oversample uv grid by mult to minimise aliasing
         rpix = npix / 2
-        mult = 5
-        mx,my = np.meshgrid(np.arange(-mult*rpix, mult*rpix),
-          np.arange(-mult*rpix, mult*rpix))
+
+        mx,my = np.meshgrid(np.arange(-rpix, rpix), np.arange(-rpix, rpix))
         self.result['dirty beam'] = collections.OrderedDict()
         self.result['clean beam'] = collections.OrderedDict()
 
@@ -96,20 +117,17 @@ class SynthesisBeamsGenerator(object):
         wnmax = np.max(wn)
         for wavenum in wn:
             #
-            # 1. uv plane covered by discrete points so should use a
-            # slow dft rather than fft, which requires evenly spaced
-            # samples. Perhaps a bit slow though as calcs done in Python
-            # layer.
-            # 2. Could use shift theorem to give even-spaced equivalent
-            # of each discrete point, then use ffts. Equivalent to 1
-            # in speed.
-            # 3. Oversample uv plane and accept small error in point
-            # positions. Fastest but adequate?
-            indata = (npix, pixsize, wavenum, mult, uvmapgen['bxby'],)
-            jobs[wavenum] = self.job_server.submit(calculate_dirty_beam,
-              indata, (), ('numpy','fitgaussian',))
+            # Submit pp calls to calculate_synthesis_beams to calculate
+            # the results.
+            indata = (npix, pixsize, wavenum, uvmapgen['bxby'],)
+            jobs[wavenum] = self.job_server.submit(
+              calculate_synthesis_beams, indata, (),
+              ('numpy','fitgaussian',))
 
         for wavenum in wn:
+            if jobs[wavenum]() is None:
+                raise Exception, 'calculate_synthesis_beams has failed'
+
             dirty_beam,clean_beam = jobs[wavenum]()
             image = co.Image(data=dirty_beam, axes=[axis1, axis2],
               title='Dirty Beam %06.4g cm-1' % wavenum)
@@ -121,5 +139,5 @@ class SynthesisBeamsGenerator(object):
         return self.result
 
     def __repr__(self):
-        return 'PrimaryBeamGenerator'
+        return 'SynthesisBeamsGenerator'
 
