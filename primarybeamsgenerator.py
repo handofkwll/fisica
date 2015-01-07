@@ -5,47 +5,86 @@ import numpy as np
 
 import common.commonobjects as co
 
-def calculate_primary_beam(npix, pixsize, m1_diameter, wn,):
+def calculate_primary_beam(npix, pixsize, m1_diameter, wn, nuv,):
+    """Routine to calculate the primary beams on a 
+    sky map with npix x npix pixels of specified pixsize.
+    
+    npix        - x, y dim of square sky map
+    pixsize     - pixel size of sky map (radians)
+    m1_diameter - Diameter of the flux collector primary
+                  mirrors (metres).
+    wn          - wavenumber of observation (cm-1)
+    nuv         - the number of pixels per mirror radius used to 'sample'
+                  the uv plane.
+
+    returns:    
+    primary_beam - npix by npix numpy complex array with amplitude
+                   primary beam.
+
+    The primary beam is constructed by calculating the Fourier
+    transform of the primary mirror amplitude/phase profile.
+    """
+
+    lamb = 1.0 / (wn * 100.0)
+
     # maximum baseline in the UV plane corresponds to the cube pixsize
     # at this wavelength
-    lamb = 1.0 / (wn * 100.0)
-    bmax = lamb / (2.0 * pixsize)
+    maxbx = lamb / (2.0 * pixsize)
 
-    # Oversample UV plane by factor 'mult' to reduce aliasing.
-    mult = 5
+    primary_amplitude_beam = numpy.zeros([npix, npix], dtype=numpy.complex)
 
-    # Fill uv plane appropriate to primary size, assume
-    # uniform illumination
+    # get grid indices relative to centre of array [npix/2-1, npix/2-1]
+    grid = numpy.indices((npix, npix))
+    grid -= (npix/2 - 1)
+
+    # build up Fourier transform by coadding cosines corresponding to
+    # each baseline in the uv plane
     rpix = npix / 2
-    mirror = numpy.zeros([mult*npix, mult*npix])
-    phase = numpy.zeros([mult*npix, mult*npix])
-    radius = int((0.5 * m1_diameter / bmax) * mult * rpix) + 1
-    # numpy array -ve indexing convenient when mirror centred at array origin.
-    # Limiting range of of mx and my for efficiency.
-    for mx in range(-radius-5, radius+5):
-        for my in range(-radius-5,radius+5):
-            if mx*mx + my*my < radius * radius:
-                rho = math.sqrt(mx*mx + my*my) / radius
-                phi = math.atan2(float(my), float(mx))
-                mirror[mx,my] = 1.0
-#                phase[mx,my] = zernike.zernike(0, 2, rho, phi, norm=False)
 
-    # do a 2d ftt to get primary beam pattern
-    temp = numpy.fft.fft2(mirror)
-#    temp = phase
+    # uv radius in metres
+    radius = 0.5 * m1_diameter
 
-    # truncate primary beam pattern and shift to array centre
-    primary_amplitude_beam = numpy.zeros([npix, npix], numpy.complex)
-    for mx in range(-rpix, rpix):
-        for my in range(-rpix,rpix):
-            primary_amplitude_beam[rpix+mx,rpix+my] = temp[mx,my]
+    # construct a list of 'baselines' covered by the primary mirror.
+    # Only baselines in the first quadrant - others are included by
+    # symmetry.
+    bxbylist = []
+    for mx in range(nuv):
+        bx = radius * float(mx) / float(nuv - 1)
+        for my in range(nuv):
+            by = radius * float(my) / float(nuv - 1)
+            if bx**2 + by**2 < radius**2:
+                bxbylist.append((bx, by))
+
+    # Calculate the Fourier transform.
+    for bxby in bxbylist:
+
+        # Used following to test algorithm. This baseline should
+        # produce a cosine wave with 1 cycle covering the x extent
+        # of the image.
+        #bxby = (lamb / (2.0 * rpix * pixsize), 0.0)
+
+        # length and angle of baseline relative to x axis
+        length = numpy.sqrt(bxby[0]**2 + bxby[1]**2) / maxbx
+        theta = numpy.arctan2(bxby[1], bxby[0])
+
+        contribution = grid[1] * numpy.cos(theta) + grid[0] * numpy.sin(theta)
+        contribution = numpy.cos(contribution * numpy.pi * length)
+
+        primary_amplitude_beam += contribution
+
+        # baselines are symmetric in x so coadd the x 'mirror' of
+        # 'contribution' as well.
+
+        primary_amplitude_beam += contribution[::-1]
 
     # normalise 
-    primary_amplitude_beam /= numpy.max(primary_amplitude_beam)
+    primary_amplitude_beam /= numpy.max(primary_amplitude_beam.real)
 
     return primary_amplitude_beam
 
 def zernike1(i, j, m, n):
+    """Routine to calculate a zernike polunomial. NOT USED YET.
+    """
     ii = np.ravel(i)
     jj = np.ravel(j)
     for k in range(len(ii)):
@@ -60,6 +99,8 @@ class PrimaryBeamsGenerator(object):
         self.previous_results = previous_results
         self.result = collections.OrderedDict()
         self.job_server = job_server
+
+        self.nuv = 15
 
     def run(self):
         print 'Calculating primary beams...'
@@ -88,7 +129,7 @@ class PrimaryBeamsGenerator(object):
 
         for wavenum in wn:
             # submit jobs
-            indata = (npix, pixsize, m1_diameter, wavenum,)
+            indata = (npix, pixsize, m1_diameter, wavenum, self.nuv,)
             jobs[wavenum] = self.job_server.submit(calculate_primary_beam,
               indata, (), ('numpy', 'math', 'zernike',))
 
@@ -99,6 +140,9 @@ class PrimaryBeamsGenerator(object):
         primary_amplitude_beam = np.zeros([npix,npix,len(wn)],
           np.complex)
         for iwn,wavenum in enumerate(wn):
+            if jobs[wavenum]() is None:
+                raise Exception, 'calculate_primary_beams has failed'
+
             primary_amplitude_beam[:,:,iwn] = temp = jobs[wavenum]()
             primary_intensity_beam = (temp * np.conjugate(temp)).real
             image = co.Image(data=primary_intensity_beam, axes=[axis1, axis2],
@@ -112,5 +156,9 @@ class PrimaryBeamsGenerator(object):
         return self.result
 
     def __repr__(self):
-        return 'PrimaryBeamsGenerator'
+
+        return '''
+PrimaryBeamsGenerator:
+  nuv : {nuv}
+'''.format(nuv=self.nuv)
 
