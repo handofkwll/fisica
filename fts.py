@@ -26,11 +26,16 @@ class FTS(object):
         # read params from FTSMechanical sheet
         ftsparm = parameters['substages']['FTSMechanical']
         row = ftsparm['V drive [cm/s]'].keys()[0]
-        self.result['vdrive'] = ftsparm['V drive [cm/s]'][row]
+        self.result['smec_velocity'] = smec_velocity = \
+          ftsparm['V drive [cm/s]'][row]
+        self.result['smec_verror_type'] = ftsparm['V error type'][row]
+        self.result['nscans'] = int(ftsparm['Nscans'][row])
+        self.result['smec_interscan_duration'] = \
+          ftsparm['Interscan delay [s]'][row]
 
         # derived parameters
         self.result['delta_wn'] = delta_wn = wnmin / specres
-        self.result['delta_opd'] = 1.0 / (2.0 * wnmax * 100.0)
+        self.result['delta_opd'] = 1.0 / (2.0 * wnmax)
         # number of unaliased spectral points
         nspec = int(np.ceil(wnmax / delta_wn)) + 1
         # fts_nsample symmetric about 0 opd
@@ -50,10 +55,8 @@ class FTS(object):
         # smec parameters
         self.result['smec_opd_to_mpd'] = smec_opd_to_mpd = 4.0
         self.result['smec_start'] = smec_start = -opd_max / smec_opd_to_mpd
-        self.result['smec_scan_duration'] = smec_scan_duration = 10.0
-        # scan symmetric about smec 0
-        self.result['smec_velocity'] = 2.0 * abs(smec_start) / smec_scan_duration
-        self.result['smec_interscan_duration'] = 1.0
+        self.result['smec_scan_duration'] = smec_scan_duration = \
+          2.0 * abs(smec_start) / smec_velocity
     
     def run(self):
         #print 'FTS.run'        
@@ -69,6 +72,10 @@ FTS:
   delta opd: {delta_opd}
   nsample  : {nsample}
   max opd  : {opd_max}
+  v drive  : {vdrive}
+  v error  : {verror}
+  nscans   : {nscans}
+  interscan: {interscan}
 '''.format(
           wnmin=self.result['wnmin'],
           wnmax=self.result['wnmax'],
@@ -76,5 +83,9 @@ FTS:
           delta_wn=self.result['delta_wn'],
           delta_opd=self.result['delta_opd'],
           nsample=self.result['fts_nsample'],
-          opd_max=self.result['opd_max'])
+          opd_max=self.result['opd_max'],
+          vdrive=self.result['smec_velocity'],
+          verror=self.result['smec_verror_type'],
+          nscans=self.result['nscans'],
+          interscan=self.result['smec_interscan_duration'])
 
