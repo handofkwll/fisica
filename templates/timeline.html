@@ -1,6 +1,6 @@
 <%inherit file="base.html"/>
 
-<!-- Template for 'timeline' weblog display -->
+<!-- Template for production of 'timeline' weblog' -->
 
 <!-- do the plotting -->
 <%
@@ -9,13 +9,13 @@ import numpy as np
 import collections
 import common.commonobjects as co
 
-# access the timeline data in mako context
+# Get the timeline data from mako context
 timeline = context['data']['timeline']
 times = timeline['obs_framework'].keys()
 times.sort()
 
-# construct a dict holding lists of the configurations for each
-# baseline observed
+# Construct a dict holding lists of configurations for each
+# baseline observed
 baseline_configs = collections.defaultdict(list)
 
 for t in times:
@@ -26,7 +26,8 @@ for t in times:
 baselines = baseline_configs.keys()
 baselines.sort()      
 
-# construct lists of each configuration element for each baseline
+# for each baseline construct a set of data objects for each 
+# configuration element 
 baseline_scans = {}
 baseline_scans_error = {}
 baseline_pointing1_x = {}
@@ -56,7 +57,7 @@ for b in baselines:
         pointing2_x.append(config.pointing2_x)
         pointing2_y.append(config.pointing2_y)
 
-    # construct objects to be plotted
+    # Construct objects to be plotted
     axis = co.Axis(data=np.array(obs_time),
       title='Time', units='s')
 
@@ -87,9 +88,9 @@ for b in baselines:
       axis=axis, title='collector 2 y offset', units='arcsec')
     baseline_pointing2_y[b] = scan
 
-# do plots
 baseline_link = {}
 
+# plot the data objects for each baseline
 for b in baselines:
     # construct a page with the plot
     root = 'baseline_config_%s_%s_%s' % (b)
