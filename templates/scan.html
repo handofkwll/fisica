@@ -8,41 +8,32 @@ import numpy as np
 
 plt.figure()
 
-# read data from mako context
 sourceid = context['sourceid']
 smec = context['smec']
-smec_vel_error = context['smec_vel_error']
 pointing1_x = context['pointing1_x']
 pointing1_y = context['pointing1_y']
 pointing2_x = context['pointing2_x']
 pointing2_y = context['pointing2_y']
 
-# plot the smec position versus time
 try:
     xaxis_data = smec.axis.data
 except:
     xaxis_data = np.arange(len(smec.data))
+
+# sometimes xaxis is not monotonic
 xaxis_sort = np.argsort(xaxis_data)
 
 try:
     xaxis_title = smec.axis.title
 except:
     xaxis_title = None
+
 try:
     xaxis_units = smec.axis.units
 except:
     xaxis_units = None
 
-try:
-    title = smec.title
-except:
-    title = None
-try:
-    units = smec.units
-except:
-    units = None
-
-ax = plt.subplot(321)
+plt.subplot(211)
 plt.plot(xaxis_data[xaxis_sort][smec.flag[xaxis_sort]],
   smec.data[xaxis_sort][smec.flag[xaxis_sort]], 'g.')
 plt.plot(xaxis_data[xaxis_sort][smec.flag[xaxis_sort]==False],
@@ -50,138 +41,15 @@ plt.plot(xaxis_data[xaxis_sort][smec.flag[xaxis_sort]==False],
 plt.title('SMEC position')
 xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
 plt.xlabel(xlabel)
-ylabel = ' '.join([v for v in [title, units] if v is not None])
-plt.ylabel(ylabel)
 
-# Use small font so that subplots do not overwrite each other
-for item in (
-  [ax.title,
-  ax.xaxis.label,
-  ax.yaxis.label] +
-  ax.get_xticklabels() +
-  ax.get_yticklabels()):
-    item.set_fontsize(8)
-
-# plot the smec vel error versus time
-try:
-    xaxis_data = smec_vel_error.axis.data
-except:
-    xaxis_data = np.arange(len(smec_vel_error.data))
-xaxis_sort = np.argsort(xaxis_data)
-
-try:
-    xaxis_title = smec_vel_error.axis.title
-except:
-    xaxis_title = None
-try:
-    xaxis_units = smec_vel_error.axis.units
-except:
-    xaxis_units = None
-
-try:
-    title = smec_vel_error.title
-except:
-    title = None
-try:
-    units = smec_vel_error.units
-except:
-    units = None
-
-ax = plt.subplot(322)
-plt.plot(xaxis_data[xaxis_sort][smec_vel_error.flag[xaxis_sort]],
-  smec_vel_error.data[xaxis_sort][smec_vel_error.flag[xaxis_sort]], 'g.')
-plt.plot(xaxis_data[xaxis_sort][smec_vel_error.flag[xaxis_sort]==False],
-  smec_vel_error.data[xaxis_sort][smec_vel_error.flag[xaxis_sort]==False], 'r.')
-plt.title('SMEC vel error')
-xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
-plt.xlabel(xlabel)
-ylabel = ' '.join([v for v in [title, units] if v is not None])
-plt.ylabel(ylabel)
-
-for item in (
-  [ax.title,
-  ax.xaxis.label,
-  ax.yaxis.label] +
-  ax.get_xticklabels() +
-  ax.get_yticklabels()):
-    item.set_fontsize(8)
-
-# plot collector pointing errors versus time
-title = 'pointing error'
-try:
-    units = pointing1_x.units
-except:
-    units = None
-
-ax = plt.subplot(323)
+plt.subplot(212)
 plt.plot(xaxis_data[xaxis_sort], pointing1_x.data[xaxis_sort])
 plt.plot(xaxis_data[xaxis_sort], pointing1_y.data[xaxis_sort])
 plt.plot(xaxis_data[xaxis_sort], pointing2_x.data[xaxis_sort])
 plt.plot(xaxis_data[xaxis_sort], pointing2_y.data[xaxis_sort])
-plt.title('Collector Pointing - v time')
+plt.title('Collectors Pointing')
 xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
 plt.xlabel(xlabel)
-ylabel = ' '.join([v for v in [title, units] if v is not None])
-plt.ylabel(ylabel)
-
-for item in (
-  [ax.title,
-  ax.xaxis.label,
-  ax.yaxis.label] +
-  ax.get_xticklabels() +
-  ax.get_yticklabels()):
-    item.set_fontsize(8)
-
-# plot collector pointing errors on 2d display
-ax = plt.subplot(324)
-plt.plot(pointing1_x.data, pointing1_y.data)
-plt.plot(pointing2_x.data, pointing2_y.data)
-plt.title('Collector Pointing - 2d')
-xlabel = 'x offset [%s]' % units
-plt.xlabel(xlabel)
-ylabel = 'y offset [%s]' % units
-plt.ylabel(ylabel)
-# make axes square
-ax.set_aspect('equal')
-
-for item in (
-  [ax.title,
-  ax.xaxis.label,
-  ax.yaxis.label] +
-  ax.get_xticklabels() +
-  ax.get_yticklabels()):
-    item.set_fontsize(8)
-
-# plot histograms of pointing errors, same bins for all
-# axes.
-minx1 = np.min(pointing1_x.data)
-miny1 = np.min(pointing1_y.data)
-minx2 = np.min(pointing2_x.data)
-miny2 = np.min(pointing2_y.data)
-mind = min(minx1, miny1, minx2, miny2)
-maxx1 = np.max(pointing1_x.data)
-maxy1 = np.max(pointing1_y.data)
-maxx2 = np.max(pointing2_x.data)
-maxy2 = np.max(pointing2_y.data)
-maxd = max(maxx1, maxy1, maxx2, maxy2)
-
-ax = plt.subplot(325)
-plt.hist(pointing1_x.data, range=(mind, maxd), alpha=0.5)
-plt.hist(pointing1_y.data, range=(mind, maxd), alpha=0.5)
-plt.hist(pointing2_x.data, range=(mind, maxd), alpha=0.5)
-plt.hist(pointing2_y.data, range=(mind, maxd), alpha=0.5)
-plt.title('Collector Pointing - histograms')
-
-for item in (
-  [ax.title,
-  ax.xaxis.label,
-  ax.yaxis.label] +
-  ax.get_xticklabels() +
-  ax.get_yticklabels()):
-    item.set_fontsize(8)
-
-# adjust subplot spacing to remove overlaps
-plt.tight_layout()
 
 plt.savefig(os.path.join(context['dirname'], '%s.png' % sourceid))
 plt.close()
