@@ -1,5 +1,7 @@
 <%inherit file="base.html"/>
 
+<!-- Template for production of 'timeline' weblog' -->
+
 <!-- do the plotting -->
 <%
 import os.path
@@ -7,10 +9,13 @@ import numpy as np
 import collections
 import common.commonobjects as co
 
+# Get the timeline data from mako context
 timeline = context['data']['timeline']
 times = timeline['obs_framework'].keys()
 times.sort()
 
+# Construct a dict holding lists of configurations for each
+# baseline observed
 baseline_configs = collections.defaultdict(list)
 
 for t in times:
@@ -21,7 +26,10 @@ for t in times:
 baselines = baseline_configs.keys()
 baselines.sort()      
 
+# for each baseline construct a set of data objects for each 
+# configuration element 
 baseline_scans = {}
+baseline_scans_error = {}
 baseline_pointing1_x = {}
 baseline_pointing1_y = {}
 baseline_pointing2_x = {}
@@ -30,6 +38,8 @@ baseline_pointing2_y = {}
 for b in baselines:
     obs_time = []
     smec_position = []
+    smec_nominal_position = []
+    smec_vel_error = []
     integrate_flag = []
     pointing1_x = []
     pointing1_y = []
@@ -39,19 +49,28 @@ for b in baselines:
     for config in baseline_configs[b]:
         obs_time.append(config.time)
         smec_position.append(config.smec_position)
+        smec_nominal_position.append(config.smec_nominal_position)
+        smec_vel_error.append(config.smec_vel_error)
         integrate_flag.append(config.integrate)
         pointing1_x.append(config.pointing1_x)
         pointing1_y.append(config.pointing1_y)
         pointing2_x.append(config.pointing2_x)
         pointing2_y.append(config.pointing2_y)
 
+    # Construct objects to be plotted
     axis = co.Axis(data=np.array(obs_time),
       title='Time', units='s')
 
-    scan = co.Spectrum(data=np.array(smec_position),
+    scan = co.Spectrum(data=np.array(smec_position) * 100.0,
       flag=np.array(integrate_flag), 
-      axis=axis, title='SMEC position', units='m')
+      axis=axis, title='position', units='cm')
     baseline_scans[b] = scan
+
+    scan = co.Spectrum(
+      data=np.array(smec_vel_error) * 1.0e6,
+      flag=np.array(integrate_flag), 
+      axis=axis, title='vel error', units='um/s')
+    baseline_scans_error[b] = scan
 
     scan = co.Spectrum(data=np.array(pointing1_x), 
       axis=axis, title='collector 1 x offset', units='arcsec')
@@ -69,9 +88,9 @@ for b in baselines:
       axis=axis, title='collector 2 y offset', units='arcsec')
     baseline_pointing2_y[b] = scan
 
-# do plots
 baseline_link = {}
 
+# plot the data objects for each baseline
 for b in baselines:
     # construct a page with the plot
     root = 'baseline_config_%s_%s_%s' % (b)
@@ -85,6 +104,7 @@ for b in baselines:
         context_copy = context.kwargs
         context_copy['sourceid'] = root
         context_copy['smec'] = baseline_scans[b]
+        context_copy['smec_vel_error'] = baseline_scans_error[b]
         context_copy['pointing1_x'] = baseline_pointing1_x[b]
         context_copy['pointing1_y'] = baseline_pointing1_y[b]
         context_copy['pointing2_x'] = baseline_pointing2_x[b]
