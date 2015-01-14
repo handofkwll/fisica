@@ -13,6 +13,7 @@ import primarybeamsgenerator
 import renderer
 import skygenerator
 import synthesisbeamsgenerator
+import telescope
 import timelinegenerator
 import uvmapgenerator
 import uvspectra
@@ -45,6 +46,11 @@ class PyFIInS(object):
         self.result['fts'] = ftsd.run()
         print ftsd
 
+        # generate information on the flux collectors 
+        tel = telescope.Telescope(parameters=obs_specification)
+        self.result['telescope'] = tel.run()
+        print tel
+       
         # generate UV map
         uvmapgen = uvmapgenerator.UVMapGenerator(parameters=obs_specification,
           previous_results=self.result)
@@ -82,10 +88,10 @@ class PyFIInS(object):
         print timeline
 
         # calculate interferograms
-        obs = observe.Observe(parameters=obs_specification,
-          previous_results=self.result, job_server=self.job_server)
-        self.result['observe'] = obs.run()  
-        print obs
+#        obs = observe.Observe(parameters=obs_specification,
+#          previous_results=self.result, job_server=self.job_server)
+#        self.result['observe'] = obs.run()  
+#        print obs
 
         # recover spectra from interferograms
 #        uvspec = uvspectra.UVspectra(previous_results=self.result,
