@@ -6,16 +6,49 @@ import matplotlib.pyplot as plt
 import os.path
 import numpy as np
 
+def find_flagged_sections(flag):
+    flagsections = []
+    flagsection = [-1,-1]
+    inflagsection = False
+    for i,f in enumerate(flag):
+        if f:
+            if inflagsection:
+                pass
+            else:
+                flagsection[0] = i
+                inflagsection = True
+        else:
+            if inflagsection:
+                flagsection[1] = i-1
+                flagsections.append(flagsection)
+                flagsection = [-1,-1]
+                inflagsection = False
+            else:
+                pass
+
+    # tidy up ending
+    if inflagsection:
+        flagsection[1] = i
+        flagsections.append(flagsection)
+
+    return flagsections
+
+
 plt.figure()
 
 # read data from mako context
 sourceid = context['sourceid']
+baseline = context['baseline']
 smec = context['smec']
 smec_vel_error = context['smec_vel_error']
 pointing1_x = context['pointing1_x']
 pointing1_y = context['pointing1_y']
 pointing2_x = context['pointing2_x']
 pointing2_y = context['pointing2_y']
+data = context.get('interferogram')
+
+print baseline
+plt.figtext(0.0, 0.0, 'baseline %s, %s, %s' % baseline)
 
 # plot the smec position versus time
 try:
@@ -179,6 +212,59 @@ for item in (
   ax.get_xticklabels() +
   ax.get_yticklabels()):
     item.set_fontsize(8)
+
+# plot the interferogram (data versus time) if present
+if data is not None:
+    try:
+        xaxis_data = data.axis.data
+    except:
+        xaxis_data = np.arange(len(data.data))
+    xaxis_sort = np.argsort(xaxis_data)
+
+    try:
+        xaxis_title = data.axis.title
+    except:
+        xaxis_title = None
+    try:
+        xaxis_units = data.axis.units
+    except:
+        xaxis_units = None
+
+    try:
+        title = data.title
+    except:
+        title = None
+    try:
+        units = data.units
+    except:
+        units = None
+
+    ax = plt.subplot(326)
+
+    flagsections = find_flagged_sections(data.flag[xaxis_sort])
+
+    mark = 0
+    for flagsection in flagsections:
+        plt.plot(xaxis_data[xaxis_sort][mark:flagsection[0]],
+          data.data[xaxis_sort][mark:flagsection[0]], 'g-')
+        plt.plot(xaxis_data[xaxis_sort][flagsection[0]:flagsection[1]],
+          data.data[xaxis_sort][flagsection[0]:flagsection[1]], 'r-')
+        mark = flagsection[1]
+    plt.plot(xaxis_data[xaxis_sort][mark:], data.data[xaxis_sort][mark:], 'g-')
+
+    plt.title('signal')
+    xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
+    plt.xlabel(xlabel)
+    ylabel = ' '.join([v for v in [title, units] if v is not None])
+    plt.ylabel(ylabel)
+
+    for item in (
+      [ax.title,
+      ax.xaxis.label,
+      ax.yaxis.label] +
+      ax.get_xticklabels() +
+      ax.get_yticklabels()):
+        item.set_fontsize(8)
 
 # adjust subplot spacing to remove overlaps
 plt.tight_layout()
