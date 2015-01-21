@@ -1,77 +1,137 @@
 <%inherit file="base.html"/>
 
+<!-- Template for production of 'timeline' weblog' -->
+
 <!-- do the plotting -->
 <%
 import os.path
 import numpy as np
+import collections
 import common.commonobjects as co
 
-observed_framework = context['data']['observe']['observed_framework']
+# Get the timeline data from mako context
+observed_timeline = context['data']['observe']['observed_timeline']
+times = observed_timeline.keys()
+times.sort()
 
-scans = []
-data = []
+# Construct a dict holding lists of configurations for each
+# baseline observed
+baseline_configs = collections.defaultdict(list)
 
-for config in observed_framework:
-    if config.fts_start:
+for t in times:
+    config = observed_timeline[t]
+    b = (config.baseline_x, config.baseline_y, config.baseline_z)
+    baseline_configs[b].append(config)
 
-        if data:
-            # finish previous scan
-            # construct Spectrum object
-            axis = co.Axis(data=np.array(opd),
-              title='optical path difference', units='cm')
-            scan = co.Spectrum(data=np.array(data), flag=np.array(flag),
-              axis=axis, title='Detected interferogram',
-              units='W sr-1 m-2 Hz-1')
-            scans.append((scan, baseline))
+baselines = baseline_configs.keys()
+baselines.sort()      
 
-        # ready for next scan
-        data = []
-        flag = []
-        opd = []
+# for each baseline construct a set of data objects for each 
+# configuration element 
+baseline_scans = {}
+baseline_scans_error = {}
+baseline_pointing1_x = {}
+baseline_pointing1_y = {}
+baseline_pointing2_x = {}
+baseline_pointing2_y = {}
+baseline_data = {}
 
-    if config.data is not None:
+for b in baselines:
+    obs_time = []
+    smec_position = []
+    smec_nominal_position = []
+    smec_vel_error = []
+    integrate_flag = []
+    pointing1_x = []
+    pointing1_y = []
+    pointing2_x = []
+    pointing2_y = []
+    data = []    
+
+    for config in baseline_configs[b]:
+        obs_time.append(config.time)
+        smec_position.append(config.smec_position)
+        smec_nominal_position.append(config.smec_nominal_position)
+        smec_vel_error.append(config.smec_vel_error)
+        integrate_flag.append(config.integrate)
+        pointing1_x.append(config.pointing1_x)
+        pointing1_y.append(config.pointing1_y)
+        pointing2_x.append(config.pointing2_x)
+        pointing2_y.append(config.pointing2_y)
         data.append(config.data)
-        flag.append(False)
-    else:
-        data.append(0.0)
-        flag.append(True)
-    opd.append(2.0 * 100.0 * config.fts_position)
-    baseline = (config.baseline_x, config.baseline_y)
 
-# deal with last scan
-if data:
-    axis = co.Axis(data=np.array(opd), title='optical path difference',
-      units='cm')
-    scan = co.Spectrum(data=np.array(data), flag=np.array(flag),
-      axis=axis, title='Detected interferogram', units='W sr-1 m-2 Hz-1')
-    scans.append((scan, baseline))
+    # Construct objects to be plotted
+    axis = co.Axis(data=np.array(obs_time),
+      title='Time', units='s')
 
-# do plots
+    scan = co.Spectrum(data=np.array(smec_position) * 100.0,
+      flag=np.array(integrate_flag), 
+      axis=axis, title='position', units='cm')
+    baseline_scans[b] = scan
+
+    scan = co.Spectrum(
+      data=np.array(smec_vel_error) * 1.0e6,
+      flag=np.array(integrate_flag), 
+      axis=axis, title='vel error', units='um/s')
+    baseline_scans_error[b] = scan
+
+    scan = co.Spectrum(data=np.array(pointing1_x), 
+      axis=axis, title='collector 1 x offset', units='arcsec')
+    baseline_pointing1_x[b] = scan
+
+    scan = co.Spectrum(data=np.array(pointing1_y), 
+      axis=axis, title='collector 1 y offset', units='arcsec')
+    baseline_pointing1_y[b] = scan
+
+    scan = co.Spectrum(data=np.array(pointing2_x), 
+      axis=axis, title='collector 2 x offset', units='arcsec')
+    baseline_pointing2_x[b] = scan
+
+    scan = co.Spectrum(data=np.array(pointing2_y), 
+      axis=axis, title='collector 2 y offset', units='arcsec')
+    baseline_pointing2_y[b] = scan
+
+    scan = co.Spectrum(data=np.array(data), 
+      flag=np.array(integrate_flag), 
+      axis=axis, title='data', units='')
+    baseline_data[b] = scan
+
 baseline_link = {}
 
-for scan in scans:
+# plot the data objects for each baseline
+for b in baselines:
     # construct a page with the plot
-    data,baseline = scan
+    root = 'baseline_observe_%s_%s_%s' % (b)
+    root = root.replace('-', 'm')
 
-    filename = 'interferogram_%s_%s.html' % baseline
-    filename = filename.replace('-', 'm')
-    baseline_link[baseline] = filename
-    link = os.path.join(context['dirname'], filename)
+    htmlfile = '%s.html' % root
+    baseline_link[b] = htmlfile
+    link = os.path.join(context['dirname'], htmlfile)
     with open(link, 'w') as f:
-        template = mylookup.get_template('sourcespectrum.html')
+        template = mylookup.get_template('scan.html')
         context_copy = context.kwargs
-        context_copy['sourceid'] = '_%s_%s_fft' % (baseline)
-        context_copy['spectrum'] = data
+        context_copy['sourceid'] = root
+        context_copy['baseline'] = b
+        context_copy['smec'] = baseline_scans[b]
+        context_copy['smec_vel_error'] = baseline_scans_error[b]
+        context_copy['pointing1_x'] = baseline_pointing1_x[b]
+        context_copy['pointing1_y'] = baseline_pointing1_y[b]
+        context_copy['pointing2_x'] = baseline_pointing2_x[b]
+        context_copy['pointing2_y'] = baseline_pointing2_y[b]
+        context_copy['interferogram'] = baseline_data[b]
         f.write(template.render(**context_copy))
 %>
 
 # write html links
 
-<h3>Baseline Interferograms</h3>
-% for baseline in baseline_link.keys():
+<h3>Baseline Configuration Sequences</h3>
+% for b in baseline_link.keys():
 <div class="col-xs-6 col-md-3">
-  <a href="${baseline_link[baseline]}" class="thumbnail">
-    <img src="sourcespectrum_${baseline[0]}_${baseline[1]}_fft.png" alt="...">
+  <%
+  plotname = baseline_link[b].replace('html', 'png')
+  %>
+  <a href="${baseline_link[b]}" class="thumbnail">
+    <img src="${plotname}" alt="...">
   </a>
 </div>
 % endfor
