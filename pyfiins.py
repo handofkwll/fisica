@@ -88,10 +88,10 @@ class PyFIInS(object):
         print timeline
 
         # calculate interferograms
-#        obs = observe.Observe(parameters=obs_specification,
-#          previous_results=self.result, job_server=self.job_server)
-#        self.result['observe'] = obs.run()  
-#        print obs
+        obs = observe.Observe(parameters=obs_specification,
+          previous_results=self.result, job_server=self.job_server)
+        self.result['observe'] = obs.run()  
+        print obs
 
         # recover spectra from interferograms
 #        uvspec = uvspectra.UVspectra(previous_results=self.result,
