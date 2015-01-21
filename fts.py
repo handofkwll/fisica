@@ -53,8 +53,8 @@ class FTS(object):
         self.result['fts_wn_truncated'] = fts_wn_truncated
 
         # smec parameters
-        self.result['smec_opd_to_mpd'] = smec_opd_to_mpd = 4.0
-        self.result['smec_start'] = smec_start = -opd_max / smec_opd_to_mpd
+        self.result['smec_opd_to_mpd'] = smec_opd_to_mpd = 0.25
+        self.result['smec_start'] = smec_start = -opd_max * smec_opd_to_mpd
         self.result['smec_scan_duration'] = smec_scan_duration = \
           2.0 * abs(smec_start) / smec_velocity
     

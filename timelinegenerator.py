@@ -8,7 +8,7 @@ import smecposition
 
 
 class TimeLineGenerator(object):
-    """Class to generate timeline framework of the simulated observation.
+    """Class to generate timeline of the simulated observation.
     """
 
     def __init__(self, previous_results):
@@ -47,15 +47,15 @@ class TimeLineGenerator(object):
         telescope = self.previous_results['telescope']
         pointing_error_type = telescope['pointing_error_type']
 
-        # Construct the obs framework.
-        # The framework will hold the baseline and FTS mirror position
+        # Construct the obs timeline.
+        # The timeline will hold the baseline and FTS mirror position
         # for each time that the detector is read. 
 
         # The observation consists of a series of FTS scans. The 
         # instrument baseline, pointing etc. can change continuously
         # as the scan is performed.
  
-        # Basic framework is:
+        # Basic timeline is:
         #    n_baselines 'baselines',
         #    separated by a time for spacecraft configuration.
         #
@@ -63,7 +63,7 @@ class TimeLineGenerator(object):
         #    separated by an 'interscan' period to allow for
         #    accleration/deceleration etc.
 
-        obs_framework = {}
+        obs_timeline = {}
         baseline_start_time = 0.0
         inter_baseline_time = 3600.0
 
@@ -121,19 +121,19 @@ class TimeLineGenerator(object):
                   smec_integrate[i], smec_vel_error[i],
                   pointing1_x[i], pointing1_y[i],
                   pointing2_x[i], pointing2_y[i], None)
-                obs_framework[t] = config 
+                obs_timeline[t] = config 
 
-        self.result['obs_framework'] = obs_framework
+        self.result['obs_timeline'] = obs_timeline
 
         return self.result
 
     def __repr__(self):
         return '''
 TimeLineGenerator:
-  FTS samples/scan: {fts_nsample}
-  obs.framework length: {len_framework}
+  FTS samples/scan : {fts_nsample}
+  timelength length: {timeline_len}
 '''.format(
           fts_nsample=self.result['fts_nsample'],
-          len_framework=len(self.result['obs_framework']))
+          timeline_len=len(self.result['obs_timeline']))
 
 

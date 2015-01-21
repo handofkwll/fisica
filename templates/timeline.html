@@ -11,7 +11,7 @@ import common.commonobjects as co
 
 # Get the timeline data from mako context
 timeline = context['data']['timeline']
-times = timeline['obs_framework'].keys()
+times = timeline['obs_timeline'].keys()
 times.sort()
 
 # Construct a dict holding lists of configurations for each
@@ -19,7 +19,7 @@ times.sort()
 baseline_configs = collections.defaultdict(list)
 
 for t in times:
-    config = timeline['obs_framework'][t]
+    config = timeline['obs_timeline'][t]
     b = (config.baseline_x, config.baseline_y, config.baseline_z)
     baseline_configs[b].append(config)
 
@@ -103,12 +103,14 @@ for b in baselines:
         template = mylookup.get_template('scan.html')
         context_copy = context.kwargs
         context_copy['sourceid'] = root
+        context_copy['baseline'] = b
         context_copy['smec'] = baseline_scans[b]
         context_copy['smec_vel_error'] = baseline_scans_error[b]
         context_copy['pointing1_x'] = baseline_pointing1_x[b]
         context_copy['pointing1_y'] = baseline_pointing1_y[b]
         context_copy['pointing2_x'] = baseline_pointing2_x[b]
         context_copy['pointing2_y'] = baseline_pointing2_y[b]
+        context_copy['interferogram'] = None
         f.write(template.render(**context_copy))
 %>
 
