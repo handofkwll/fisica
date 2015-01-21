@@ -9,7 +9,6 @@ mylookup = context['mylookup']
 
 synthesisbeams = context['data']['synthesisbeams']
 wavenumbers = synthesisbeams['dirty beam'].keys()
-print wavenumbers
 %>
 
 <h2>Synthesis Beams Generation Parameters</h2>
@@ -32,9 +31,8 @@ print wavenumbers
 
 <%
 # construct html pages with dirty beam plots
-print 'dirty beams'
+print '..plotting dirty beams'
 for wn in wavenumbers:
-    print wn
     link = os.path.join(context['dirname'], 'dirty_beam%s.html' % (wn))
     with open(link, 'w') as f:
         template = mylookup.get_template('beamplot.html')
@@ -45,7 +43,7 @@ for wn in wavenumbers:
         f.write(template.render(**context_copy))
 
 # construct html pages with clean beam plots
-print 'clean beams'
+print '..plotting clean beams'
 for wn in wavenumbers:
     link = os.path.join(context['dirname'], 'clean_beam%s.html' % (wn))
     with open(link, 'w') as f:
