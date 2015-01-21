@@ -8,7 +8,7 @@ import scipy.interpolate
 import matplotlib.pyplot as plt
 
 class GaussianErrors(object):
-    """Class to fill framework with 0 pointing errors.
+    """Class to fill timeline with Gaussian pointing errors.
     """
 
     def __init__(self, mu0, sigma0, mu1, sigma1):
@@ -140,7 +140,7 @@ class HerschelErrors(object):
 
 
 class ZeroErrors(object):
-    """Class to fill framework with 0 pointing errors.
+    """Class to fill timeline with 0 pointing errors.
     """
 
     def run(self, times):
