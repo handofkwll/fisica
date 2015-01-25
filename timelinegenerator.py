@@ -74,7 +74,7 @@ class TimeLineGenerator(object):
           'time',
           'baseline_x', 'baseline_y', 'baseline_z', 'baseline_number',
           'smec_position', 'smec_nominal_position',
-          'integrate', 'smec_vel_error', 
+          'flag', 'smec_vel_error', 
           'pointing1_x', 'pointing1_y',
           'pointing2_x', 'pointing2_y',
           'data'],
@@ -109,7 +109,7 @@ class TimeLineGenerator(object):
 
             # generate actual positions
             smec_time, smec_nominal_position, smec_position,\
-              smec_integrate, smec_vel_error = smec.run(nscans)
+              smec_flag, smec_vel_error = smec.run(nscans)
             pointing1_x, pointing1_y = pointing1.run(times=smec_time)
             pointing2_x, pointing2_y = pointing2.run(times=smec_time)
 
@@ -118,9 +118,11 @@ class TimeLineGenerator(object):
             for i,t in enumerate(smec_time):
                 config = Config(ib, t, bxby[ib][0], bxby[ib][1], 0.0, ib,
                   smec_position[i], smec_nominal_position[i],
-                  smec_integrate[i], smec_vel_error[i],
+                  smec_flag[i], smec_vel_error[i],
                   pointing1_x[i], pointing1_y[i],
                   pointing2_x[i], pointing2_y[i], None)
+                if obs_timeline.has_key(t):
+                    print 'duplicate time', i, t, ib
                 obs_timeline[t] = config 
 
         self.result['obs_timeline'] = obs_timeline
