@@ -75,10 +75,10 @@ except:
     units = None
 
 ax = plt.subplot(321)
-plt.plot(xaxis_data[xaxis_sort][smec.flag[xaxis_sort]],
-  smec.data[xaxis_sort][smec.flag[xaxis_sort]], 'g.')
 plt.plot(xaxis_data[xaxis_sort][smec.flag[xaxis_sort]==False],
-  smec.data[xaxis_sort][smec.flag[xaxis_sort]==False], 'r.')
+  smec.data[xaxis_sort][smec.flag[xaxis_sort]==False], 'g.')
+plt.plot(xaxis_data[xaxis_sort][smec.flag[xaxis_sort]],
+  smec.data[xaxis_sort][smec.flag[xaxis_sort]], 'r.')
 plt.title('SMEC position')
 xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
 plt.xlabel(xlabel)
@@ -120,10 +120,10 @@ except:
     units = None
 
 ax = plt.subplot(322)
-plt.plot(xaxis_data[xaxis_sort][smec_vel_error.flag[xaxis_sort]],
-  smec_vel_error.data[xaxis_sort][smec_vel_error.flag[xaxis_sort]], 'g.')
 plt.plot(xaxis_data[xaxis_sort][smec_vel_error.flag[xaxis_sort]==False],
-  smec_vel_error.data[xaxis_sort][smec_vel_error.flag[xaxis_sort]==False], 'r.')
+  smec_vel_error.data[xaxis_sort][smec_vel_error.flag[xaxis_sort]==False], 'g.')
+plt.plot(xaxis_data[xaxis_sort][smec_vel_error.flag[xaxis_sort]],
+  smec_vel_error.data[xaxis_sort][smec_vel_error.flag[xaxis_sort]], 'r.')
 plt.title('SMEC vel error')
 xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
 plt.xlabel(xlabel)
