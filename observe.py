@@ -138,7 +138,7 @@ class Observe(object):
 #        print 'Observe.run'
 
         # access primary beam information
-        primarybeams = self.previous_results['primarybeams']
+#        primarybeams = self.previous_results['primarybeams']
 
         # access required FTS information
         fts = self.previous_results['fts']
@@ -196,7 +196,7 @@ class Observe(object):
 #                              'smec_position',
 #                              'smec_nominal_position',
 #                              'smec_vel_error',                           
-#                              'integrate',
+#                              'flag',
 #                              'data']):
 
             if fields_match(previous_config, config,
@@ -213,7 +213,7 @@ class Observe(object):
                               'smec_position',
                               'smec_nominal_position',
                               'smec_vel_error',                           
-                              'integrate',
+                              'flag',
                               'data']):
 
                 # yes, then just reuse relevant results from previous
@@ -253,8 +253,10 @@ class Observe(object):
                 #    where Beam1.Beam2* == PSF.
 
                 # multiply sky by amp.beam 1 * conj(amp.beam 2)
-                amp_beam_1 = primarybeams['primary amplitude beam'].data
-                amp_beam_2 = primarybeams['primary amplitude beam'].data
+#                amp_beam_1 = primarybeams['primary amplitude beam'].data
+#                amp_beam_2 = primarybeams['primary amplitude beam'].data
+                amp_beam_1 = 1.0
+                amp_beam_2 = 1.0
 
                 # shift beams if pointing error
                 if config.pointing1_x or config.pointing1_y:
@@ -285,7 +287,7 @@ class Observe(object):
 #                              'smec_position',
 #                              'smec_nominal_position',
 #                              'smec_vel_error',                           
-#                              'integrate',
+#                              'flag',
 #                              'data']):
 
             if fields_match(previous_config, config,
@@ -298,7 +300,7 @@ class Observe(object):
                               'pointing1_y',
                               'pointing2_x',
                               'pointing2_y',
-                              'integrate',
+                              'flag',
                               'data']):
                 pass
 
@@ -358,5 +360,9 @@ class Observe(object):
         return self.result
 
     def __repr__(self):
-        return 'Observe'
+        return '''
+Observe:
+  timelength length: {timeline_len}
+'''.format(
+          timeline_len=len(self.result['observed_timeline']))
 
