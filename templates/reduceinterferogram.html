@@ -1,0 +1,45 @@
+<%inherit file="base.html"/>
+
+<!-- do the plotting -->
+<%
+import os.path
+import numpy as np
+import common.commonobjects as co
+
+baseline_scans = context['data']['reduceinterferogram']['baseline_scans']
+baseline_mean = context['data']['reduceinterferogram']['baseline_mean']
+baseline_uvspectrum = context['data']['reduceinterferogram']['baseline_uvspectrum']
+
+baseline_link = {}
+
+for b in baseline_scans.keys():
+    scans = baseline_scans[b]
+    mean = baseline_mean[b]
+    uvspectrum = baseline_uvspectrum[b]
+
+    # construct a page with the plot
+    baseline = (b[0], b[1])
+    id = 'reduceint_%s_%s' % baseline
+    id = id.replace('-', 'm')
+    baseline_link[baseline] = id
+    filename = '%s.html' % id
+    link = os.path.join(context['dirname'], filename)
+    with open(link, 'w') as f:
+        template = mylookup.get_template('scans.html')
+        context_copy = context.kwargs
+        context_copy['baseline'] = baseline
+        context_copy['id'] = id
+        context_copy['scans'] = scans
+        context_copy['mean'] = mean
+        context_copy['uvspectrum'] = uvspectrum
+        f.write(template.render(**context_copy))
+%>
+
+<h3>Baseline Spectra</h3>
+% for baseline in baseline_link.keys():
+<div class="col-xs-6 col-md-3">
+  <a href="${baseline_link[baseline]}.png" class="thumbnail">
+    <img src="${baseline_link[baseline]}.png" alt="...">
+  </a>
+</div>
+% endfor
