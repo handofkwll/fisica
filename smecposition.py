@@ -37,7 +37,9 @@ class ZeroErrors(object):
         total_time = prescan_duration + scan_duration
         self.total_nsamples = int(np.ceil(total_time / sample_time))
         self.prescan_nsamples = self.total_nsamples - nsamples
-        self.scan_relative_time = np.arange(self.total_nsamples, dtype=np.float)
+        # +1 is there to ensure that end/start of consecutive scans do not
+        # overlap in time
+        self.scan_relative_time = np.arange(self.total_nsamples, dtype=np.float) + 1.0
         self.scan_relative_time *= sample_time
 
         # smec demand velocity, 0 for prescan samples
@@ -46,7 +48,7 @@ class ZeroErrors(object):
 
     def _calculate_smec_position(self, scan, scan_start_time, smec_start_pos, 
       direction, relative_time, vel_error, demand_smec_position,
-      actual_smec_position, smec_integrate):
+      actual_smec_position, smec_flag):
         """Method to calculate smec position from scan info.
         """
 
@@ -69,8 +71,8 @@ class ZeroErrors(object):
               (self.scan_relative_time[i] - self.scan_relative_time[i-1]) * \
               (self.smec_vel[i] + vel_error[i]) * direction
 
-        smec_integrate[offset+self.prescan_nsamples:offset+self.total_nsamples] = \
-          True
+        smec_flag[offset+self.prescan_nsamples:offset+self.total_nsamples] = \
+          False
 
     def run(self, nscans):
         """Method to calculate smec data for 'nscans' scans.
@@ -82,7 +84,7 @@ class ZeroErrors(object):
         times = np.zeros([nscans * self.total_nsamples])
         demand_smec_position = np.zeros([nscans * self.total_nsamples])
         actual_smec_position = np.zeros([nscans * self.total_nsamples])
-        smec_integrate = np.zeros([nscans * self.total_nsamples], np.bool)
+        smec_flag = np.ones([nscans * self.total_nsamples], np.bool)
         # smec vel errors are 0.
         smec_vel_error = np.zeros([nscans * self.total_nsamples])
         scan_vel_error = np.zeros([self.total_nsamples])
@@ -96,14 +98,14 @@ class ZeroErrors(object):
         for scan in range(nscans):
             self._calculate_smec_position(scan, scan_start_time, smec_start_pos, 
               direction, times, scan_vel_error, demand_smec_position,
-              actual_smec_position, smec_integrate)
+              actual_smec_position, smec_flag)
 
             # swap direction for next scan
             direction = -direction
             scan_start_time = times[(scan+1)*self.total_nsamples-1]
             smec_start_pos = demand_smec_position[(scan+1)*self.total_nsamples-1]
 
-        return times, demand_smec_position, actual_smec_position, smec_integrate,\
+        return times, demand_smec_position, actual_smec_position, smec_flag,\
           smec_vel_error
 
     def __repr__(self):
@@ -172,7 +174,6 @@ class HerschelErrors(ZeroErrors):
         demand_nf = int(len(times) / 2)
 
         if (demand_df, demand_nf) not in self.demand_spec.keys():
-#            print 'creating spectrum for', (demand_df, demand_nf)
             demand_f = np.arange(demand_nf) * demand_df
             demand_spec = np.zeros(np.shape(demand_f))
 
@@ -187,7 +188,6 @@ class HerschelErrors(ZeroErrors):
             self.demand_spec[(demand_df, demand_nf)] = (
               demand_f, demand_spec)
         else:
-#            print 'reusing spectrum for', (demand_df, demand_nf)
             demand_f, demand_spec = self.demand_spec[(demand_df, demand_nf)]
 
         deltafreq = demand_f[1] - demand_f[0]
@@ -301,7 +301,7 @@ class HerschelErrors(ZeroErrors):
         times = np.zeros([nscans * self.total_nsamples])
         demand_smec_position = np.zeros([nscans * self.total_nsamples])
         actual_smec_position = np.zeros([nscans * self.total_nsamples])
-        smec_integrate = np.zeros([nscans * self.total_nsamples], np.bool)
+        smec_flag = np.ones([nscans * self.total_nsamples], np.bool)
         smec_vel_error = np.zeros([nscans * self.total_nsamples])
 
         # first scan will be forward
@@ -318,14 +318,14 @@ class HerschelErrors(ZeroErrors):
             # and now the mirror position
             self._calculate_smec_position(scan, scan_start_time, smec_start_pos, 
               direction, times, scan_vel_error, demand_smec_position,
-              actual_smec_position, smec_integrate)
+              actual_smec_position, smec_flag)
 
             # swap direction for next scan
             direction = -direction
             scan_start_time = times[(scan+1)*self.total_nsamples-1]
             smec_start_pos = demand_smec_position[(scan+1)*self.total_nsamples-1]
 
-        return times, demand_smec_position, actual_smec_position, smec_integrate,\
+        return times, demand_smec_position, actual_smec_position, smec_flag,\
           smec_vel_error
 
     def __repr__(self):
