@@ -40,7 +40,7 @@ for b in baselines:
     smec_position = []
     smec_nominal_position = []
     smec_vel_error = []
-    integrate_flag = []
+    flag = []
     pointing1_x = []
     pointing1_y = []
     pointing2_x = []
@@ -51,7 +51,7 @@ for b in baselines:
         smec_position.append(config.smec_position)
         smec_nominal_position.append(config.smec_nominal_position)
         smec_vel_error.append(config.smec_vel_error)
-        integrate_flag.append(config.integrate)
+        flag.append(config.flag)
         pointing1_x.append(config.pointing1_x)
         pointing1_y.append(config.pointing1_y)
         pointing2_x.append(config.pointing2_x)
@@ -62,13 +62,13 @@ for b in baselines:
       title='Time', units='s')
 
     scan = co.Spectrum(data=np.array(smec_position) * 100.0,
-      flag=np.array(integrate_flag), 
+      flag=np.array(flag), 
       axis=axis, title='position', units='cm')
     baseline_scans[b] = scan
 
     scan = co.Spectrum(
       data=np.array(smec_vel_error) * 1.0e6,
-      flag=np.array(integrate_flag), 
+      flag=np.array(flag), 
       axis=axis, title='vel error', units='um/s')
     baseline_scans_error[b] = scan
 
