@@ -10,13 +10,13 @@ import fts
 import loadparameters
 import observe
 import primarybeamsgenerator
+import reduceinterferogram
 import renderer
 import skygenerator
 import synthesisbeamsgenerator
 import telescope
 import timelinegenerator
 import uvmapgenerator
-import uvspectra
 
 
 class PyFIInS(object):
@@ -52,7 +52,8 @@ class PyFIInS(object):
         print tel
        
         # generate UV map
-        uvmapgen = uvmapgenerator.UVMapGenerator(parameters=obs_specification,
+        uvmapgen = uvmapgenerator.UVMapGenerator(
+          parameters=obs_specification,
           previous_results=self.result)
         self.result['uvmapgenerator'] = uvmapgen.run()
         print uvmapgen
@@ -65,18 +66,21 @@ class PyFIInS(object):
 
         # generate synthesis beams - dirty and clean
         synthbeamsgen = synthesisbeamsgenerator.SynthesisBeamsGenerator(
-          previous_results=self.result, job_server=self.job_server)
+          previous_results=self.result,
+          job_server=self.job_server)
         self.result['synthesisbeams'] = synthbeamsgen.run()
         print synthbeamsgen
 
         # generate primary beams
         primarybeamsgen = primarybeamsgenerator.PrimaryBeamsGenerator(
-          previous_results=self.result, job_server=self.job_server)
+          previous_results=self.result,
+          job_server=self.job_server)
         self.result['primarybeams'] = primarybeamsgen.run()
         print primarybeamsgen
 
         # construct sky
-        skygen = skygenerator.SkyGenerator(parameters=obs_specification,
+        skygen = skygenerator.SkyGenerator(
+          parameters=obs_specification,
           previous_results=self.result)
         self.result['skygenerator'] = skygen.run()
         print skygen
@@ -88,25 +92,30 @@ class PyFIInS(object):
         print timeline
 
         # calculate interferograms
-        obs = observe.Observe(parameters=obs_specification,
-          previous_results=self.result, job_server=self.job_server)
+        obs = observe.Observe(
+          parameters=obs_specification,
+          previous_results=self.result,
+          job_server=self.job_server)
         self.result['observe'] = obs.run()  
         print obs
 
         # recover spectra from interferograms
-#        uvspec = uvspectra.UVspectra(previous_results=self.result,
-#          job_server=self.job_server)
-#        self.result['uvspectra'] = uvspec.run()  
-#        print uvspec
+        reduceint = reduceinterferogram.ReduceInterferogram(
+          previous_results=self.result,
+          job_server=self.job_server)
+        self.result['reduceinterferogram'] = reduceint.run()  
+        print reduceint
 
         # construct dirty image
-#        dirty = dirtyimage.DirtyImage(previous_results=self.result,
+#        dirty = dirtyimage.DirtyImage(
+#          previous_results=self.result,
 #          job_server=self.job_server)
 #        self.result['dirtyimage'] = dirty.run()  
 #        print dirty
 
 #        # construct clean image
-#        clean = cleanimage.CleanImage(previous_results=self.result,
+#        clean = cleanimage.CleanImage(
+#          previous_results=self.result,
 #          job_server=self.job_server)
 #        self.result['cleanimage'] = clean.run()  
 #        print clean
