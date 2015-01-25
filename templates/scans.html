@@ -1,0 +1,159 @@
+<%inherit file="base.html"/>
+
+<!-- do the plotting -->
+<%
+import matplotlib.pyplot as plt
+import os.path
+import numpy as np
+
+id = context['id']
+baseline = context['baseline']
+scans = context['scans']
+mean = context['mean']
+uvspectrum = context['uvspectrum']
+
+mult = 1.0
+
+plt.figure()
+plt.figtext(0.0, 0.0, 'baseline %s, %s' % baseline)
+
+# plot the separate scans 
+ax = plt.subplot('221')
+plt.title('Scan interferograms')
+
+for scan in scans:
+    try:
+        xaxis_data = scan.axis.data
+    except:
+        xaxis_data = np.arange(len(scan.data))
+
+    # sometimes xaxis is not monotonic
+    xaxis_sort = np.argsort(xaxis_data)
+
+    try:
+        xaxis_title = scan.axis.title
+    except:
+        xaxis_title = None
+
+    try:
+        xaxis_units = scan.axis.units
+    except:
+        xaxis_units = None
+
+    plt.plot(xaxis_data[xaxis_sort], mult * scan.data[xaxis_sort])
+    mult *= 1.1
+
+    xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
+    plt.xlabel(xlabel)
+
+# Use small font so that subplots do not overwrite each other
+for item in (
+  [ax.title,
+  ax.xaxis.label,
+  ax.yaxis.label] +
+  ax.get_xticklabels() +
+  ax.get_yticklabels()):
+    item.set_fontsize(8)
+
+# plot the mean interferogram
+ax = plt.subplot('222')
+plt.title('Mean interferogram')
+
+try:
+    xaxis_data = mean.axis.data
+except:
+    xaxis_data = np.arange(len(mean.data))
+xaxis_sort = np.argsort(xaxis_data)
+try:
+    xaxis_title = mean.axis.title
+except:
+    xaxis_title = None
+try:
+    xaxis_units = mean.axis.units
+except:
+    xaxis_units = None
+
+plt.plot(xaxis_data[xaxis_sort], mean.data[xaxis_sort])
+
+xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
+plt.xlabel(xlabel)
+
+for item in (
+  [ax.title,
+  ax.xaxis.label,
+  ax.yaxis.label] +
+  ax.get_xticklabels() +
+  ax.get_yticklabels()):
+    item.set_fontsize(8)
+
+# plot the interferogram
+ax = plt.subplot('223')
+plt.title('Shifted interferograms')
+
+spectrum = uvspectrum.interferogram
+
+try:
+    xaxis_data = spectrum.axis.data
+except:
+    xaxis_data = np.arange(len(spectrum))
+xaxis_sort = np.argsort(xaxis_data)
+try:
+    xaxis_title = spectrum.axis.title
+except:
+    xaxis_title = None
+try:
+    xaxis_units = spectrum.axis.units
+except:
+    xaxis_units = None
+
+plt.plot(xaxis_data[xaxis_sort], spectrum[xaxis_sort])
+xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
+plt.xlabel(xlabel)
+
+for item in (
+  [ax.title,
+  ax.xaxis.label,
+  ax.yaxis.label] +
+  ax.get_xticklabels() +
+  ax.get_yticklabels()):
+    item.set_fontsize(8)
+
+# plot the spectrum
+ax = plt.subplot('224')
+plt.title('Spectrum')
+
+spectrum = uvspectrum.spectrum
+
+try:
+    xaxis_data = uvspectrum.wavenumber
+    xaxis_title = 'wavenumber'
+    xaxis_units = 'cm-1'
+except:
+    xaxis_data = np.arange(len(spectrum))
+    xaxis_title = 'index'
+    xaxis_units = ''
+xaxis_sort = np.argsort(xaxis_data)
+
+plt.plot(xaxis_data[xaxis_sort], spectrum.real[xaxis_sort], 'b-')
+plt.plot(xaxis_data[xaxis_sort], spectrum.imag[xaxis_sort], 'r-')
+xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
+plt.xlabel(xlabel)
+
+for item in (
+  [ax.title,
+  ax.xaxis.label,
+  ax.yaxis.label] +
+  ax.get_xticklabels() +
+  ax.get_yticklabels()):
+    item.set_fontsize(8)
+
+# adjust subplot spacing to remove overlaps
+plt.tight_layout()
+
+plt.savefig(os.path.join(context['dirname'], '%s.png' % id))
+plt.close()
+%>
+
+<!-- link to the plot from html -->
+
+<img src="${id}.png' alt="Source spectrum">
