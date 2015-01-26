@@ -3,28 +3,48 @@ from __future__ import absolute_import
 import collections
 import math
 import numpy as np
-import pp
 
-import common.commonobjects as co
+def calculate_dirty_plane(b_x_list, b_y_list, spectra, wn_spectra,
+  iwn, wn, spatial_axis, npix):
+    """Routine to calculate one plane of a dirty image cube.
 
-def dirty(b_x_list, b_y_list, spectra, wn_spectra, iwn, wn, spatial_axis, npix):
+    Parameters:
+    b_x_list     -
+    b_y_list     -
+    spectra      -
+    wn_spectra   -
+    iwn          - 
+    wn           -
+    spatial_axis -
+    npix         - image plane has dimnesions [npix, npix]
+
+    Returns:
+    image        - [npix, npix] float array with dirty image 
+    beam         - [npix, npix] float array with dirty beam
+
+    """
+    # arrays to hold the results
     image = numpy.zeros([npix, npix], numpy.float)
     beam = numpy.zeros([npix, npix], numpy.float)
 
+    # iterate through the measured baselines
     for ibx,b_x in enumerate(b_x_list):
         b_x = b_x_list[ibx]
         b_y = b_y_list[ibx]
         spectrum = spectra[ibx]
         wn_spectrum = wn_spectra[ibx]
 
-        # must be a better way of doing this
+        # calculate the Fourier component for this baseline
+        # (must be a better way of doing this)
         argx = numpy.radians(b_x * (wn * 100.0) * spatial_axis / 3600.0)
         argy = numpy.radians(b_y * (wn * 100.0) * spatial_axis / 3600.0)
         valx = numpy.exp(2.0j * math.pi * argx)
         valy = numpy.exp(2.0j * math.pi * argy)
 
+        # get the visibility for this spectral plane
         vis = spectrum[wn_spectrum==wn]
 
+        # calculate and coadd the contribution
         # numpy arrays are [row,col] or here [y,x]
         for iy,y in enumerate(spatial_axis):
             contribution = (vis * valx * valy[iy]) + \
@@ -51,25 +71,36 @@ class DirtyImage(object):
     """
 
     def __init__(self, previous_results, job_server):
+        """Constructor.
+
+        Parameters:
+        previous_results - Current results structure of the simulation run.
+        job_server       - ParallelPython job server.
+        """
         self.previous_results = previous_results
         self.job_server = job_server
 
-        self.result = collections.OrderedDict()      
+        self.result = collections.OrderedDict()
+        self.nuvspectra = None      
 
     def run(self):
-        print 'DirtyImage.run'
+#        print 'DirtyImage.run'
 
         # get relevant fts info
         fts = self.previous_results['fts']
         fts_wnmin = fts['wnmin']
 
-        # get primary beam info
+        # get spatial info
         cubeparameters = self.previous_results['cubeparameters']
         npix = cubeparameters['npix']
         spatial_axis = cubeparameters['spatial axis [arcsec]']
 
-        # get observation list
-        uvspectra = self.previous_results['uvspectra']['uvspectra']
+        # get spectra at each baseline
+        uvspectra = self.previous_results['reduceinterferogram']\
+          ['baseline_uvspectrum'].values()
+        self.nuvspectra = len(uvspectra)
+
+        # get wavenumber axis
         wavenumber = uvspectra[0].wavenumber
         wavenumber = wavenumber[wavenumber>fts_wnmin]
 
@@ -78,7 +109,9 @@ class DirtyImage(object):
         dirtybeam = np.zeros([npix, npix, len(wavenumber)], np.float)
 
         # calculate dirty image for each wn
-        # uvspectrum objects don't pickle so unpack them first
+        # uvspectrum objects don't pickle which means they can't be
+        # passed to the parallel processes as they are, so unpack them
+        # first
         b_x_list = []
         b_y_list = []
         spectra = []
@@ -89,16 +122,23 @@ class DirtyImage(object):
             spectra.append(uvspectrum.spectrum)
             wn_spectra.append(uvspectrum.wavenumber)
 
+        # start a job for each wavenumber plane
         jobs = {}
         for iwn,wn in enumerate(wavenumber):
             # submit jobs
             indata = (b_x_list, b_y_list, spectra, wn_spectra, iwn, wn, 
               spatial_axis, npix,)
-            jobs[wn] = self.job_server.submit(dirty, indata, (),
+            jobs[wn] = self.job_server.submit(
+              calculate_dirty_plane, 
+              indata,
+              (),
               ('numpy','math',))
 
+        # collect and store results
         for iwn,wn in enumerate(wavenumber):
-            # collect and store results
+            if jobs[wn]() is None:
+                raise Exception, 'calculate_dirty_plane has failed'
+
             dirtyimage[:,:,iwn], dirtybeam[:,:,iwn] = jobs[wn]()
 
         self.result['dirtyimage'] = dirtyimage
@@ -112,6 +152,10 @@ class DirtyImage(object):
     def __repr__(self):
         return '''
 DirtyImage:
+  cube        : {npix} x {npix} x {nwn}
+  # baselines : {nbaselines}
 '''.format(
-          num_uvspectra=len(self.uvspectra))
+           npix=np.shape(self.result['dirtyimage'])[0],
+           nwn=np.shape(self.result['dirtyimage'])[2],
+           nbaselines=self.nuvspectra)
 
