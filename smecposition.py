@@ -65,11 +65,11 @@ class ZeroErrors(object):
         for i in range(1, len(self.scan_relative_time)):
             demand_smec_position[offset+i] = demand_smec_position[offset+i-1] + \
               (self.scan_relative_time[i] - self.scan_relative_time[i-1]) * \
-              self.smec_vel[i] * direction
+              self.smec_vel[i-1] * direction
 
             actual_smec_position[offset+i] = actual_smec_position[offset+i-1] + \
               (self.scan_relative_time[i] - self.scan_relative_time[i-1]) * \
-              (self.smec_vel[i] + vel_error[i]) * direction
+              (self.smec_vel[i-1] + vel_error[i]) * direction
 
         smec_flag[offset+self.prescan_nsamples:offset+self.total_nsamples] = \
           False
