@@ -173,6 +173,7 @@ class ReduceInterferogram(object):
                 interferogram_n += 1.0
 
             interferogram_mean = interferogram_sum / interferogram_n
+
             axis = co.Axis(data=opd[opd_sort], title='OPD', units='cm')
             scan_mean = co.Spectrum(
               data=interferogram_mean,
