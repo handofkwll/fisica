@@ -107,11 +107,11 @@ class PyFIInS(object):
         print reduceint
 
         # construct dirty image
-#        dirty = dirtyimage.DirtyImage(
-#          previous_results=self.result,
-#          job_server=self.job_server)
-#        self.result['dirtyimage'] = dirty.run()  
-#        print dirty
+        dirty = dirtyimage.DirtyImage(
+          previous_results=self.result,
+          job_server=self.job_server)
+        self.result['dirtyimage'] = dirty.run()  
+        print dirty
 
 #        # construct clean image
 #        clean = cleanimage.CleanImage(
