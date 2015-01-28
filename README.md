@@ -53,12 +53,15 @@ will be running python from - that is where the code will look for them.
 4. Start up python then:
 
 In [1]: import sys
-  tell python where to look for the code
-In [2]: sys.path.append('/users/jfl/fisica')
 
+  tell python where to look for the code
+
+In [2]: sys.path.append('/users/jfl/fisica')
 In [3]: import fiins
+
   construct the simulator specifying a file describing the sky model 
   to use
+
 In [4]: f=fiins.Fiins(sky_spreadsheet='SkyTest.xlsx', sky_sheet='Master')
 In [5]: f.simulate()
 
