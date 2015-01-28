@@ -28,19 +28,26 @@ other OS.
 that to install IPython and the other modules needed:
 
  numpy (for fast array processing)
+
  scipy (scientific functions and constants)
+
  matplotlib (for plotting) 
+
  parallelpython (for parallel processing)
  
-Yo will also need to install:
+You will also need to install:
  mako and twitter bootstrap (weblog generation)
  
 If the installation has worked then you should be able to type ipython, then:
 
  In [1]: import numpy
+
  In [2]: import scipy
+
  In [3]: import matplotlib
+
  In [4]: import pp
+
  In [5]: import mako
 
 with no errors.
@@ -53,21 +60,31 @@ will be running python from - that is where the code will look for them.
 4. Start up python then:
 
  In [1]: import sys
+
   tell python where to look for the code
+
  In [2]: sys.path.append('/users/jfl/fisica')
+
  In [3]: import pyfiins
+
   construct the simulator specifying a file describing the sky model 
   to use
+
  In [4]: f=pyfiins.PyFIInS(sky_spreadsheet='SkyTest.xlsx', sky_sheet='Master')
+
  In [5]: f.simulate()
 
 It should run for several minutes, producing lots of debug statements 
 and a few 'warnings', eventually finishing with:
 
 .....
+
 rendering observe
+
 rendering reduceinterferogram
+
 rendering dirtyimage
+
 rendering cleanimage
 
 If it has worked then you should see a new directory in your working 
