@@ -57,12 +57,12 @@ In [1]: import sys
   tell python where to look for the code
 
 In [2]: sys.path.append('/users/jfl/fisica')
-In [3]: import fiins
+In [3]: import pyfiins
 
   construct the simulator specifying a file describing the sky model 
   to use
 
-In [4]: f=fiins.Fiins(sky_spreadsheet='SkyTest.xlsx', sky_sheet='Master')
+In [4]: f=pyfiins.PyFIInS(sky_spreadsheet='SkyTest.xlsx', sky_sheet='Master')
 In [5]: f.simulate()
 
 It should run for several minutes, producing lots of debug statements 
