@@ -138,7 +138,7 @@ class Observe(object):
 #        print 'Observe.run'
 
         # access primary beam information
-#        primarybeams = self.previous_results['primarybeams']
+        primarybeams = self.previous_results['primarybeams']
 
         # access required FTS information
         fts = self.previous_results['fts']
@@ -253,10 +253,10 @@ class Observe(object):
                 #    where Beam1.Beam2* == PSF.
 
                 # multiply sky by amp.beam 1 * conj(amp.beam 2)
-#                amp_beam_1 = primarybeams['primary amplitude beam'].data
-#                amp_beam_2 = primarybeams['primary amplitude beam'].data
-                amp_beam_1 = 1.0
-                amp_beam_2 = 1.0
+                amp_beam_1 = primarybeams['primary amplitude beam'].data
+                amp_beam_2 = primarybeams['primary amplitude beam'].data
+#                amp_beam_1 = 1.0
+#                amp_beam_2 = 1.0
 
                 # shift beams if pointing error
                 if config.pointing1_x or config.pointing1_y:
