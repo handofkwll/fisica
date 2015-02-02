@@ -113,12 +113,12 @@ class PyFIInS(object):
         self.result['dirtyimage'] = dirty.run()  
         print dirty
 
-#        # construct clean image
-#        clean = cleanimage.CleanImage(
-#          previous_results=self.result,
-#          job_server=self.job_server)
-#        self.result['cleanimage'] = clean.run()  
-#        print clean
+        # construct clean image
+        clean = cleanimage.CleanImage(
+          previous_results=self.result,
+          job_server=self.job_server)
+        self.result['cleanimage'] = clean.run()  
+        print clean
 
         # construct html description of result
         self.render()
