@@ -26,6 +26,7 @@ class CleanImage(object):
         dirty = self.previous_results['dirtyimage']
         dirtyimage = dirty['dirtyimage']
         dirtybeam = dirty['dirtybeam']
+        cleanbeam = dirty['cleanbeam']
         spatial_axis = dirty['spatial axis [arcsec]']
         wavenumber = dirty['wavenumber [cm-1]']
 
@@ -38,21 +39,25 @@ class CleanImage(object):
         # clean only central quarter
         imsize = np.shape(dirtyimage)[:2]
         window = [slice(imsize[0]/4, imsize[0]*3/4), slice(imsize[1]/4, imsize[1]*3/4)]
-        for iwn,wn in enumerate(wavenumber):
+        for iwn,wn in enumerate(wavenumber[:4]):
             # submit jobs
             immax = np.max(dirtyimage[:,:,iwn])
-            indata = (dirtyimage[:,:,iwn], dirtybeam[:,:,iwn], window, 0.1,
-              immax/100.0, 5000,)
+            indata = (dirtyimage[:,:,iwn], dirtybeam[:,:,iwn], cleanbeam[:,:,iwn],
+              window, 0.1, immax/100.0, 5000,)
             jobs[wn] = self.job_server.submit(pythonclean.hogbom,
               indata, (), ('numpy','pythonclean',))
 
-        for iwn,wn in enumerate(wavenumber[:3]):
+        for iwn,wn in enumerate(wavenumber[:4]):
             # collect and store results
-            cleanimage[:,:,iwn], residualimage[:,:,iwn] = jobs[wn]()
+            if jobs[wn]() is None:
+                raise Exception, 'pythonclean.hogbom has failed'
+
+            ignore, residualimage[:,:,iwn], cleanimage[:,:,iwn] = jobs[wn]()
             print wn, 'clean finished'
 
         self.result['dirtyimage'] = dirtyimage
-        self.result['cleanimage'] = cleanimage + residualimage
+        self.result['cleanimage'] = cleanimage
+#        self.result['cleanimage'] = cleanimage + residualimage
         self.result['residualimage'] = residualimage
         self.result['spatial axis [arcsec]'] = spatial_axis
         self.result['spatial axis'] = spatial_axis
@@ -63,6 +68,7 @@ class CleanImage(object):
     def __repr__(self):
         return '''
 CleanImage:
-'''.format(
-          num_uvspectra=len(self.uvspectra))
+'''
+#.format(
+#          num_uvspectra=len(self.uvspectra))
 
