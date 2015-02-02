@@ -25,7 +25,8 @@ def calculate_dirty_plane(b_x_list, b_y_list, spectra, wn_spectra,
     """
     # arrays to hold the results
     image = numpy.zeros([npix, npix], numpy.float)
-    beam = numpy.zeros([npix, npix], numpy.float)
+    dirtybeam = numpy.zeros([npix, npix], numpy.float)
+    cleanbeam = numpy.zeros([npix, npix], numpy.float)
 
     # iterate through the measured baselines
     for ibx,b_x in enumerate(b_x_list):
@@ -52,18 +53,31 @@ def calculate_dirty_plane(b_x_list, b_y_list, spectra, wn_spectra,
             image[iy,:] += contribution.real
             contribution = (valx * valy[iy]) + \
               numpy.conjugate(valx * valy[iy])
-            beam[iy,:] += contribution.real
-   
+            dirtybeam[iy,:] += contribution.real
+
+    # fit Gaussian to centre of dirty beam and use this as the 'clean beam'
+    fitter = fitgaussian.FitGaussian()
+    dirty_centre = numpy.array(dirtybeam[npix/2-5:npix/2+5,
+      npix/2-5:npix/2+5])
+    p = fitter.fitgaussian(dirty_centre)
+
+    # construct the clean beam
+    cp = (1.0, float(npix)/2.0, float(npix)/2.0, p[3], p[4], p[5])
+    rotgauss = fitter.gaussian(*cp)
+    cleanbeam = numpy.fromfunction(rotgauss, numpy.shape(dirtybeam))
+
     # normalise
     # The sum of the dirty beam should equal the 0 baseline vis measurement: 0
     # Normalising the volume would preserve flux under convolution but
     # is problematic as the volume is 0, so normalise the peak to 1.
-    beam /= 2.0 * len(b_x_list)
+#    beam /= 2.0 * len(b_x_list)
+    dirtybeam /= numpy.max(dirtybeam)
+    cleanbeam /= numpy.max(cleanbeam)
 
     # likewise for dirty map
     image /= 2.0 * len(b_x_list)
 
-    return image, beam
+    return image, dirtybeam, cleanbeam
 
 
 class DirtyImage(object):
@@ -107,6 +121,7 @@ class DirtyImage(object):
         # dirty image cube
         dirtyimage = np.zeros([npix, npix, len(wavenumber)], np.float)
         dirtybeam = np.zeros([npix, npix, len(wavenumber)], np.float)
+        cleanbeam = np.zeros([npix, npix, len(wavenumber)], np.float)
 
         # calculate dirty image for each wn
         # uvspectrum objects don't pickle which means they can't be
@@ -132,17 +147,18 @@ class DirtyImage(object):
               calculate_dirty_plane, 
               indata,
               (),
-              ('numpy','math',))
+              ('numpy','math','fitgaussian',))
 
         # collect and store results
         for iwn,wn in enumerate(wavenumber):
             if jobs[wn]() is None:
                 raise Exception, 'calculate_dirty_plane has failed'
 
-            dirtyimage[:,:,iwn], dirtybeam[:,:,iwn] = jobs[wn]()
+            dirtyimage[:,:,iwn], dirtybeam[:,:,iwn], cleanbeam[:,:,iwn] = jobs[wn]()
 
         self.result['dirtyimage'] = dirtyimage
         self.result['dirtybeam'] = dirtybeam
+        self.result['cleanbeam'] = cleanbeam
         self.result['spatial axis [arcsec]'] = spatial_axis
         self.result['spatial axis'] = spatial_axis
         self.result['wavenumber [cm-1]'] = wavenumber
