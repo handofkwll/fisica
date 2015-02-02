@@ -41,7 +41,7 @@ plt.title(beam_image.title)
 
 sane_beamtype = sanitize(beamtype)
 filename = '%s%s.png' % (sane_beamtype, wn)
-plt.savefig(os.path.join(context['dirname'], filename), dpi=300)
+plt.savefig(os.path.join(context['dirname'], filename))
 plt.close()
 %>
 
