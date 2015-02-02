@@ -185,8 +185,8 @@ class SkyGenerator(object):
         y = x[:,np.newaxis]
         profile = np.exp(-4*np.log(2) * ((x-xpos)**2/xwidth**2 + (y-ypos)**2/ywidth**2))
 
-#        # apodise
-#        profile[((x-xpos)**2 + (y-ypos)**2) < 4] = 1.0
+        # apodise
+        profile[((x-xpos)**2 + (y-ypos)**2) > 16] = 0.0
 
         # go through freq planes and add source to each
         for iwn,wn in enumerate(frequency_axis):
