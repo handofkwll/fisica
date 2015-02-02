@@ -41,6 +41,7 @@ def overlapIndices(a1, a2,
 
 def hogbom(dirty,
            psf,
+           cleanbeam,
            window,
            gain,
            thresh,
@@ -67,6 +68,8 @@ def hogbom(dirty,
     """
     comps=numpy.zeros(dirty.shape)
     res=numpy.array(dirty)
+    image = numpy.zeros(dirty.shape)
+
     grid=numpy.indices(dirty.shape)
     if window is True:
         window = [slice(dirty.shape), slice(dirty.shape)]
@@ -78,11 +81,13 @@ def hogbom(dirty,
 
         mval=res[mx, my]*gain
         comps[mx, my]+=mval
+        print mx, my, mval 
         a1o, a2o=pythonclean.overlapIndices(dirty, psf,
                                 mx-dirty.shape[0]/2,
                                 my-dirty.shape[1]/2)
         res[a1o[0]:a1o[1],a1o[2]:a1o[3]]-=psf[a2o[0]:a2o[1],a2o[2]:a2o[3]]*mval
+        image[a1o[0]:a1o[1],a1o[2]:a1o[3]]+=cleanbeam[a2o[0]:a2o[1],a2o[2]:a2o[3]]*mval
         if numpy.fabs(res).max() < thresh:
             break
-    return comps, res
+    return comps, res, image
 
