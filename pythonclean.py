@@ -82,7 +82,7 @@ def hogbom(dirty,
 
     grid = numpy.indices(dirty.shape)
 
-    # loop, looking for clean components
+    # loop, looking for clean components
     for i in range(niter):
         # locate brightest pixel in current residual
         argmax = numpy.unravel_index(numpy.fabs(res[window]).argmax(),
