@@ -56,8 +56,7 @@ class CleanImage(object):
             print wn, 'clean finished'
 
         self.result['dirtyimage'] = dirtyimage
-        self.result['cleanimage'] = cleanimage
-#        self.result['cleanimage'] = cleanimage + residualimage
+        self.result['cleanimage'] = cleanimage + residualimage
         self.result['residualimage'] = residualimage
         self.result['spatial axis [arcsec]'] = spatial_axis
         self.result['spatial axis'] = spatial_axis
