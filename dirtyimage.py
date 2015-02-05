@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import collections
 import math
 import numpy as np
+import pickle
 
 def calculate_dirty_plane(b_x_list, b_y_list, spectra, wn_spectra,
   iwn, wn, spatial_axis, npix):
@@ -70,11 +71,10 @@ def calculate_dirty_plane(b_x_list, b_y_list, spectra, wn_spectra,
     # The sum of the dirty beam should equal the 0 baseline vis measurement: 0
     # Normalising the volume would preserve flux under convolution but
     # is problematic as the volume is 0, so normalise the peak to 1.
-#    beam /= 2.0 * len(b_x_list)
     dirtybeam /= numpy.max(dirtybeam)
     cleanbeam /= numpy.max(cleanbeam)
 
-    # likewise for dirty map
+    # normalise dirty map by 2 times number of Fourier components added
     image /= 2.0 * len(b_x_list)
 
     return image, dirtybeam, cleanbeam
@@ -155,6 +155,10 @@ class DirtyImage(object):
                 raise Exception, 'calculate_dirty_plane has failed'
 
             dirtyimage[:,:,iwn], dirtybeam[:,:,iwn], cleanbeam[:,:,iwn] = jobs[wn]()
+            if iwn==0:
+                f=open('dirty.pickle', 'w')
+                pickle.dump(dirtybeam[:,:,iwn], f)
+                f.close()
 
         self.result['dirtyimage'] = dirtyimage
         self.result['dirtybeam'] = dirtybeam
