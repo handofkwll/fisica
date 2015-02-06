@@ -32,7 +32,7 @@ residual_image = context['data'][stagename]['residualimage'][:,:,iwn]
 spatial_axis = context['data'][stagename]['spatial axis']
 wn = context['wn'] 
 
-plt.subplot(121)
+ax = plt.subplot(221)
 plt.imshow(clean_image, interpolation='nearest', origin='lower',
   aspect='equal', extent=[spatial_axis[0], spatial_axis[-1],
   spatial_axis[0], spatial_axis[-1]])
@@ -40,10 +40,25 @@ plt.colorbar(orientation='vertical')
 plt.axis('image')
 plt.title('Clean image %6.4gcm-1' % wn)
 
-plt.subplot(122)
-plt.imshow(residual_image, interpolation='nearest', origin='lower',
+for item in (
+  [ax.title,
+  ax.xaxis.label,
+  ax.yaxis.label] +
+  ax.get_xticklabels() +
+  ax.get_yticklabels()):
+    item.set_fontsize(8)
+
+ax = plt.subplot(222)
+res = residual_image
+imshape = np.shape(res)
+plt.imshow(res, interpolation='nearest', origin='lower',
   aspect='equal', extent=[spatial_axis[0], spatial_axis[-1],
-  spatial_axis[0], spatial_axis[-1]])
+  spatial_axis[0], spatial_axis[-1]],
+  vmax=np.max(res[imshape[0]/4:imshape[0]*3/4,
+  imshape[1]/4:imshape[1]*3/4]),
+  vmin=np.min(res[imshape[0]/4:imshape[0]*3/4,
+  imshape[1]/4:imshape[1]*3/4]))
+
 plt.colorbar(orientation='vertical')
 plt.axis('image')
 plt.title('Residual image %6.4gcm-1' % wn)
@@ -51,6 +66,18 @@ plt.title('Residual image %6.4gcm-1' % wn)
 filename = '%splane%s.png' % (stagename, wn)
 filename = sanitize(filename)
 filename = os.path.join(context['dirname'], filename)
+
+for item in (
+  [ax.title,
+  ax.xaxis.label,
+  ax.yaxis.label] +
+  ax.get_xticklabels() +
+  ax.get_yticklabels()):
+    item.set_fontsize(8)
+
+# adjust subplot spacing to remove overlaps
+plt.tight_layout()
+
 plt.savefig(filename)
 plt.close()
 %>
