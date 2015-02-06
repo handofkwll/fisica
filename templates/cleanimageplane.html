@@ -49,12 +49,14 @@ for item in (
     item.set_fontsize(8)
 
 ax = plt.subplot(222)
-plt.imshow(residual_image, interpolation='nearest', origin='lower',
+res = residual_image
+imshape = np.shape(res)
+plt.imshow(res, interpolation='nearest', origin='lower',
   aspect='equal', extent=[spatial_axis[0], spatial_axis[-1],
   spatial_axis[0], spatial_axis[-1]],
-  vmax=numpy.max(res[imshape[0]/4:imshape[0]*3/4,
+  vmax=np.max(res[imshape[0]/4:imshape[0]*3/4,
   imshape[1]/4:imshape[1]*3/4]),
-  vmin=numpy.min(res[imshape[0]/4:imshape[0]*3/4,
+  vmin=np.min(res[imshape[0]/4:imshape[0]*3/4,
   imshape[1]/4:imshape[1]*3/4]))
 
 plt.colorbar(orientation='vertical')
