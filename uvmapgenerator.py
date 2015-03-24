@@ -34,28 +34,7 @@ class UVMapGenerator(object):
 
 #            n_baselines = 50
             bxby = np.zeros([n_baselines,2])     
-#            bxby[0,0] = 10.0
-#            bxby[0,1] = 0.0
-#            bxby[1,0] = 20.0
-#            bxby[1,1] = 0.0
-#            bxby[2,0] = 30.0
-#            bxby[2,1] = 0.0
-#            bxby[3,0] = 40.0
-#            bxby[3,1] = 0.0
-#            bxby[4,0] = 0.0
-#            bxby[4,1] = 10.0
-#            bxby[5,0] = 0.0
-#            bxby[5,1] = 20.0
-#            bxby[6,0] = 0.0
-#            bxby[6,1] = 30.0
-#            bxby[7,0] = 0.0
-#            bxby[7,1] = 40.0
-#            bxby[8,0] = 40.0
-#            bxby[8,1] = 40.0
-#            bxby[9,0] = 20.0
-#            bxby[9,1] = 20.0
-#            bxby[10,0] = 30.0
-#            bxby[10,1] = 30.0
+
 
             # n_baselines is total number of points along spiral
             for ib in range(n_baselines):
@@ -70,7 +49,43 @@ class UVMapGenerator(object):
             self.result['bmin'] = bmin
             self.result['bmax'] = bmax
             self.result['n_baselines'] = n_baselines
+        elif pattern.lower() == 'spiro':
+            bmax = interferometer['bmax [m]'][row]
+            bmin = interferometer['bmin [m]'][row]
+            n_baselines = int(interferometer['Num Baselines'][row])
+            bxby = np.zeros([n_baselines, 2])
+            R1 = 18
+            R2 = 22
 
+            om_tru = 10e-4
+            om_tel = om_tru*10
+
+            nsteps = n_baselines
+            dt = 60
+
+            t1_x = R2*np.cos(np.linspace(0,nsteps-1, nsteps)*dt*om_tru)
+            t1_y = R2*np.sin(np.linspace(0,nsteps-1, nsteps)*dt*om_tru)
+
+            t2_x = -R2*np.cos(np.linspace(0,nsteps-1, nsteps)*dt*om_tru)
+            t2_y = -R2*np.sin(np.linspace(0,nsteps-1, nsteps)*dt*om_tru)
+
+            x1_0 = t1_x + R1*np.cos(np.linspace(0,nsteps-1, nsteps)*om_tel*dt)
+            y1_0 = t1_y + R1*np.sin(np.linspace(0,nsteps-1, nsteps)*om_tel*dt)
+            x2_0 = t2_x + R1*np.cos(np.linspace(0,nsteps-1, nsteps)*om_tel*dt)
+            y2_0 = t2_y + R1*np.sin(np.linspace(0,nsteps-1, nsteps)*om_tel*dt)
+
+            print x1_0
+            bxby[:, 0] = x1_0*2
+            bxby[:, 1] = y1_0*2
+
+
+            self.result['pattern'] = pattern
+            self.result['bxby'] = bxby
+            self.result['bmin'] = R2-R1
+            self.result['bmax'] = R1+R2
+            self.result['n_baselines'] = n_baselines
+            print self.result
+            print 'spiro'
         else:
             raise Exception, 'unknown baseline pattern: %s' % pattern
 

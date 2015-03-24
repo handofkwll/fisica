@@ -19,6 +19,7 @@ import timelinegenerator
 import uvmapgenerator
 
 
+
 class PyFIInS(object):
     """FISICA simulator.
     """
@@ -57,74 +58,74 @@ class PyFIInS(object):
           previous_results=self.result)
         self.result['uvmapgenerator'] = uvmapgen.run()
         print uvmapgen
-
-        # generate parameters of cube to be simulated
-        cubeparams = cubeparameters.CubeParameters(
-          previous_results=self.result)
-        self.result['cubeparameters'] = cubeparams.run()
-        print cubeparams
-
-        # generate synthesis beams - dirty and clean
-        synthbeamsgen = synthesisbeamsgenerator.SynthesisBeamsGenerator(
-          previous_results=self.result,
-          job_server=self.job_server)
-        self.result['synthesisbeams'] = synthbeamsgen.run()
-        print synthbeamsgen
-
-        # generate primary beams
-        primarybeamsgen = primarybeamsgenerator.PrimaryBeamsGenerator(
-          previous_results=self.result,
-          job_server=self.job_server)
-        self.result['primarybeams'] = primarybeamsgen.run()
-        print primarybeamsgen
-
-        # construct sky
-        skygen = skygenerator.SkyGenerator(
-          parameters=obs_specification,
-          previous_results=self.result)
-        self.result['skygenerator'] = skygen.run()
-        print skygen
-
-        # generate observation framework
-        timeline = timelinegenerator.TimeLineGenerator(
-          previous_results=self.result)
-        self.result['timeline'] = timeline.run()
-        print timeline
-
-        # calculate interferograms
-        obs = observe.Observe(
-          parameters=obs_specification,
-          previous_results=self.result,
-          job_server=self.job_server)
-        self.result['observe'] = obs.run()  
-        print obs
-
-        # recover spectra from interferograms
-        reduceint = reduceinterferogram.ReduceInterferogram(
-          previous_results=self.result,
-          job_server=self.job_server)
-        self.result['reduceinterferogram'] = reduceint.run()  
-        print reduceint
-
-        # construct dirty image
-        dirty = dirtyimage.DirtyImage(
-          previous_results=self.result,
-          job_server=self.job_server)
-        self.result['dirtyimage'] = dirty.run()  
-        print dirty
-
-        # construct clean image
-        clean = cleanimage.CleanImage(
-          previous_results=self.result,
-          job_server=self.job_server)
-        self.result['cleanimage'] = clean.run()  
-        print clean
-
-        # construct html description of result
+    #
+    #     # generate parameters of cube to be simulated
+    #     cubeparams = cubeparameters.CubeParameters(
+    #       previous_results=self.result)
+    #     self.result['cubeparameters'] = cubeparams.run()
+    #     print cubeparams
+    #
+    #     # generate synthesis beams - dirty and clean
+    #     synthbeamsgen = synthesisbeamsgenerator.SynthesisBeamsGenerator(
+    #       previous_results=self.result,
+    #       job_server=self.job_server)
+    #     self.result['synthesisbeams'] = synthbeamsgen.run()
+    #     print synthbeamsgen
+    #
+    #     # generate primary beams
+    #     primarybeamsgen = primarybeamsgenerator.PrimaryBeamsGenerator(
+    #       previous_results=self.result,
+    #       job_server=self.job_server)
+    #     self.result['primarybeams'] = primarybeamsgen.run()
+    #     print primarybeamsgen
+    #
+    #     # construct sky
+    #     skygen = skygenerator.SkyGenerator(
+    #       parameters=obs_specification,
+    #       previous_results=self.result)
+    #     self.result['skygenerator'] = skygen.run()
+    #     print skygen
+    #
+    #     # generate observation framework
+    #     timeline = timelinegenerator.TimeLineGenerator(
+    #       previous_results=self.result)
+    #     self.result['timeline'] = timeline.run()
+    #     print timeline
+    #
+    #     # calculate interferograms
+    #     obs = observe.Observe(
+    #       parameters=obs_specification,
+    #       previous_results=self.result,
+    #       job_server=self.job_server)
+    #     self.result['observe'] = obs.run()
+    #     print obs
+    #
+    #     # recover spectra from interferograms
+    #     reduceint = reduceinterferogram.ReduceInterferogram(
+    #       previous_results=self.result,
+    #       job_server=self.job_server)
+    #     self.result['reduceinterferogram'] = reduceint.run()
+    #     print reduceint
+    #
+    #     # construct dirty image
+    #     dirty = dirtyimage.DirtyImage(
+    #       previous_results=self.result,
+    #       job_server=self.job_server)
+    #     self.result['dirtyimage'] = dirty.run()
+    #     print dirty
+    #
+    #     # construct clean image
+    #     clean = cleanimage.CleanImage(
+    #       previous_results=self.result,
+    #       job_server=self.job_server)
+    #     self.result['cleanimage'] = clean.run()
+    #     print clean
+    #
+    #     # construct html description of result
         self.render()
-        
+
     def import_result(self):
-        print 'does nothing'
+         print 'does nothing'
 
     def render(self):
         htmlrenderer = renderer.Renderer(result=self.result)
