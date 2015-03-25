@@ -6,6 +6,19 @@ import numpy as np
 import pointing
 import smecposition
 
+# This namedtuple will hold the instrument configuration at each
+# timestamp in the observation.
+Config = collections.namedtuple('Config', [
+    'scan_number',
+    'time',
+    'baseline_x', 'baseline_y', 'baseline_z', 'baseline_number',
+    'smec_position', 'smec_nominal_position',
+    'flag', 'smec_vel_error', 
+    'pointing1_x', 'pointing1_y',
+    'pointing2_x', 'pointing2_y',
+    'data'],
+    verbose=False)
+
 
 class TimeLineGenerator(object):
     """Class to generate timeline of the simulated observation.
@@ -45,7 +58,8 @@ class TimeLineGenerator(object):
 
         # collector parameters
         telescope = self.previous_results['telescope']
-        pointing_error_type = telescope['pointing_error_type']
+        self.result['pointing_error_type'] = pointing_error_type = \
+          telescope['pointing_error_type']
 
         # Construct the obs timeline.
         # The timeline will hold the baseline and FTS mirror position
@@ -66,19 +80,6 @@ class TimeLineGenerator(object):
         obs_timeline = {}
         baseline_start_time = 0.0
         inter_baseline_time = 3600.0
-
-        # This namedtuple will hold the instrument configuration at each
-        # timestamp in the observation.
-        Config = collections.namedtuple('Config', [
-          'scan_number',
-          'time',
-          'baseline_x', 'baseline_y', 'baseline_z', 'baseline_number',
-          'smec_position', 'smec_nominal_position',
-          'flag', 'smec_vel_error', 
-          'pointing1_x', 'pointing1_y',
-          'pointing2_x', 'pointing2_y',
-          'data'],
-          verbose=False)
 
         # objects to use for generating pointing errors
         if 'HERSCHEL' in pointing_error_type.upper():
@@ -132,9 +133,11 @@ class TimeLineGenerator(object):
     def __repr__(self):
         return '''
 TimeLineGenerator:
+  Pointing errors  : {pointing_errors}
   FTS samples/scan : {fts_nsample}
   timelength length: {timeline_len}
 '''.format(
+          pointing_errors=self.result['pointing_error_type'],
           fts_nsample=self.result['fts_nsample'],
           timeline_len=len(self.result['obs_timeline']))
 

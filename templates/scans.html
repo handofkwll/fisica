@@ -6,6 +6,17 @@ import matplotlib.pyplot as plt
 import os.path
 import numpy as np
 
+def small_font(ax):
+    '''Use small font so that subplots do not overwrite each other.'''
+    for item in (
+      [ax.title,
+      ax.xaxis.label,
+      ax.yaxis.label] +
+      ax.get_xticklabels() +
+      ax.get_yticklabels()):
+        item.set_fontsize(8)
+    return
+
 id = context['id']
 baseline = context['baseline']
 scans = context['scans']
@@ -47,13 +58,7 @@ for scan in scans:
     plt.xlabel(xlabel)
 
 # Use small font so that subplots do not overwrite each other
-for item in (
-  [ax.title,
-  ax.xaxis.label,
-  ax.yaxis.label] +
-  ax.get_xticklabels() +
-  ax.get_yticklabels()):
-    item.set_fontsize(8)
+small_font(ax)
 
 # plot the mean interferogram
 ax = plt.subplot('222')
@@ -77,14 +82,7 @@ plt.plot(xaxis_data[xaxis_sort], mean.data[xaxis_sort])
 
 xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
 plt.xlabel(xlabel)
-
-for item in (
-  [ax.title,
-  ax.xaxis.label,
-  ax.yaxis.label] +
-  ax.get_xticklabels() +
-  ax.get_yticklabels()):
-    item.set_fontsize(8)
+small_font(ax)
 
 # plot the interferogram
 ax = plt.subplot('223')
@@ -109,14 +107,7 @@ except:
 plt.plot(xaxis_data[xaxis_sort], spectrum[xaxis_sort])
 xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
 plt.xlabel(xlabel)
-
-for item in (
-  [ax.title,
-  ax.xaxis.label,
-  ax.yaxis.label] +
-  ax.get_xticklabels() +
-  ax.get_yticklabels()):
-    item.set_fontsize(8)
+small_font(ax)
 
 # plot the spectrum
 ax = plt.subplot('224')
@@ -138,14 +129,7 @@ plt.plot(xaxis_data[xaxis_sort], spectrum.real[xaxis_sort], 'b-')
 plt.plot(xaxis_data[xaxis_sort], spectrum.imag[xaxis_sort], 'r-')
 xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
 plt.xlabel(xlabel)
-
-for item in (
-  [ax.title,
-  ax.xaxis.label,
-  ax.yaxis.label] +
-  ax.get_xticklabels() +
-  ax.get_yticklabels()):
-    item.set_fontsize(8)
+small_font(ax)
 
 # adjust subplot spacing to remove overlaps
 plt.tight_layout()
