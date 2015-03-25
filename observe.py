@@ -68,25 +68,12 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
 #      sky_cube * numpy.conj(psf1) * psf2
 
     for it,t in enumerate(times):
-        #print it
+        print it
         config = obs_timeline[t]
         opd = config.smec_position / smec_opd_to_mpd
         ntotal += 1
        
         power[t] = 0.0
-
-        # first, calculate f1 = B * conj(psf1) * psf2
-#        nsearched_f1 += 1
-#        f1_key = rounded((
-#          config.pointing1_x,
-#          config.pointing1_y,
-#          config.pointing2_x,
-#          config.pointing2_y))
-#        f1_cube = f1_cache.get(f1_key)
-#        if f1_cube is None:
-#            f1_cube = sky_cube * numpy.conj(psf1) * psf2
-#        else:
-#            nhit_f1 += 1
 
         for iwn, wn in enumerate(wn_axis):
 
@@ -104,13 +91,6 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
                   config.baseline_x, config.baseline_y))]
 
                 power[t] += dpower.real
-                # purpose of this commented out section
-                # described below
-#                if iwn==len(wn_axis)-1:
-#                    power[t] += dpower.real
-#                else:
-#                    power[t] += 2.0 * dpower.real
-
                 ncached += 1
                 continue
 
@@ -166,6 +146,7 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
             delta_power = f1timesf2 * numpy.exp(2.0j * numpy.pi * wn * 100.0 * opd)
 
             power[t] += delta_power.real
+
             # following section to handle FFT problem (not
             # sure its right to call it aliasing) that occurs if there
             # is flux at the maximum frequency. 
@@ -188,24 +169,8 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
               config.pointing2_x, config.pointing2_y,
               config.baseline_x, config.baseline_y))] = delta_power.real
 
-            #print wn, f1timesf2.real
-
-#           debug plotting
-#            plt.figure()
-#            plt.imshow(factor.real, interpolation='nearest', origin='lower',
-#              aspect='equal')
-#            plt.colorbar(orientation='vertical')
-#            plt.axis('image')
-#            filename = 'debug.png'
-#            plt.savefig(filename)
-#            plt.close()
-#            x = 1/0
-
     fraction_cached = float(ncached)/float(ntotal)
 
-#    # data are pickled for transfer between ParallelPython processes
-#    # and this won't work for defaultdict objects - so convert to dict
-#    return dict(power), fraction_cached
     f1_hit_rate = float(nhit_f1) / float(nsearched_f1)
     return power, fraction_cached, f1_hit_rate
 
@@ -309,6 +274,8 @@ class Observe(object):
         # get list of instrument configuratons       
         timeline = self.previous_results['timeline']
         obs_timeline = timeline['obs_timeline']
+        if timeline['pointing_error_type'].upper().strip() != 'ZERO':
+            print '..pointing errors are enabled, calculating the interferograms will take a long time'
 
         # calculate the measured result for each configuration
         previous_config = None
