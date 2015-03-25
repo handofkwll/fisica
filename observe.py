@@ -5,7 +5,6 @@ import numpy as np
 import numpy
 import psutil
 import time
-import visibility
 
 #used for debugging
 #import matplotlib.pyplot as plt
