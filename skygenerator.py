@@ -44,6 +44,11 @@ class BB_spectrum(object):
             spectrum[iwn] = black_body(self.temperature, wn) * f1 * \
               self.emissivity
 
+        # make sure spectrum is zero beyond cutoffs, can cause 
+        # aliasing at high freq
+        spectrum[self.frequency_axis <= self.cutoffmin] = 0.0
+        spectrum[self.frequency_axis >= self.cutoffmax] = 0.0
+
         # restore fp behaviour
         ignore = np.seterr(**old_settings)
 
@@ -81,8 +86,10 @@ class SkyGenerator(object):
 
         fts = self.previous_results['fts']
         fts_wn_truncated = fts['fts_wn_truncated']
+        # truncate spectrum inside allowed spectral range to prevent
+        # aliasing problem at wnmax
         cutoffmin = fts['wnmin']
-        cutoffmax = fts['wnmax']
+        cutoffmax = fts['wnmax'] - 1.0
 
         cubeparameters = self.previous_results['cubeparameters']
         npix = cubeparameters['npix']
