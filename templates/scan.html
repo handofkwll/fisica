@@ -19,7 +19,7 @@ def find_flagged_sections(flag):
                 inflagsection = True
         else:
             if inflagsection:
-                flagsection[1] = i-1
+                flagsection[1] = i
                 flagsections.append(flagsection)
                 flagsection = [-1,-1]
                 inflagsection = False
