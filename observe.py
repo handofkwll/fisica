@@ -2,12 +2,26 @@ from __future__ import absolute_import
 
 import collections
 import numpy as np
+import numpy
+import psutil
+import time
+import visibility
 
 #used for debugging
 #import matplotlib.pyplot as plt
 #import common.commonobjects as co
 
-def calculate_visibility(baseline, wn, sky_plane, spatial_freq_axis):
+def data_size(sky_cube, amplitude_beam_1, amplitude_beam_2):
+    """Routine to calculate size of dominant data arrays in
+    calculate_visibility.
+    """
+    result = sky_cube.nbytes + amplitude_beam_1.nbytes + \
+      amplitude_beam_2.nbytes
+    return result
+
+def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
+  spatial_axis,
+  amplitude_beam_1, amplitude_beam_2, obs_timeline, times):
     """Routine to calculate the visibility for a specified
     baseline for one plane in a sky model.
 
@@ -18,47 +32,182 @@ def calculate_visibility(baseline, wn, sky_plane, spatial_freq_axis):
     spatial_freq_axis - The spatial frequency axis of the sky plane
                         Fourier transform
     """ 
+    def rounded(in_tuple):
+        """Routine to round the elements of a tuple being used
+        as a dict key. The idea is to ensure that keys that
+        are close to identical are treated as identical.
+        """
+        out = [int(round(1000000 * v)) for v in in_tuple]
+        return tuple(out) 
 
-    # derive shift needed to place baseline at one of FFT
-    # coords this depends on physical baseline and frequency
-    baseline_lambda = baseline * wn * 100.0
+    nx,ny,nwn = numpy.shape(sky_cube)
+    power = {}
+    angles = numpy.radians(spatial_axis / 3600.0) 
 
-    # calculate baseline position in units of pixels of 
-    # FFTed sky - numpy arrays [row,col]
-    nx,ny = numpy.shape(sky_plane)
-    colpos = float(nx-1) * baseline_lambda[0] / \
-      (spatial_freq_axis[-1] - spatial_freq_axis[0])
-    rowpos = float(nx-1) * baseline_lambda[1] / \
-      (spatial_freq_axis[-1] - spatial_freq_axis[0])
+    dpower_cache = {}
+    ncached = 0
+    ntotal = 0
 
-    # calculate fourier phase shift to move point at 
-    # [rowpos,colpos] to [0,0]
-    shiftx = numpy.zeros([nx], numpy.complex)
-    shiftx[:nx/2] = numpy.arange(nx/2, dtype=numpy.complex)
-    shiftx[nx/2:] = numpy.arange(-nx/2, 0, dtype=numpy.complex)
-    shiftx = numpy.exp((2.0j * numpy.pi * colpos * shiftx) / float(nx))
+    f1_cache = {}
+    nsearched_f1 = 0
+    nhit_f1 = 0
 
-    shifty = numpy.zeros([nx], numpy.complex)
-    shifty[:nx/2] = numpy.arange(nx/2, dtype=numpy.complex)
-    shifty[nx/2:] = numpy.arange(-nx/2, 0, dtype=numpy.complex)
-    shifty = numpy.exp((2.0j * numpy.pi * rowpos * shifty) / float(nx))
+    f1timesf2_cache = {}
+    nsearched_baseline = 0
+    nhit_baseline = 0
 
-    shift = numpy.ones([nx,nx], numpy.complex)
-    for j in range(nx):
-        shift[j,:] *= shiftx
-    for i in range(nx):
-        shift[:,i] *= shifty
+    # using Anthony Murphy's formalism throughout
 
-    # move centre of sky image to origin
-    temp = numpy.fft.fftshift(sky_plane)
+    # first, calculate f1 = B * conj(psf1) * psf2
+    # only cache 0 pointing error case
+    # TBD - shift psfs according to pointing errors   
+    psf1 = amplitude_beam_1
+    psf2 = amplitude_beam_2
 
-    # apply phase shift
-    temp *= shift
-    # 2d fft
-    temp = numpy.fft.fft2(temp)
-                  
-    # return the visibility
-    return temp[0,0]
+#    f1_cache[rounded((0.0,0.0,0.0,0.0))] = \
+#      sky_cube * numpy.conj(psf1) * psf2
+
+    for it,t in enumerate(times):
+        #print it
+        config = obs_timeline[t]
+        opd = config.smec_position / smec_opd_to_mpd
+        ntotal += 1
+       
+        power[t] = 0.0
+
+        # first, calculate f1 = B * conj(psf1) * psf2
+#        nsearched_f1 += 1
+#        f1_key = rounded((
+#          config.pointing1_x,
+#          config.pointing1_y,
+#          config.pointing2_x,
+#          config.pointing2_y))
+#        f1_cube = f1_cache.get(f1_key)
+#        if f1_cube is None:
+#            f1_cube = sky_cube * numpy.conj(psf1) * psf2
+#        else:
+#            nhit_f1 += 1
+
+        for iwn, wn in enumerate(wn_axis):
+
+            # see if the result is in the cache
+      
+            if dpower_cache.has_key(
+              rounded((opd, wn, 
+              config.pointing1_x, config.pointing1_y,
+              config.pointing2_x, config.pointing2_y,
+              config.baseline_x, config.baseline_y))):
+
+                dpower = dpower_cache[rounded((opd, wn, 
+                  config.pointing1_x, config.pointing1_y,
+                  config.pointing2_x, config.pointing2_y,
+                  config.baseline_x, config.baseline_y))]
+
+                power[t] += dpower.real
+                # purpose of this commented out section
+                # described below
+#                if iwn==len(wn_axis)-1:
+#                    power[t] += dpower.real
+#                else:
+#                    power[t] += 2.0 * dpower.real
+
+                ncached += 1
+                continue
+
+            # see if the required f1timesf2 is in cache
+
+            f1timesf2_key = rounded((wn,
+              config.pointing1_x, config.pointing1_y,
+              config.pointing2_x, config.pointing2_y,
+              config.baseline_x, config.baseline_y))
+            
+            f1timesf2 = f1timesf2_cache.get(f1timesf2_key)
+            if f1timesf2 is None:
+
+                # calculate it
+
+                # see if cached f1 = B * conj(psf1) * psf2
+                nsearched_f1 += 1
+                f1_key = rounded((wn,
+                  config.pointing1_x,
+                  config.pointing1_y,
+                  config.pointing2_x,
+                  config.pointing2_y))
+                f1_plane = f1_cache.get(f1_key)
+                if f1_plane is None:
+                    f1_plane = sky_cube[:,:,iwn] * \
+                      numpy.conj(psf1[:,:,iwn]) * psf2[:,:,iwn]
+                else:
+                    nhit_f1 += 1
+
+                #  calculate f2 = exp(-j * k(theta,phi).b)
+                #  only cache range of wn for one baseline at a time
+                f2x = numpy.exp(2.0j * numpy.pi * wn * 100.0 * (-angles * config.baseline_x))
+                f2y = numpy.exp(2.0j * numpy.pi * wn * 100.0 * (-angles * config.baseline_y))
+                f2 = numpy.ones([nx,nx], numpy.complex)
+                # using array broadcasting to use C indexing in numpy and not
+                # in Python
+                f2 *= f2x
+                f2shape = list(numpy.shape(f2))
+                f2shape.reverse()
+                f2.reshape(f2shape)
+                f2 *= f2y
+                f2shape.reverse()
+                f2.reshape(f2shape)
+
+                #  calculate 2 * sum[B * exp(-j * k(theta,phi).b)]
+                f1timesf2 = 2.0 * numpy.sum(f2 * f1_plane)
+                f1timesf2_cache[rounded((wn,
+                  config.pointing1_x, config.pointing1_y,
+                  config.pointing2_x, config.pointing2_y,
+                  config.baseline_x, config.baseline_y))] = f1timesf2
+
+            #  calculate 2 * sum[B * exp(j * chi(theta, phi, tau)) * conj(psf1) * psf2]
+            delta_power = f1timesf2 * numpy.exp(2.0j * numpy.pi * wn * 100.0 * opd)
+
+            power[t] += delta_power.real
+            # following section to handle FFT problem (not
+            # sure its right to call it aliasing) that occurs if there
+            # is flux at the maximum frequency. 
+            #
+            # The interferogram calculated here is not the same
+            # as that via numpy FFT unless there is zero flux at
+            # maximum frequency. Numpy FFT
+            # for even n effectively counts each frequency twice
+            # but the highest frequency once (for real data).
+            #
+            # For now enforce zero flux at wnmax by making
+            # cutoffmax less than wnmax.
+            # - at least, that is what I think is happening
+#            if iwn==len(wn_axis)-1:
+#            else:
+#                power[t] += 2.0 * delta_power.real
+
+            dpower_cache[rounded((opd, wn,
+              config.pointing1_x, config.pointing1_y,
+              config.pointing2_x, config.pointing2_y,
+              config.baseline_x, config.baseline_y))] = delta_power.real
+
+            #print wn, f1timesf2.real
+
+#           debug plotting
+#            plt.figure()
+#            plt.imshow(factor.real, interpolation='nearest', origin='lower',
+#              aspect='equal')
+#            plt.colorbar(orientation='vertical')
+#            plt.axis('image')
+#            filename = 'debug.png'
+#            plt.savefig(filename)
+#            plt.close()
+#            x = 1/0
+
+    fraction_cached = float(ncached)/float(ntotal)
+
+#    # data are pickled for transfer between ParallelPython processes
+#    # and this won't work for defaultdict objects - so convert to dict
+#    return dict(power), fraction_cached
+    f1_hit_rate = float(nhit_f1) / float(nsearched_f1)
+    return power, fraction_cached, f1_hit_rate
 
 def fftshift(data, shift):
     """Method to shift a 2d complex data array by applying the
@@ -135,10 +284,13 @@ class Observe(object):
     def run(self):
         """Method invoked to calculate the interferograms.
         """
-#        print 'Observe.run'
+        print 'Observe.run'
+        print time.clock()
 
         # access primary beam information
         primarybeams = self.previous_results['primarybeams']
+        amp_beam_1 = primarybeams['primary amplitude beam'].data
+        amp_beam_2 = primarybeams['primary amplitude beam'].data
 
         # access required FTS information
         fts = self.previous_results['fts']
@@ -158,18 +310,6 @@ class Observe(object):
         timeline = self.previous_results['timeline']
         obs_timeline = timeline['obs_timeline']
 
-        # Calculate the axes of spatial FFTs of the sky model.
-        # Assuming nx is even then the transform of a spatial axis has 0 freq 
-        # at origin and [nx/2] is Nyquist frequency 
-        # [Nyq freq = 0.5 * Nyquist sampling freq].
-        # The fft will be shifted so that 0 freq is at nx/2.
-        nx = len(spatial_axis)
-        spatial_freq_axis = np.arange(-nx/2, nx/2, dtype=np.float)
-        # spatial axis in arcsec
-        sample_freq = (180.0 * 3600.0 / np.pi) / (spatial_axis[1] - spatial_axis[0])
-        spatial_freq_axis *= (sample_freq / nx)
-        self.result['spatial frequency axis'] = spatial_freq_axis
-
         # calculate the measured result for each configuration
         previous_config = None
         observed_times = obs_timeline.keys()
@@ -177,186 +317,84 @@ class Observe(object):
 
         debug_plotted = False
 
+        # decide how to slice up the problem
+        ncpus = self.job_server.get_ncpus()        
+        memory = psutil.virtual_memory()
+        memory = memory.total
+        dsize = data_size(sky_model, amp_beam_1, amp_beam_2)
+        print 'ncpus=%s memory=%s data_size=%s' % (ncpus, memory, dsize)
+
+        if dsize > memory:
+            raise Exception, 'data size larger than physical memory, not handled'
+
+        chunks = []
+        nchunks = ncpus
+        slice_size = len(fts_wn_truncated) / nchunks
+
+        for chunk in range(nchunks):
+            chunks.append(slice(chunk * slice_size, (chunk+1) * slice_size))
+
+        last = chunks.pop()
+        chunks.append(slice(last.start, len(fts_wn_truncated)))
+
+        # direct call that can be used for debugging
+        chunk = 0
+        chunks[0] = slice(0, len(fts_wn_truncated))
+        job_id = (chunks[chunk].start, chunks[chunk].stop)
+        powers = {}
+        fraction_cached = {}
+        f1_hit_rate = {}
+        powers[job_id], fraction_cached[job_id], f1_hit_rate[job_id] = \
+          calculate_visibility(
+          smec_opd_to_mpd,
+          sky_model[:,:,chunks[chunk]],
+          fts_wn_truncated[chunks[chunk]], spatial_axis,
+          amp_beam_1[:,:,chunks[chunk]], amp_beam_2[:,:,chunks[chunk]], 
+          obs_timeline, observed_times)
+
+        # submit jobs
+#        jobs = {}
+#        for chunk in chunks[:4]:
+#            indata = (smec_opd_to_mpd,
+#                      sky_model[:,:,chunk],
+#                      fts_wn_truncated[chunk],
+#                      spatial_axis,
+#                      amp_beam_1[:,:,chunk],
+#                      amp_beam_2[:,:,chunk], 
+#                      obs_timeline, observed_times,)
+
+#            job_id = (chunk.start, chunk.stop)
+#            print 'starting ', job_id
+#            jobs[job_id] = self.job_server.submit(calculate_visibility,
+#              indata, (), ('numpy','collections',))
+
+        # collect results
+#        powers = {}
+#        fraction_cached = {}
+#        f1_hit_rate = {}
+#        for chunk in chunks:
+#            job_id = (chunk.start, chunk.stop)
+#            if jobs[job_id]() is None:
+#                raise Exception, 'calculate_visibility has failed for planes %s' % str(job_id)
+#            powers[job_id], fraction_cached[job_id], f1_hit_rate[job_id] = jobs[job_id]()
+
+        keys = powers.keys()
+        visibilities = powers[keys[0]]
+        print keys[0], 'fraction cached', fraction_cached[keys[0]], \
+          f1_hit_rate[keys[0]]
+        for k in keys[1:]:
+            for t in visibilities.keys():
+                visibilities[t] += powers[k][t]
+#                print k, 'fraction cached', fraction_cached[k], f1_hit_rate[k]
+
         for t in observed_times:
             config = obs_timeline[t]
-  
-            # Does the spatial configuration for this time match that
-            # of the previous one?
-
-# commented out test would calculate a 'new sky' whenever
-# the flux collector pointings change. This makes things too
-# slow - needs more thought
-#            if fields_match(previous_config, config,
-#              exclude_fields=['scan_number',
-#                              'time',
-#                              'baseline_x',
-#                              'baseline_y',
-#                              'baseline_z',
-#                              'baseline_number',
-#                              'smec_position',
-#                              'smec_nominal_position',
-#                              'smec_vel_error',                           
-#                              'flag',
-#                              'data']):
-
-            if fields_match(previous_config, config,
-              exclude_fields=['scan_number',
-                              'time',
-                              'baseline_x',
-                              'baseline_y',
-                              'baseline_z',
-                              'baseline_number',
-                              'pointing1_x',
-                              'pointing1_y',
-                              'pointing2_x',
-                              'pointing2_y',
-                              'smec_position',
-                              'smec_nominal_position',
-                              'smec_vel_error',                           
-                              'flag',
-                              'data']):
-
-                # yes, then just reuse relevant results from previous
-                # config.
-                pass
-
-            else:
-#                print 'previous', previous_config
-#                print 'current', config
-                print 'calculating new sky'
-
-                # no, calculate new 'sky'
-
-                # Be explicit about copies otherwise a reference is
-                # made which corrupts the original and leads to much
-                # confusion.
-                sky_now = sky_model.copy()
-
-                # calculate the sky that the system is observing at this
-                # moment, incorporating various errors in turn.
-
-                # 1. baseline should be perp to vector towards centre
-                #    of field. If baseline is tilted then origin of sky 
-                #    map shifts.
-                #    I think this error can be folded into that for the
-                #    FTS mirror, so leave handling it until then. Is
-                #    this correct?
-                
-                # 2. Flux collectors should be pointing at centre of 
-                #    field. They each collect flux from the 'sky' and 
-                #    pass it to the FTS beam combiner.
-                #    In doing this each telescope multiplies the sky 
-                #    emission by its complex amplitude beam response.
-                #    So instead of measuring the correlation of the
-                #    'sky' with itself, we measure that x Beam1.Beam2*. 
-                #    Is this correct? Gives right answer for 'no error'
-                #    where Beam1.Beam2* == PSF.
-
-                # multiply sky by amp.beam 1 * conj(amp.beam 2)
-                amp_beam_1 = primarybeams['primary amplitude beam'].data
-                amp_beam_2 = primarybeams['primary amplitude beam'].data
-#                amp_beam_1 = 1.0
-#                amp_beam_2 = 1.0
-
-                # shift beams if pointing error
-                if config.pointing1_x or config.pointing1_y:
-                    # calculate shifted beam1
-#                    raise Exception, 'not implemented'
-                    current_amp_beam_1 = amp_beam_1
-                else:
-                    current_amp_beam_1 = amp_beam_1
-
-                if config.pointing2_x or config.pointing2_y:
-                    # calculate shifted beam2
-#                    raise Exception, 'not implemented'
-                    current_amp_beam_2 = amp_beam_2
-                else:
-                    current_amp_beam_2 = amp_beam_2
- 
-                sky_now *= current_amp_beam_1 * \
-                  np.conj(current_amp_beam_2)            
-
-            # 3. Get result for baseline at this time
-
-# commented out test would calculate a new baseline spectrum
-# whenever the collector pointings changed. Too slow - need
-# a different approach
-#            if fields_match(previous_config, config,
-#              exclude_fields=['scan_number',
-#                              'time',
-#                              'smec_position',
-#                              'smec_nominal_position',
-#                              'smec_vel_error',                           
-#                              'flag',
-#                              'data']):
-
-            if fields_match(previous_config, config,
-              exclude_fields=['scan_number',
-                              'time',
-                              'smec_position',
-                              'smec_nominal_position',
-                              'smec_vel_error',                           
-                              'pointing1_x',
-                              'pointing1_y',
-                              'pointing2_x',
-                              'pointing2_y',
-                              'flag',
-                              'data']):
-                pass
-
-            else:
-                # calculate new baseline spectrum
-                baseline = np.array([config.baseline_x, config.baseline_y])
-                print 'calculating new baseline spectrum', baseline
- 
-                # submit jobs
-                jobs = {}
-                for iwn,wn in enumerate(fts_wn_truncated):
-                    indata = (baseline, wn, sky_now[:,:,iwn],
-                      spatial_freq_axis,)
-                    jobs[wn] = self.job_server.submit(calculate_visibility,
-                      indata, (), ('numpy',))
-
-                # collect results
-                baseline_spectrum = np.zeros(np.shape(fts_wn), np.complex)
-                for wn in fts_wn_truncated:
-                    if jobs[wn]() is None:
-                        raise Exception, 'calculate_visibility has failed'
-
-                    # set amp/phase at this frequency
-                    baseline_spectrum[wn==fts_wn] = jobs[wn]()
-
-            # 4. Calculate interferogram value from this baseline on the 'sky'
-            #    at the current FTS mirror position.
-
-            opd = config.smec_position / smec_opd_to_mpd
-            opd_ipos = opd / delta_opd
-
-            # calculate shift needed to move point at opd to 0
-            nfreq = len(fts_wn)
-            ndoublefreq = 2 * (nfreq - 1)
-            shift = np.zeros([ndoublefreq], dtype=np.complex)
-            shift[:nfreq] = np.arange(nfreq, dtype=np.complex)
-            shift[nfreq:] = np.arange(nfreq, dtype=np.complex)[-2:0:-1]
-            shift = np.exp((-2.0j * np.pi * opd_ipos * shift) /\
-              float(ndoublefreq))
-
-            # reflect spectrum about 0 to give unaliased version
-            reflected_spectrum = np.zeros([2*(len(baseline_spectrum)-1)],
-              np.complex)
-            reflected_spectrum[:len(baseline_spectrum)] = baseline_spectrum
-            reflected_spectrum[len(baseline_spectrum):] = \
-              baseline_spectrum[-2:0:-1]
-
-            # apply phase shift and fft
-            reflected_spectrum *= shift
-            spectrum_fft = np.fft.ifft(reflected_spectrum)
-            config = config._replace(data = spectrum_fft[0].real)
+            config = config._replace(data = visibilities[t])
             obs_timeline[t] = config
 
-            previous_config = config
-
         self.result['observed_timeline'] = obs_timeline
+        print 'stop'
+        print time.clock()
         return self.result
 
     def __repr__(self):
