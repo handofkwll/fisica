@@ -69,10 +69,10 @@ class UVMapGenerator(object):
             t2_x = -R2 * np.cos(np.linspace(0, nsteps-1, nsteps) * dt * om_tru)
             t2_y = -R2 * np.sin(np.linspace(0, nsteps-1, nsteps) * dt * om_tru)
 
-            x1_0 = t1_x + R1 * np.cos(np.linspace(0, nsteps-1, nsteps) *om_tel * dt)
-            y1_0 = t1_y + R1 * np.sin(np.linspace(0, nsteps-1, nsteps) *om_tel * dt)
-            x2_0 = t2_x + R1 * np.cos(np.linspace(0, nsteps-1, nsteps) *om_tel * dt)
-            y2_0 = t2_y + R1 * np.sin(np.linspace(0, nsteps-1, nsteps) *om_tel * dt)
+            x1_0 = t1_x + R1 * np.cos(np.linspace(0, nsteps-1, nsteps) * om_tel * dt)
+            y1_0 = t1_y + R1 * np.sin(np.linspace(0, nsteps-1, nsteps) * om_tel * dt)
+            x2_0 = t2_x + R1 * np.cos(np.linspace(0, nsteps-1, nsteps) * om_tel * dt)
+            y2_0 = t2_y + R1 * np.sin(np.linspace(0, nsteps-1, nsteps) * om_tel * dt)
 
             #print x1_0
             bxby[:, 0] = x1_0 * 2

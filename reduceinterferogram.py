@@ -7,7 +7,9 @@ import common.commonobjects as co
 
 def find_flagged_sections(flag):
     """Routine to find ranges [start:end] of sections
-    in the given array that are set true.
+    in the given array that are set true. Range means
+    that points from flag[start] up to but not including
+    flag[end] are True.
 
     Parameters:
     flag - 1-d boolean array
@@ -28,7 +30,7 @@ def find_flagged_sections(flag):
                 inflagsection = True
         else:
             if inflagsection:
-                flagsection[1] = i-1
+                flagsection[1] = i
                 flagsections.append(flagsection)
                 flagsection = [-1,-1]
                 inflagsection = False
@@ -141,12 +143,11 @@ class ReduceInterferogram(object):
                       units='')
                     scans.append(scan)
 
-                mark = flag_section[1] + 1
+                mark = flag_section[1]
 
             # deal with last scan
             interferogram = data[mark:]
             opd = 100.0 * smec_position[mark:] / self.smec_opd_to_mpd
-
             if len(interferogram):
                 axis = co.Axis(data=opd, title='OPD', units='cm')
                 scan = co.Spectrum(
@@ -162,15 +163,19 @@ class ReduceInterferogram(object):
             # now obtain mean of scans for each baseline
 
             interferogram_sum = np.zeros(np.shape(scans[0].data))
-            interferogram_n = np.zeros(np.shape(scans[0].data))
+            interferogram_n = 0
     
-            for scan in scans:
+            for iscan, scan in enumerate(scans):
                 # assume opd ranges are the same but sort them into
                 # ascending order
                 opd = scan.axis.data
                 opd_sort = np.argsort(opd)
                 interferogram_sum += scan.data[opd_sort]
-                interferogram_n += 1.0
+                interferogram_n += 1
+
+                #print 'scan', iscan
+                #for ipd,pd in enumerate(opd[opd_sort]):
+                #    print pd, scan.data[opd_sort][ipd]
 
             interferogram_mean = interferogram_sum / interferogram_n
 
@@ -181,6 +186,10 @@ class ReduceInterferogram(object):
               axis=axis, 
               title='mean interferogram',
               units='')
+
+            #print 'scan mean'
+            #for ipd,pd in enumerate(opd[opd_sort]):
+            #    print pd, scan_mean.data[ipd]
 
             baseline_mean[b] = scan_mean
 
