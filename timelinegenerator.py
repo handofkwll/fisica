@@ -7,6 +7,18 @@ import pointing
 import smecposition
 
 
+Config = collections.namedtuple('Config', [
+    'scan_number',
+    'time',
+    'baseline_x', 'baseline_y', 'baseline_z', 'baseline_number',
+    'smec_position', 'smec_nominal_position',
+    'flag', 'smec_vel_error', 
+    'pointing1_x', 'pointing1_y',
+    'pointing2_x', 'pointing2_y',
+    'data'],
+    verbose=False)
+
+
 class TimeLineGenerator(object):
     """Class to generate timeline of the simulated observation.
     """
@@ -69,16 +81,16 @@ class TimeLineGenerator(object):
 
         # This namedtuple will hold the instrument configuration at each
         # timestamp in the observation.
-        Config = collections.namedtuple('Config', [
-          'scan_number',
-          'time',
-          'baseline_x', 'baseline_y', 'baseline_z', 'baseline_number',
-          'smec_position', 'smec_nominal_position',
-          'flag', 'smec_vel_error', 
-          'pointing1_x', 'pointing1_y',
-          'pointing2_x', 'pointing2_y',
-          'data'],
-          verbose=False)
+#        Config = collections.namedtuple('Config', [
+#          'scan_number',
+#          'time',
+#          'baseline_x', 'baseline_y', 'baseline_z', 'baseline_number',
+#          'smec_position', 'smec_nominal_position',
+#          'flag', 'smec_vel_error', 
+#          'pointing1_x', 'pointing1_y',
+#          'pointing2_x', 'pointing2_y',
+#          'data'],
+#          verbose=False)
 
         # objects to use for generating pointing errors
         if 'HERSCHEL' in pointing_error_type.upper():
