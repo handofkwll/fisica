@@ -115,7 +115,8 @@ class ReduceInterferogram(object):
 
             for config in baseline_configs[b]:
                 data.append(config.data)
-                smec_position.append(config.smec_position)
+                # using the nominal mirror position not the actual one
+                smec_position.append(config.smec_nominal_position)
                 flag.append(config.flag)
 
             data = np.array(data)
@@ -173,10 +174,6 @@ class ReduceInterferogram(object):
                 interferogram_sum += scan.data[opd_sort]
                 interferogram_n += 1
 
-                #print 'scan', iscan
-                #for ipd,pd in enumerate(opd[opd_sort]):
-                #    print pd, scan.data[opd_sort][ipd]
-
             interferogram_mean = interferogram_sum / interferogram_n
 
             axis = co.Axis(data=opd[opd_sort], title='OPD', units='cm')
@@ -186,10 +183,6 @@ class ReduceInterferogram(object):
               axis=axis, 
               title='mean interferogram',
               units='')
-
-            #print 'scan mean'
-            #for ipd,pd in enumerate(opd[opd_sort]):
-            #    print pd, scan_mean.data[ipd]
 
             baseline_mean[b] = scan_mean
 
