@@ -111,12 +111,10 @@ small_font(ax)
 
 # plot the spectrum
 ax = plt.subplot('224')
-plt.title('Spectrum')
-
-spectrum = uvspectrum.spectrum
+plt.title('Visibility Spectrum')
 
 try:
-    xaxis_data = uvspectrum.wavenumber
+    xaxis_data = uvspectrum.wavenumber[uvspectrum.wavenumber >= 0]
     xaxis_title = 'wavenumber'
     xaxis_units = 'cm-1'
 except:
@@ -124,6 +122,8 @@ except:
     xaxis_title = 'index'
     xaxis_units = ''
 xaxis_sort = np.argsort(xaxis_data)
+
+spectrum = uvspectrum.spectrum[uvspectrum.wavenumber >= 0]
 
 plt.plot(xaxis_data[xaxis_sort], spectrum.real[xaxis_sort], 'b-')
 plt.plot(xaxis_data[xaxis_sort], spectrum.imag[xaxis_sort], 'r-')
