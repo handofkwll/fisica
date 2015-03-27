@@ -35,10 +35,10 @@ that to install IPython and the other modules needed:
   * matplotlib (for plotting) 
   * parallelpython (for parallel processing)
  
-You will also need to install:
+  You will also need to install:
   * mako and twitter bootstrap (weblog generation)
  
-If the installation has worked then you should be able to type ipython, then:
+  If the installation has worked then you should be able to type ipython, then:
 
   * In [1]: import numpy
   * In [2]: import scipy
@@ -46,7 +46,7 @@ If the installation has worked then you should be able to type ipython, then:
   * In [4]: import pp
   * In [5]: import mako
 
-with no errors.
+  with no errors.
 
 2. Check out the trunk code from GitHub.
 
