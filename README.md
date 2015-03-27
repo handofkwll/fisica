@@ -60,14 +60,14 @@ will be running python from - that is where the code will look for them.
   * In [2]: sys.path.append('/users/jfl/fisica')
   * In [3]: import pyfiins
 
-construct the simulator specifying a file describing the sky model 
-to use
+  construct the simulator specifying a file describing the sky model 
+  to use
 
   * In [4]: f=pyfiins.PyFIInS(sky_spreadsheet='SkyTest.xlsx', sky_sheet='Master')
   * In [5]: f.simulate()
 
-It should run for several minutes, producing lots of debug statements 
-and a few 'warnings', eventually finishing with:
+  It should run for several minutes, producing lots of debug statements 
+  and a few 'warnings', eventually finishing with:
 
   * .....
   * rendering observe
@@ -75,8 +75,8 @@ and a few 'warnings', eventually finishing with:
   * rendering dirtyimage
   * rendering cleanimage
 
-If it has worked then you should see a new directory in your working 
-directory with name of form 'fisisca-yyyymmddThhmmss', which contains 
-the browsable results for the run just made. Point your browser to 
-that directory, scroll down to the bottom and click on 
-'uvmapgenerator.html' whereupon the navigable weblog display should appear.
+  If it has worked then you should see a new directory in your working 
+  directory with name of form 'fisisca-yyyymmddThhmmss', which contains 
+  the browsable results for the run just made. Point your browser to 
+  that directory, scroll down to the bottom and click on 
+  'uvmapgenerator.html' whereupon the navigable weblog display should appear.
