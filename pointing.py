@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import numpy as np
 import os.path
-import pyfits
+import astropy.io.fits as pyfits
 import scipy.interpolate
 
 import matplotlib.pyplot as plt
