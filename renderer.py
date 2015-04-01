@@ -56,7 +56,11 @@ class Renderer(object):
         # render the simulation steps first
         for stage in self.result.items():
 
-            if isinstance(stage[1], dict) and 'substages' in stage[1].keys():
+            if stage[0] in ['runtime']:
+                # not a proper stage, do not render
+                pass
+
+            elif isinstance(stage[1], dict) and 'substages' in stage[1].keys():
                 for substage in stage[1]['substages'].items():
                     print 'rendering', stage[0], substage[0]
                     context = {'dirname':dirname, 'renderstage':stage[0],
