@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -49,7 +50,7 @@
             % for stage in context['data'].items():
                 % if stage[0] == context['renderstage']:                  
             <li class="active"><a href="#">${stage[0]}</a></li>
-                % else:
+                % elif isinstance(stage[1], dict):
                     % if 'substages' in stage[1].keys():
                     <!-- link to the first substage page in place of having a stage page -->
             <li><a href="${stage[0]}-${stage[1]['substages'].keys()[0]}.html">${stage[0]}</a></li>
