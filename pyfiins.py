@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import collections
+import datetime
 import pp
 
 import cleanimage
@@ -17,7 +18,7 @@ import synthesisbeamsgenerator
 import telescope
 import timelinegenerator
 import uvmapgenerator
-
+import writefits
 
 
 class PyFIInS(object):
@@ -35,6 +36,10 @@ class PyFIInS(object):
           self.job_server.get_ncpus()
 
     def simulate(self):
+        # store data and time of run
+        now = datetime.datetime.today()
+        self.result['runtime'] = now.strftime('%Y%m%dT%H%M%S')
+
         # read parameters
         loadparams = loadparameters.LoadParameters(
           sky_spreadsheet=self.sky_spreadsheet,
@@ -92,7 +97,12 @@ class PyFIInS(object):
           job_server=self.job_server)
         self.result['observe'] = obs.run()
         print obs
-   
+
+        # write out the interferograms as FITS files
+        fits = writefits.WriteFITS(previous_results=self.result)
+        self.result['writefits'] = fits.run()   
+        print fits
+
         # recover spectra from interferograms
         reduceint = reduceinterferogram.ReduceInterferogram(
           previous_results=self.result,
