@@ -6,10 +6,6 @@ import numpy
 import psutil
 import time
 
-#used for debugging
-#import matplotlib.pyplot as plt
-#import common.commonobjects as co
-
 def data_size(sky_cube, amplitude_beam_1, amplitude_beam_2):
     """Routine to calculate size of dominant data arrays in
     calculate_visibility.
@@ -57,17 +53,11 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
 
     # using Anthony Murphy's formalism throughout
 
-    # first, calculate f1 = B * conj(psf1) * psf2
-    # only cache 0 pointing error case
-    # TBD - shift psfs according to pointing errors   
     psf1 = amplitude_beam_1
     psf2 = amplitude_beam_2
 
-#    f1_cache[rounded((0.0,0.0,0.0,0.0))] = \
-#      sky_cube * numpy.conj(psf1) * psf2
-
     for it,t in enumerate(times):
-        print it
+#        print it
         config = obs_timeline[t]
         opd = config.smec_position / smec_opd_to_mpd
         ntotal += 1
@@ -76,7 +66,8 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
 
         for iwn, wn in enumerate(wn_axis):
 
-            # see if the result is in the cache
+            # see if delta power for (wn, pointing1, pointing2, baseline)
+            # is in the cache
       
             if dpower_cache.has_key(
               rounded((opd, wn, 
@@ -84,6 +75,7 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
               config.pointing2_x, config.pointing2_y,
               config.baseline_x, config.baseline_y))):
 
+                # yes, add it in
                 dpower = dpower_cache[rounded((opd, wn, 
                   config.pointing1_x, config.pointing1_y,
                   config.pointing2_x, config.pointing2_y,
@@ -93,6 +85,7 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
                 ncached += 1
                 continue
 
+            # no, need to calculate delta power 
             # see if the required f1timesf2 is in cache
 
             f1timesf2_key = rounded((wn,
@@ -103,9 +96,11 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
             f1timesf2 = f1timesf2_cache.get(f1timesf2_key)
             if f1timesf2 is None:
 
-                # calculate it
+                # no, calculate it
 
                 # see if cached f1 = B * conj(psf1) * psf2
+                # (actually no cache is used yet, this may be added
+                # in the future).
                 nsearched_f1 += 1
                 f1_key = rounded((wn,
                   config.pointing1_x,
@@ -120,7 +115,6 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
                     nhit_f1 += 1
 
                 #  calculate f2 = exp(-j * k(theta,phi).b)
-                #  only cache range of wn for one baseline at a time
                 f2x = numpy.exp(2.0j * numpy.pi * wn * 100.0 * (-angles * config.baseline_x))
                 f2y = numpy.exp(2.0j * numpy.pi * wn * 100.0 * (-angles * config.baseline_y))
                 f2 = numpy.ones([nx,nx], numpy.complex)
@@ -193,39 +187,6 @@ def fftshift(data, shift):
 
     return temp
 
-def fields_match(previous_config, config, exclude_fields=[]):
-    """Function to compare 2 configs, ignoring any differences in
-    the components listed in 'exclude_fields'.
-
-    Parameters:
-    previous_config - namedtuple containing the previous configuration
-    config          - namedtuple with the configuration to compare
-    exclude_fields  - list of tuple fields to be excluded in the
-                      comparison
-    """
-    if previous_config is None:
-        return False
-
-    if not exclude_fields:
-        return previous_config==config
-    else:
-        # convert to dicts and eliminate exclude_fields
-        previous_dict = previous_config._asdict()
-        current_dict = config._asdict()
-        for field in exclude_fields:
-            ignore = previous_dict.pop(field, None)
-            ignore = current_dict.pop(field, None)
-
-        previous_set = set([k for k in previous_dict.items()])
-        current_set = set([k for k in current_dict.items()])
-        diff = previous_set.symmetric_difference(current_set)
-
-        debug = False
-        if(debug):
-            print diff
-
-        return not(bool(diff))
-
 
 class Observe(object):
     """Class to compute interferograms.
@@ -295,6 +256,7 @@ class Observe(object):
 
         chunks = []
         nchunks = ncpus
+        
         slice_size = len(fts_wn_truncated) / nchunks
 
         for chunk in range(nchunks):
@@ -304,45 +266,45 @@ class Observe(object):
         chunks.append(slice(last.start, len(fts_wn_truncated)))
 
         # direct call that can be used for debugging
-        chunk = 0
-        chunks[0] = slice(0, len(fts_wn_truncated))
-        job_id = (chunks[chunk].start, chunks[chunk].stop)
-        powers = {}
-        fraction_cached = {}
-        f1_hit_rate = {}
-        powers[job_id], fraction_cached[job_id], f1_hit_rate[job_id] = \
-          calculate_visibility(
-          smec_opd_to_mpd,
-          sky_model[:,:,chunks[chunk]],
-          fts_wn_truncated[chunks[chunk]], spatial_axis,
-          amp_beam_1[:,:,chunks[chunk]], amp_beam_2[:,:,chunks[chunk]], 
-          obs_timeline, observed_times)
-
-        # submit jobs
-#        jobs = {}
-#        for chunk in chunks[:4]:
-#            indata = (smec_opd_to_mpd,
-#                      sky_model[:,:,chunk],
-#                      fts_wn_truncated[chunk],
-#                      spatial_axis,
-#                      amp_beam_1[:,:,chunk],
-#                      amp_beam_2[:,:,chunk], 
-#                      obs_timeline, observed_times,)
-
-#            job_id = (chunk.start, chunk.stop)
-#            print 'starting ', job_id
-#            jobs[job_id] = self.job_server.submit(calculate_visibility,
-#              indata, (), ('numpy','collections',))
-
-        # collect results
+#        chunk = 0
+#        chunks[0] = slice(0, len(fts_wn_truncated))
+#        job_id = (chunks[chunk].start, chunks[chunk].stop)
 #        powers = {}
 #        fraction_cached = {}
 #        f1_hit_rate = {}
-#        for chunk in chunks:
-#            job_id = (chunk.start, chunk.stop)
-#            if jobs[job_id]() is None:
-#                raise Exception, 'calculate_visibility has failed for planes %s' % str(job_id)
-#            powers[job_id], fraction_cached[job_id], f1_hit_rate[job_id] = jobs[job_id]()
+#        powers[job_id], fraction_cached[job_id], f1_hit_rate[job_id] = \
+#          calculate_visibility(
+#          smec_opd_to_mpd,
+#          sky_model[:,:,chunks[chunk]],
+#          fts_wn_truncated[chunks[chunk]], spatial_axis,
+#          amp_beam_1[:,:,chunks[chunk]], amp_beam_2[:,:,chunks[chunk]], 
+#          obs_timeline, observed_times)
+
+        # submit jobs
+        jobs = {}
+        for chunk in chunks[:4]:
+            indata = (smec_opd_to_mpd,
+                      sky_model[:,:,chunk],
+                      fts_wn_truncated[chunk],
+                      spatial_axis,
+                      amp_beam_1[:,:,chunk],
+                      amp_beam_2[:,:,chunk], 
+                      obs_timeline, observed_times,)
+
+            job_id = (chunk.start, chunk.stop)
+            print 'starting ', job_id
+            jobs[job_id] = self.job_server.submit(calculate_visibility,
+              indata, (), ('numpy','collections',))
+
+        # collect results
+        powers = {}
+        fraction_cached = {}
+        f1_hit_rate = {}
+        for chunk in chunks:
+            job_id = (chunk.start, chunk.stop)
+            if jobs[job_id]() is None:
+                raise Exception, 'calculate_visibility has failed for planes %s' % str(job_id)
+            powers[job_id], fraction_cached[job_id], f1_hit_rate[job_id] = jobs[job_id]()
 
         keys = powers.keys()
         visibilities = powers[keys[0]]
