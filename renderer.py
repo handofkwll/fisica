@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 
 import collections
-import datetime
 import os
 import shutil
 
@@ -43,8 +42,8 @@ class Renderer(object):
 
     def run(self):
         # make a directory to contain this result
-        now = datetime.datetime.today()        
-        dirname = 'fisica-%s' % (now.strftime('%Y%m%dT%H%M%S'))
+        runtime = self.result['runtime']
+        dirname = 'fisica-%s' % runtime
         os.mkdir(dirname)
 
         # make a resources directory and copy the Bootstrap stuff there
@@ -56,7 +55,8 @@ class Renderer(object):
 
         # render the simulation steps first
         for stage in self.result.items():
-            if 'substages' in stage[1].keys():
+
+            if isinstance(stage[1], dict) and 'substages' in stage[1].keys():
                 for substage in stage[1]['substages'].items():
                     print 'rendering', stage[0], substage[0]
                     context = {'dirname':dirname, 'renderstage':stage[0],
