@@ -5,7 +5,7 @@
       <!-- Substage tabs -->
       <ul class="nav nav-tabs">
       % for stage in context['data'].items():
-          % if 'substages' in stage[1].keys():
+          % if isinstance(stage[1], dict) and 'substages' in stage[1].keys():
               % for substage in stage[1]['substages'].items():
                   % if (stage[0] == context['renderstage']) and (substage[0] == context['rendersubstage']):
         <li class="active"><a href="#">${substage[0]}</a></li>
