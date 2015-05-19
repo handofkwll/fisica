@@ -1,0 +1,18 @@
+<%inherit file="base.html"/>
+
+    <div class="row-fluid">
+      <table class="table table-condensed" summary="FITS Information">
+        <tbody>
+          <%
+          writefits = context['data']['readfits']
+          %>
+          % for k,v in writefits.items():
+          <tr>
+            <td>${k}</td>
+            <td>${v}</td>
+          </tr>
+          % endfor
+        </tbody>
+      </table>
+    <div>
+

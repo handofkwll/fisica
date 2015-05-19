@@ -24,17 +24,23 @@ def calculate_dirty_plane(b_x_list, b_y_list, spectra, wn_spectra,
     beam         - [npix, npix] float array with dirty beam
 
     """
+
     # arrays to hold the results
     image = numpy.zeros([npix, npix], numpy.float)
     dirtybeam = numpy.zeros([npix, npix], numpy.float)
     cleanbeam = numpy.zeros([npix, npix], numpy.float)
 
     # iterate through the measured baselines
+    wn_array = None
     for ibx,b_x in enumerate(b_x_list):
         b_x = b_x_list[ibx]
         b_y = b_y_list[ibx]
         spectrum = spectra[ibx]
         wn_spectrum = wn_spectra[ibx]
+
+        if wn_array is None:
+            wn_array = numpy.array(wn_spectrum)
+            wn_array[:] = wn
 
         # calculate the Fourier component for this baseline
         # (must be a better way of doing this)
@@ -44,7 +50,7 @@ def calculate_dirty_plane(b_x_list, b_y_list, spectra, wn_spectra,
         valy = numpy.exp(2.0j * math.pi * argy)
 
         # get the visibility for this spectral plane
-        vis = spectrum[wn_spectrum==wn]
+        vis = spectrum[numpy.isclose(wn_spectrum, wn_array)]
 
         # calculate and coadd the contribution
         # numpy arrays are [row,col] or here [y,x]
@@ -66,6 +72,7 @@ def calculate_dirty_plane(b_x_list, b_y_list, spectra, wn_spectra,
     cp = (1.0, float(npix)/2.0, float(npix)/2.0, p[3], p[4], p[5])
     rotgauss = fitter.gaussian(*cp)
     cleanbeam = numpy.fromfunction(rotgauss, numpy.shape(dirtybeam))
+#    cleanbeam = dirtybeam
 
     # normalise
     # The sum of the dirty beam should equal the 0 baseline vis measurement: 0
@@ -100,18 +107,15 @@ class DirtyImage(object):
     def run(self):
 #        print 'DirtyImage.run'
 
-        # get relevant fts info
-        fts = self.previous_results['fts']
-        fts_wnmin = fts['wnmin']
-
-        # get spatial info
-        cubeparameters = self.previous_results['cubeparameters']
-        npix = cubeparameters['npix']
-        spatial_axis = cubeparameters['spatial axis [arcsec]']
+        # get relevant fts and spatial info
+        readfits = self.previous_results['readfits']
+        fts_wnmin = readfits['wnmin']
+        spatial_axis = readfits['spatial axis [arcsec]']
+        npix = len(spatial_axis)
 
         # get spectra at each baseline
         uvspectra = self.previous_results['reduceinterferogram']\
-          ['baseline_uvspectrum'].values()
+          ['scan_uvspectra'].values()
         self.nuvspectra = len(uvspectra)
 
         # get wavenumber axis
@@ -132,8 +136,8 @@ class DirtyImage(object):
         spectra = []
         wn_spectra = []
         for uvspectrum in uvspectra:
-            b_x_list.append(uvspectrum.baseline_x)
-            b_y_list.append(uvspectrum.baseline_y)
+            b_x_list.append(np.mean(uvspectrum.baseline_x))
+            b_y_list.append(np.mean(uvspectrum.baseline_y))
             spectra.append(uvspectrum.spectrum)
             wn_spectra.append(uvspectrum.wavenumber)
 

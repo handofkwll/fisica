@@ -21,6 +21,7 @@ def black_body(temperature, wavenumber):
 
     return jnu
 
+
 class BB_spectrum(object):
     """Class to generate BB spectrum.
     """
@@ -81,9 +82,48 @@ class SkyGenerator(object):
         self.previous_results = previous_results
         self.result = collections.OrderedDict()
 
+    def cubeparameters(self, fts_wn, bmax, m1_diam):
+        """Routine to calculate the parameters of the cube holding
+        the sky model.
+        """
+        # max pixel size (radians) that will fully sample the image.
+        # Sampling freq is 2 * Nyquist freq.
+        # So sampling freq = 2 * b_max / lambda_min.
+        lambda_min = 1.0 / (np.max(fts_wn) * 100.0)
+        max_pixsize = lambda_min / (2.0 * bmax)
+        oversampling = 3.0
+        pixsize = max_pixsize / oversampling
+#        self.result['pixsize [rad]'] = pixsize = max_pixsize / oversampling
+#        self.result['pixsize [arcsec]'] = np.rad2deg(pixsize) * 3600.0
+
+        # Number of pixels per primary beam - measured out to first
+        # null of Airy disk.
+        # Radius of first null of Airy disk is theta=1.22lambda/d. Number of
+        # pixels is beam diameter/max_pixsize. Calculate this for the 
+        # longest wavelength that has flux (at wnmin), largest beam
+        max_beam_radius = 1.22 * (1.0 / (np.min(fts_wn) * 100.0)) /\
+          m1_diam
+#        self.result['beam diam [rad]'] = 2.0 * max_beam_radius
+         
+        # go out to radius of first null
+        rpix = int(max_beam_radius / pixsize)
+        print 'cubeparameters out of half radius of first null'
+        rpix /= 2
+        npix = 2 * rpix
+#        self.result['npix'] = npix
+
+        # spatial axes same for all wavelengths
+        spatial_axis = np.arange(-rpix, rpix, dtype=np.float)
+        spatial_axis *= pixsize
+        spatial_axis = np.rad2deg(spatial_axis) * 3600.0
+#        self.result['spatial axis [arcsec]'] = axis
+
+        return npix, pixsize, spatial_axis
+
     def run(self):
         print 'SkyGenerator.run'
 
+        # gather configuration info required
         fts = self.previous_results['fts']
         fts_wn_truncated = fts['fts_wn_truncated']
         # truncate spectrum inside allowed spectral range to prevent
@@ -91,9 +131,16 @@ class SkyGenerator(object):
         cutoffmin = fts['wnmin']
         cutoffmax = fts['wnmax'] - 1.0
 
-        cubeparameters = self.previous_results['cubeparameters']
-        npix = cubeparameters['npix']
-        spatial_axis = cubeparameters['spatial axis [arcsec]']
+        uvmapgen = self.previous_results['uvmapgenerator']
+        bmax = uvmapgen['bmax']
+
+        telescope = self.previous_results['loadparameters']['substages']\
+          ['Telescope']
+        m1_diam = telescope['Primary mirror diameter']
+
+        # calculate the spatial dimensions of the cube
+        npix, pixsize, spatial_axis = self.cubeparameters(fts_wn_truncated,
+          bmax, m1_diam)
 
         # skymodel is complex so that its fft can hold truncated version
         # of infinitesimally sampled map - does that make sense?
@@ -174,8 +221,9 @@ class SkyGenerator(object):
             self.result['sources'][sourcenum]['spectrum'] = source_spectrum
 
         self.result['sky model'] = skymodel
-        self.result['spatial axis'] = spatial_axis
+        self.result['spatial axis [arcsec]'] = spatial_axis
         self.result['frequency axis'] = fts_wn_truncated 
+        self.result['pixsize [rad]'] = pixsize
 
         return self.result
 
@@ -265,5 +313,21 @@ class SkyGenerator(object):
         return spectrum
 
     def __repr__(self):
-        return 'SkyGenerator'
+        return '''
+SkyGenerator:
+  wnmin    : {wnmin} [cm-1]
+  wnmax    : {wnmax} [cm-1]
+  delta wn : {delta_wn} [cm-1]
+  num wn   : {nwn}
+  pixsize  : {pixsize} [arcsec]
+  npix     : {npix}
+'''.format(
+          wnmin = min(self.result['frequency axis']),
+          wnmax = max(self.result['frequency axis']),
+          delta_wn = abs(self.result['frequency axis'][1] -
+          self.result['frequency axis'][0]),
+          nwn = len(self.result['frequency axis']),
+          pixsize = abs(self.result['spatial axis [arcsec]'][1] - 
+          self.result['spatial axis [arcsec]'][0]),
+          npix = len(self.result['spatial axis [arcsec]']))
 

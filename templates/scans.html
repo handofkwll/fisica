@@ -2,6 +2,8 @@
 
 <!-- do the plotting -->
 <%
+import matplotlib as mpl
+from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import os.path
 import numpy as np
@@ -18,75 +20,66 @@ def small_font(ax):
     return
 
 id = context['id']
-baseline = context['baseline']
-scans = context['scans']
-mean = context['mean']
+scan = context['scan']
+scan_interferogram = context['interferogram']
 uvspectrum = context['uvspectrum']
 
 mult = 1.0
 
-plt.figure()
-plt.figtext(0.0, 0.0, 'baseline %s, %s' % baseline)
+fig = plt.figure()
+plt.figtext(0.0, 0.0, 'scan %s' % scan)
 
 # plot the separate scans 
-ax = plt.subplot('221')
-plt.title('Scan interferograms')
+ax = fig.add_subplot(2, 2, 1)
+ax.set_title('Scan interferograms')
 
-for scan in scans:
-    try:
-        xaxis_data = scan.axis.data
-    except:
-        xaxis_data = np.arange(len(scan.data))
+try:
+    xaxis_data = scan_interferogram.axis.data
+except:
+    xaxis_data = np.arange(len(scan_interferogram.data))
 
-    # sometimes xaxis is not monotonic
-    xaxis_sort = np.argsort(xaxis_data)
+# sometimes xaxis is not monotonic
+xaxis_sort = np.argsort(xaxis_data)
 
-    try:
-        xaxis_title = scan.axis.title
-    except:
-        xaxis_title = None
+try:
+    xaxis_title = scan_interferogram.axis.title
+except:
+    xaxis_title = None
 
-    try:
-        xaxis_units = scan.axis.units
-    except:
-        xaxis_units = None
+try:
+    xaxis_units = scan_interferogram.axis.units
+except:
+    xaxis_units = None
 
-    plt.plot(xaxis_data[xaxis_sort], mult * scan.data[xaxis_sort])
-    mult *= 1.1
+ax.plot(xaxis_data[xaxis_sort], mult * scan_interferogram.data[xaxis_sort])
+mult *= 1.1
 
-    xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
-    plt.xlabel(xlabel)
+xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
+ax.set_xlabel(xlabel)
 
 # Use small font so that subplots do not overwrite each other
 small_font(ax)
 
-# plot the mean interferogram
-ax = plt.subplot('222')
-plt.title('Mean interferogram')
+# plot the telescope baseline track during the FTS scan
+ax = fig.add_subplot(2, 2, 2, projection='3d')
+ax.set_title('Baseline Track')
 
-try:
-    xaxis_data = mean.axis.data
-except:
-    xaxis_data = np.arange(len(mean.data))
-xaxis_sort = np.argsort(xaxis_data)
-try:
-    xaxis_title = mean.axis.title
-except:
-    xaxis_title = None
-try:
-    xaxis_units = mean.axis.units
-except:
-    xaxis_units = None
+baseline_x = uvspectrum.baseline_x
+baseline_y = uvspectrum.baseline_y
+baseline_z = uvspectrum.baseline_z
 
-plt.plot(xaxis_data[xaxis_sort], mean.data[xaxis_sort])
-
-xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
-plt.xlabel(xlabel)
+ax.plot(baseline_x, baseline_y, baseline_z)
+ax.set_xlabel('baseline x (m)')
+ax.set_ylabel('baseline y (m)')
+ax.set_zlabel('baseline z (m)')
 small_font(ax)
+ax.zaxis.label.set_fontsize(8)
+for item in ax.get_zticklabels():
+    item.set_fontsize(8)
 
-# plot the interferogram
-ax = plt.subplot('223')
-plt.title('Shifted interferograms')
+# plot the shifted interferogram
+ax = fig.add_subplot(2, 2, 3)
+ax.set_title('Shifted interferograms')
 
 spectrum = uvspectrum.interferogram
 
@@ -104,14 +97,14 @@ try:
 except:
     xaxis_units = None
 
-plt.plot(xaxis_data[xaxis_sort], spectrum[xaxis_sort])
+ax.plot(xaxis_data[xaxis_sort], spectrum[xaxis_sort])
 xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
-plt.xlabel(xlabel)
+ax.set_xlabel(xlabel)
 small_font(ax)
 
 # plot the spectrum
-ax = plt.subplot('224')
-plt.title('Visibility Spectrum')
+ax = fig.add_subplot(2, 2, 4)
+ax.set_title('Visibility Spectrum')
 
 try:
     xaxis_data = uvspectrum.wavenumber[uvspectrum.wavenumber >= 0]
@@ -125,10 +118,10 @@ xaxis_sort = np.argsort(xaxis_data)
 
 spectrum = uvspectrum.spectrum[uvspectrum.wavenumber >= 0]
 
-plt.plot(xaxis_data[xaxis_sort], spectrum.real[xaxis_sort], 'b-')
-plt.plot(xaxis_data[xaxis_sort], spectrum.imag[xaxis_sort], 'r-')
+ax.plot(xaxis_data[xaxis_sort], spectrum.real[xaxis_sort], 'b-')
+ax.plot(xaxis_data[xaxis_sort], spectrum.imag[xaxis_sort], 'r-')
 xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
-plt.xlabel(xlabel)
+ax.set_xlabel(xlabel)
 small_font(ax)
 
 # adjust subplot spacing to remove overlaps

@@ -10,33 +10,35 @@ import collections
 import common.commonobjects as co
 
 # Get the timeline data from mako context
-observed_timeline = context['data']['observe']['observed_timeline']
-times = observed_timeline.keys()
+timeline = context['data']['timeline']
+times = timeline['obs_timeline'].keys()
 times.sort()
 
 # Construct a dict holding lists of configurations for each
-# baseline observed
-baseline_configs = collections.defaultdict(list)
+# scan number observed
+scan_configs = collections.defaultdict(list)
 
 for t in times:
-    config = observed_timeline[t]
-    b = (config.baseline_x, config.baseline_y, config.baseline_z)
-    baseline_configs[b].append(config)
+    config = timeline['obs_timeline'][t]
+    scan_number = config.scan_number
+    scan_configs[scan_number].append(config)
 
-baselines = baseline_configs.keys()
-baselines.sort()      
+# plot every 100th scan
+scan_numbers = [scan_number for scan_number in
+  scan_configs.keys() if scan_number%100==0]
+scan_numbers.sort()      
 
-# for each baseline construct a set of data objects for each 
+# for each scan construct a set of data objects for each 
 # configuration element 
-baseline_scans = {}
-baseline_scans_error = {}
-baseline_pointing1_x = {}
-baseline_pointing1_y = {}
-baseline_pointing2_x = {}
-baseline_pointing2_y = {}
-baseline_data = {}
+scans = {}
+scans_error = {}
+scans_pointing1_x = {}
+scans_pointing1_y = {}
+scans_pointing2_x = {}
+scans_pointing2_y = {}
+scans_data = {}
 
-for b in baselines:
+for scan_number in scan_numbers:
     obs_time = []
     smec_position = []
     smec_nominal_position = []
@@ -47,8 +49,8 @@ for b in baselines:
     pointing2_x = []
     pointing2_y = []
     data = []    
-
-    for config in baseline_configs[b]:
+    
+    for config in scan_configs[scan_number]:
         obs_time.append(config.time)
         smec_position.append(config.smec_position)
         smec_nominal_position.append(config.smec_nominal_position)
@@ -67,71 +69,72 @@ for b in baselines:
     scan = co.Spectrum(data=np.array(smec_position) * 100.0,
       flag=np.array(flag), 
       axis=axis, title='position', units='cm')
-    baseline_scans[b] = scan
+    scans[scan_number] = scan
 
     scan = co.Spectrum(
       data=np.array(smec_vel_error) * 1.0e6,
       flag=np.array(flag), 
       axis=axis, title='vel error', units='um/s')
-    baseline_scans_error[b] = scan
+    scans_error[scan_number] = scan
 
     scan = co.Spectrum(data=np.array(pointing1_x), 
       axis=axis, title='collector 1 x offset', units='arcsec')
-    baseline_pointing1_x[b] = scan
+    scans_pointing1_x[scan_number] = scan
 
     scan = co.Spectrum(data=np.array(pointing1_y), 
       axis=axis, title='collector 1 y offset', units='arcsec')
-    baseline_pointing1_y[b] = scan
+    scans_pointing1_y[scan_number] = scan
 
     scan = co.Spectrum(data=np.array(pointing2_x), 
       axis=axis, title='collector 2 x offset', units='arcsec')
-    baseline_pointing2_x[b] = scan
+    scans_pointing2_x[scan_number] = scan
 
     scan = co.Spectrum(data=np.array(pointing2_y), 
       axis=axis, title='collector 2 y offset', units='arcsec')
-    baseline_pointing2_y[b] = scan
+    scans_pointing2_y[scan_number] = scan
 
     scan = co.Spectrum(data=np.array(data), 
       flag=np.array(flag), 
       axis=axis, title='data', units='')
-    baseline_data[b] = scan
+    scans_data[scan_number] = scan
 
-baseline_link = {}
+scan_link = {}
 
-# plot the data objects for each baseline
-for b in baselines:
+# plot the data objects for each scan
+for scan_number in scan_numbers:
+
     # construct a page with the plot
-    root = 'baseline_observe_%s_%s_%s' % (b)
-    root = root.replace('-', 'm')
+    root = 'scan_config_%s' % (scan_number)
 
     htmlfile = '%s.html' % root
-    baseline_link[b] = htmlfile
+    scan_link[scan_number] = htmlfile
     link = os.path.join(context['dirname'], htmlfile)
     with open(link, 'w') as f:
         template = mylookup.get_template('scan.html')
         context_copy = context.kwargs
         context_copy['sourceid'] = root
-        context_copy['baseline'] = b
-        context_copy['smec'] = baseline_scans[b]
-        context_copy['smec_vel_error'] = baseline_scans_error[b]
-        context_copy['pointing1_x'] = baseline_pointing1_x[b]
-        context_copy['pointing1_y'] = baseline_pointing1_y[b]
-        context_copy['pointing2_x'] = baseline_pointing2_x[b]
-        context_copy['pointing2_y'] = baseline_pointing2_y[b]
-        context_copy['interferogram'] = baseline_data[b]
+        context_copy['scan_number'] = scan_number
+        context_copy['smec'] = scans[scan_number]
+        context_copy['smec_vel_error'] = scans_error[scan_number]
+        context_copy['pointing1_x'] = scans_pointing1_x[scan_number]
+        context_copy['pointing1_y'] = scans_pointing1_y[scan_number]
+        context_copy['pointing2_x'] = scans_pointing2_x[scan_number]
+        context_copy['pointing2_y'] = scans_pointing2_y[scan_number]
+        context_copy['interferogram'] = scans_data[scan_number]
         f.write(template.render(**context_copy))
 %>
 
-# write html links
+<!-- write html links -->
 
-<h3>Baseline Observation Sequences</h3>
-% for b in baseline_link.keys():
+<h3>Scan Configuration Sequences</h3>
+% for scan_number in scan_link.keys():
 <div class="col-xs-6 col-md-3">
   <%
-  plotname = baseline_link[b].replace('html', 'png')
+  plotname = scan_link[scan_number].replace('html', 'png')
   %>
-  <a href="${baseline_link[b]}" class="thumbnail">
+  <a href="${scan_link[scan_number]}" class="thumbnail">
     <img src="${plotname}" alt="...">
   </a>
 </div>
 % endfor
+

@@ -23,16 +23,64 @@ class UVMapGenerator(object):
         row = interferometer['Pattern'].keys()[0]
         pattern = interferometer['Pattern'][row]
 
-        if pattern.lower() == 'spiral':
+        if pattern.lower() == 'const l spiral':
+            # spiral that conserves angular momentum as the baseline is 
+            # increased. If moving from bmin=10m to bmax=100m then 
+            # there is a factor of 100 change in angular velocity.
+
+            bmax = interferometer['bmax [m]'][row]
+            bmin = interferometer['bmin [m]'][row]
+            bstep = interferometer['bstep [m]'][row]
+            bmax_period = interferometer['period [s]'][row]
+
+            # baseline increases by bstep for each circuit of spiral
+            n_laps = (bmax - bmin) / bstep
+
+            # angular velocity and momentum at bmax 
+            omega_start = 2.0 * np.pi / bmax_period
+            ang_mom = omega_start * (bmax / 2.0)**2
+
+            bxby = collections.OrderedDict()
+
+            t = 0.0
+            b = bmax
+            pa = 0.0
+            omega = omega_start
+            looping = True
+            
+            while looping:
+                bx = b * np.sin(pa)
+                by = b * np.cos(pa) 
+                flag = False
+
+                bxby[t] = (bx, by, flag)
+
+                # following is probably not the most accurate way to
+                # increment the variables, but should be good enough
+                t += 1.0
+                pa += omega
+                b -= (bstep / bmax_period)
+                omega = ang_mom / (b / 2.0)**2  
+
+                looping = b > bmin
+
+            self.result['pattern'] = pattern
+            self.result['bxby'] = bxby
+            self.result['bmin'] = bmin
+            self.result['bmax'] = bmax
+
+        elif pattern.lower() == 'spiral':
             bmax = interferometer['bmax [m]'][row]
             bmin = interferometer['bmin [m]'][row]
             n_baselines = int(interferometer['Num Baselines'][row])
+            baseline_dwell = interferometer['period [s]'][row]
             bstep = interferometer['bstep [m]'][row]
 
             # baseline increases by bstep for each circuit of spiral
             n_laps = (bmax - bmin) / bstep
 
-            bxby = np.zeros([n_baselines,2])     
+            bxby = collections.OrderedDict()
+            t = 0.0
 
             # n_baselines is total number of points along spiral
             for ib in range(n_baselines):
@@ -40,13 +88,33 @@ class UVMapGenerator(object):
                 phi = n_laps * 2 * np.pi * (n_baselines-ib) / n_baselines
                 r = bmin + bstep * phi / (2 * np.pi)
 
-                bxby[ib,:] = [r * np.cos(phi), r * np.sin(phi)]
+                bx = r * np.cos(phi)
+                by = r * np.sin(phi)
+
+                # first, set the end of the previous 'inter baseline'
+                # period
+                flag = True
+                bxby[t] = (bx, by, flag)
+                t += 0.001
+
+                # start and end times at this baseline
+                flag = False
+                bxby[t] = (bx, by, flag)
+                t += baseline_dwell
+                bxby[t] = (bx, by, flag)
+                t += 0.001
+
+                # start the next 'inter baseline period'
+                flag = True
+                bxby[t] = (bx, by, flag)
+
+                # 60 seconds between baseline positions
+                t += 60.0
 
             self.result['pattern'] = pattern
             self.result['bxby'] = bxby
             self.result['bmin'] = bmin
             self.result['bmax'] = bmax
-            self.result['n_baselines'] = n_baselines
 
         elif pattern.lower() == 'spiro':
 
@@ -74,7 +142,6 @@ class UVMapGenerator(object):
             x2_0 = t2_x + R1 * np.cos(np.linspace(0, nsteps-1, nsteps) * om_tel * dt)
             y2_0 = t2_y + R1 * np.sin(np.linspace(0, nsteps-1, nsteps) * om_tel * dt)
 
-            #print x1_0
             bxby[:, 0] = x1_0 * 2
             bxby[:, 1] = y1_0 * 2
 
@@ -83,7 +150,6 @@ class UVMapGenerator(object):
             self.result['bmin'] = R2-R1
             self.result['bmax'] = R1+R2
             self.result['n_baselines'] = n_baselines
-            #print self.result
         else:
             raise Exception, 'unknown baseline pattern: %s' % pattern
 

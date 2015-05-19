@@ -3,12 +3,15 @@
 <!-- do the plotting -->
 <%
 import matplotlib.pyplot as plt
+import numpy as np
 import os.path
 
 fig, ax = plt.subplots()
 bxby = context['data']['uvmapgenerator']['bxby']
-ax.plot(list(bxby[:,0]) + list(-bxby[:,0]), list(bxby[:,1]) + list(-bxby[:,1]),
-  'go')
+bxby_times = bxby.keys()
+bx = np.array([v[0] for v in bxby.values()])
+by = np.array([v[1] for v in bxby.values()])
+ax.plot(list(bx) + list(-bx), list(by) + list(-by), 'g.')
 ax.grid()
 plt.xlabel('u (m)')
 plt.ylabel('v (m)')

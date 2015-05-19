@@ -19,6 +19,45 @@ Config = collections.namedtuple('Config', [
     'data'],
     verbose=False)
 
+def find_unflagged_sections(flag):
+    """Routine to find ranges [start:end] of sections
+    in the given array that are set False. Range means
+    that points from flag[start] up to but not including
+    flag[end] are False.
+
+    Parameters:
+    flag - 1-d boolean array
+ 
+    Returns:
+    A list of index ranges [start:end] describing where flag==False
+    """
+
+    unflagged_sections = []
+    unflagged_section = [-1,-1]
+    in_unflagged_section = False
+    for i,f in enumerate(flag):
+        if not f:
+            if in_unflagged_section:
+                pass
+            else:
+                unflagged_section[0] = i
+                in_unflagged_section = True
+        else:
+            if in_unflagged_section:
+                unflagged_section[1] = i
+                unflagged_sections.append(unflagged_section)
+                unflagged_section = [-1,-1]
+                in_unflagged_section = False
+            else:
+                pass
+
+    # tidy up ending
+    if in_unflagged_section:
+        unflagged_section[1] = i + 1
+        unflagged_sections.append(unflagged_section)
+
+    return unflagged_sections
+
 
 class TimeLineGenerator(object):
     """Class to generate timeline of the simulated observation.
@@ -51,9 +90,8 @@ class TimeLineGenerator(object):
           fts['smec_verror_type']
         self.result['nscans'] = nscans = fts['nscans']
         
-        # the number of baselines observed, from 'uvmapgenerator'
+        # the baselines observed, from 'uvmapgenerator'
         uvmap = self.previous_results['uvmapgenerator']
-        n_baselines = uvmap['n_baselines']
         bxby = uvmap['bxby']
 
         # collector parameters
@@ -70,8 +108,8 @@ class TimeLineGenerator(object):
         # as the scan is performed.
  
         # Basic timeline is:
-        #    n_baselines 'baselines',
-        #    separated by a time for spacecraft configuration.
+        #    Spacecraft baseline sequence gives the length of the 
+        #    timeline.
         #
         #    Each baseline contains n_scans FTS forward/back scans,
         #    separated by an 'interscan' period to allow for
@@ -105,19 +143,62 @@ class TimeLineGenerator(object):
             smec = smecposition.ZeroErrors(smec_start, smec_velocity,
               smec_nsample, smec_scan_duration, smec_interscan_duration)   
 
-        for ib in range(n_baselines):
-            baseline_start_time += inter_baseline_time
+        bxby_flag = np.array([v[2] for v in bxby.values()])
+
+        # get ranges of times covering unflagged stretches of baseline 
+        # position
+        unflagged_sections = find_unflagged_sections(bxby_flag)
+
+        # iterate through unflagged stretches
+
+        start_scan = 0
+        for section in unflagged_sections:
+            section_times = bxby.keys()[section[0]:section[1]]
+            start_time = section_times[0]
+            end_time = section_times[-1]
+
+            # calculate number of scans if FTS is rune continuously
+            # force to be even
+            nscans = (end_time - start_time) / \
+              (smec_scan_duration + smec_interscan_duration)
+            nscans = int(nscans)
+            if nscans%2 == 1:
+                nscans -= 1
 
             # generate actual positions
             smec_time, smec_nominal_position, smec_position,\
-              smec_flag, smec_vel_error = smec.run(nscans)
+              smec_flag, smec_vel_error, scan_number = smec.run(
+              nscans, start_scan)
             pointing1_x, pointing1_y = pointing1.run(times=smec_time)
             pointing2_x, pointing2_y = pointing2.run(times=smec_time)
 
-            smec_time += baseline_start_time            
+            smec_time += start_time
 
+            itime = 0
+            nextrapolated = 0
             for i,t in enumerate(smec_time):
-                config = Config(ib, t, bxby[ib][0], bxby[ib][1], 0.0, ib,
+
+                # interpolate baseline for each smec position
+                if t >= section_times[itime+1]:
+                    # watch for extrapolation due to rounding errors near
+                    # end of time sequence
+                    if itime + 2 < len(section_times):
+                        itime += 1
+                    else:
+                        nextrapolated += 1
+
+                lo_time = section_times[itime]
+                hi_time = section_times[itime+1]
+                bx = bxby[lo_time][0] + \
+                  (bxby[hi_time][0] - bxby[lo_time][0]) * \
+                  (t - lo_time) / (hi_time - lo_time)       
+                by = bxby[lo_time][1] + \
+                  (bxby[hi_time][1] - bxby[lo_time][1]) * \
+                  (t - lo_time) / (hi_time - lo_time)       
+                bflag = bxby[lo_time][2] or bxby[hi_time][2]       
+
+                ib = 0
+                config = Config(scan_number[i], t, bx, by, 0.0, ib,
                   smec_position[i], smec_nominal_position[i],
                   smec_flag[i], smec_vel_error[i],
                   pointing1_x[i], pointing1_y[i],
@@ -126,6 +207,12 @@ class TimeLineGenerator(object):
                     print 'duplicate time', i, t, ib
                 obs_timeline[t] = config 
 
+            # increment scan number ready for next group of scans
+            start_scan = np.max(scan_number) + 1
+
+            if nextrapolated > 0:
+                print '..number of baseline points extrapolated %s' % \
+                  nextrapolated
         self.result['obs_timeline'] = obs_timeline
 
         return self.result

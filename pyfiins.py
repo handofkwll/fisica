@@ -1,32 +1,52 @@
 from __future__ import absolute_import
 
+import astropy.io.fits as pyfits
 import collections
 import datetime
 import pp
 
-import cleanimage
-import cubeparameters
-import dirtyimage
 import fts
 import loadparameters
-import observe
+import observe_interpolate as observe
 import primarybeamsgenerator
-import reduceinterferogram
 import renderer
 import skygenerator
-import synthesisbeamsgenerator
+import skyloader
 import telescope
 import timelinegenerator
 import uvmapgenerator
 import writefits
+import xlrd
 
 
 class PyFIInS(object):
     """FISICA simulator.
     """
-    def __init__(self, sky_spreadsheet='SkySparams.xlsx', sky_sheet='1point'):
-        self.sky_spreadsheet = sky_spreadsheet
-        self.sky_sheet = sky_sheet
+    def __init__(self, sky_file='SkySparams.xlsx', sky_sheet='1point',
+      instrument_spreadsheet='FIInS_Instrument_cor3.xlsx'):
+        # is this an Excel spreadsheet with source parameters to simulate?
+        # or is it a FITS file containing a cube simulated beforehand?
+        self.sky_spreadsheet = None
+        self.sky_sheet = None
+        self.sky_fits = None
+        try:
+            book = xlrd.open_workbook(sky_file)
+            self.sky_spreadsheet = sky_file
+            self.sky_sheet = sky_sheet
+            print 'sky simulation parameters will be read from Excel file %s' % \
+              sky_file
+        except:
+            pass
+        try:
+            hdulist = pyfits.open(sky_file)
+            self.sky_fits = sky_file
+            print 'a simulated sky datacube will be read from FITS file %s' % \
+              sky_file
+        except:
+            pass
+
+        self.instrument_spreadsheet = instrument_spreadsheet
+
         self.result = collections.OrderedDict()
 
         # start parallel python (pp), find the number of CPUS available
@@ -43,7 +63,9 @@ class PyFIInS(object):
         # read parameters
         loadparams = loadparameters.LoadParameters(
           sky_spreadsheet=self.sky_spreadsheet,
-          sky_sheet=self.sky_sheet)
+          sky_sheet=self.sky_sheet,
+          sky_fits=self.sky_fits,
+          instrument_spreadsheet=self.instrument_spreadsheet)
         obs_specification = loadparams.run()
         self.result['loadparameters'] = obs_specification
 
@@ -63,12 +85,20 @@ class PyFIInS(object):
           previous_results=self.result)
         self.result['uvmapgenerator'] = uvmapgen.run()
         print uvmapgen
-   
-        # generate parameters of cube to be simulated
-        cubeparams = cubeparameters.CubeParameters(
-          previous_results=self.result)
-        self.result['cubeparameters'] = cubeparams.run()
-        print cubeparams
+
+        # construct sky
+        if self.sky_spreadsheet is not None:
+            skygen = skygenerator.SkyGenerator(
+              parameters=obs_specification,
+              previous_results=self.result)
+            self.result['skymodel'] = skygen.run()
+            print skygen
+        elif self.sky_fits is not None:
+            skyload = skyloader.SkyLoader(
+              parameters=obs_specification,
+              previous_results=self.result)
+            self.result['skymodel'] = skyload.run()
+            print skyload
    
         # generate primary beams
         primarybeamsgen = primarybeamsgenerator.PrimaryBeamsGenerator(
@@ -77,13 +107,6 @@ class PyFIInS(object):
         self.result['primarybeams'] = primarybeamsgen.run()
         print primarybeamsgen
    
-        # construct sky
-        skygen = skygenerator.SkyGenerator(
-          parameters=obs_specification,
-          previous_results=self.result)
-        self.result['skygenerator'] = skygen.run()
-        print skygen
-    
         # generate observation framework
         timeline = timelinegenerator.TimeLineGenerator(
           previous_results=self.result)
@@ -103,36 +126,9 @@ class PyFIInS(object):
         self.result['writefits'] = fits.run()   
         print fits
 
-        # recover spectra from interferograms
-        reduceint = reduceinterferogram.ReduceInterferogram(
-          previous_results=self.result,
-          job_server=self.job_server)
-        self.result['reduceinterferogram'] = reduceint.run()
-        print reduceint
-   
-        # construct dirty image
-        dirty = dirtyimage.DirtyImage(
-          previous_results=self.result,
-          job_server=self.job_server)
-        self.result['dirtyimage'] = dirty.run()
-        print dirty
-   
-        # construct clean image
-    #    clean = cleanimage.CleanImage(
-    #      previous_results=self.result,
-    #      job_server=self.job_server)
-    #    self.result['cleanimage'] = clean.run()
-    #    print clean
-    #
-    #     # construct html description of result
-        self.render()
-
-    def import_result(self):
-         print 'does nothing'
-
-    def render(self):
+        # construct html description of result
         htmlrenderer = renderer.Renderer(result=self.result)
-        htmlrenderer.run()
+        htmlrenderer.run(prefix='sim')
 
     def __repr__(self):
         return 'FISICA simulator'

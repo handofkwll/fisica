@@ -106,10 +106,10 @@ class PrimaryBeamsGenerator(object):
         print 'Calculating primary beams...'
 
         # gather configuration 
-        cubeparams = self.previous_results['cubeparameters']
-        self.result['wn'] = wn = cubeparams['wn']
+        cubeparams = self.previous_results['skymodel']
+        self.result['frequency axis'] = wn = cubeparams['frequency axis']
         self.result['pixsize [rad]'] = pixsize = cubeparams['pixsize [rad]']
-        self.result['npix'] = npix = cubeparams['npix']
+        self.result['npix'] = npix = len(cubeparams['spatial axis [arcsec]'])
 
         telescope = self.previous_results['loadparameters']['substages']\
           ['Telescope']

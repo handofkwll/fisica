@@ -46,17 +46,20 @@ class ZeroErrors(object):
         self.smec_vel = np.ones([self.total_nsamples]) * self.smec_velocity
         self.smec_vel[:self.prescan_nsamples] = 0.0
 
-    def _calculate_smec_position(self, scan, scan_start_time, smec_start_pos, 
+    def _calculate_smec_position(self, scan, scan_id,
+      scan_number, scan_start_time, smec_start_pos, 
       direction, relative_time, vel_error, demand_smec_position,
       actual_smec_position, smec_flag):
         """Method to calculate smec position from scan info.
         """
+        # all points in the scan have the same scan_number
+        scan_number[scan*self.total_nsamples : (scan+1)*self.total_nsamples] = scan_id
 
         # times 'internal' to this scan
         relative_time[scan*self.total_nsamples : (scan+1)*self.total_nsamples] = \
           scan_start_time + self.scan_relative_time
 
-        # prescan position for now just smec_start_pos
+        # prescan position for now is just smec_start_pos
         offset = scan * self.total_nsamples
         demand_smec_position[offset] = smec_start_pos
         actual_smec_position[offset] = smec_start_pos
@@ -74,8 +77,9 @@ class ZeroErrors(object):
         smec_flag[offset+self.prescan_nsamples:offset+self.total_nsamples] = \
           False
 
-    def run(self, nscans):
-        """Method to calculate smec data for 'nscans' scans.
+    def run(self, nscans, start_scan_id):
+        """Method to calculate smec data for 'nscans' scans,
+        beginning with scan number 'start_scan'.
         """
 #        print 'ZeroSmecErrors.run'
         if nscans%2 != 0:
@@ -88,6 +92,7 @@ class ZeroErrors(object):
         # smec vel errors are 0.
         smec_vel_error = np.zeros([nscans * self.total_nsamples])
         scan_vel_error = np.zeros([self.total_nsamples])
+        scan_number = np.zeros([nscans * self.total_nsamples], np.int)
 
         # first scan will be forward
         direction = 1.0
@@ -96,7 +101,8 @@ class ZeroErrors(object):
 
         # iterate through scans, calculating each in turn
         for scan in range(nscans):
-            self._calculate_smec_position(scan, scan_start_time, smec_start_pos, 
+            self._calculate_smec_position(scan, start_scan_id + scan,
+              scan_number, scan_start_time, smec_start_pos, 
               direction, times, scan_vel_error, demand_smec_position,
               actual_smec_position, smec_flag)
 
@@ -105,8 +111,8 @@ class ZeroErrors(object):
             scan_start_time = times[(scan+1)*self.total_nsamples-1]
             smec_start_pos = demand_smec_position[(scan+1)*self.total_nsamples-1]
 
-        return times, demand_smec_position, actual_smec_position, smec_flag,\
-          smec_vel_error
+        return times, demand_smec_position, actual_smec_position,\
+          smec_flag, smec_vel_error, scan_number
 
     def __repr__(self):
         return 'smecposition.ZeroErrors'
@@ -292,7 +298,7 @@ class HerschelErrors(ZeroErrors):
 
         return scan_vel_error
 
-    def run(self, nscans):
+    def run(self, nscans, start_scan_id):
         """Method to calculate smec data for 'nscans' scans.
         """
         if nscans%2 != 0:
@@ -303,6 +309,7 @@ class HerschelErrors(ZeroErrors):
         actual_smec_position = np.zeros([nscans * self.total_nsamples])
         smec_flag = np.ones([nscans * self.total_nsamples], np.bool)
         smec_vel_error = np.zeros([nscans * self.total_nsamples])
+        scan_number = np.zeros([nscans * self.total_nsamples], np.int)
 
         # first scan will be forward
         direction = 1.0
@@ -316,7 +323,8 @@ class HerschelErrors(ZeroErrors):
               scan_vel_error
 
             # and now the mirror position
-            self._calculate_smec_position(scan, scan_start_time, smec_start_pos, 
+            self._calculate_smec_position(scan, start_scan_id + scan,
+              scan_number, scan_start_time, smec_start_pos, 
               direction, times, scan_vel_error, demand_smec_position,
               actual_smec_position, smec_flag)
 
@@ -325,8 +333,8 @@ class HerschelErrors(ZeroErrors):
             scan_start_time = times[(scan+1)*self.total_nsamples-1]
             smec_start_pos = demand_smec_position[(scan+1)*self.total_nsamples-1]
 
-        return times, demand_smec_position, actual_smec_position, smec_flag,\
-          smec_vel_error
+        return times, demand_smec_position, actual_smec_position,\
+          smec_flag, smec_vel_error, scan_number
 
     def __repr__(self):
         return 'smecposition.HerschelErrors'

@@ -6,32 +6,31 @@ import os.path
 import numpy as np
 import common.commonobjects as co
 
-baseline_scans = context['data']['reduceinterferogram']['baseline_scans']
-baseline_mean = context['data']['reduceinterferogram']['baseline_mean']
-baseline_uvspectrum = context['data']['reduceinterferogram']['baseline_uvspectrum']
+scan_interferograms = context['data']['reduceinterferogram']['scan_interferograms']
+scan_uvspectra = context['data']['reduceinterferogram']['scan_uvspectra']
 
 baseline_link = {}
 
-for b in baseline_scans.keys():
-    scans = baseline_scans[b]
-    mean = baseline_mean[b]
-    uvspectrum = baseline_uvspectrum[b]
+# plot every 100th scan
+scan_numbers = [scan_number for scan_number in
+  scan_interferograms.keys() if scan_number%100==0]
+scan_numbers.sort()
+
+for scan in scan_numbers:
 
     # construct a page with the plot
-    baseline = (b[0], b[1])
-    id = 'reduceint_%s_%s' % baseline
-    id = id.replace('-', 'm')
-    baseline_link[baseline] = id
+    id = 'reduceint_%s' % scan
+    baseline_link[scan] = id
     filename = '%s.html' % id
     link = os.path.join(context['dirname'], filename)
     with open(link, 'w') as f:
         template = mylookup.get_template('scans.html')
         context_copy = context.kwargs
-        context_copy['baseline'] = baseline
+        context_copy['scan'] = scan
         context_copy['id'] = id
-        context_copy['scans'] = scans
-        context_copy['mean'] = mean
-        context_copy['uvspectrum'] = uvspectrum
+        context_copy['interferogram'] = scan_interferograms[scan]
+        context_copy['mean'] = None
+        context_copy['uvspectrum'] = scan_uvspectra[scan]
         f.write(template.render(**context_copy))
 %>
 

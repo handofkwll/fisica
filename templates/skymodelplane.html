@@ -29,7 +29,7 @@ stagename = context['stagename']
 resultname = context['resultname']
 
 sky_image = context['data'][stagename][resultname][:,:,iwn]
-spatial_axis = context['data'][stagename]['spatial axis']
+spatial_axis = context['data'][stagename]['spatial axis [arcsec]']
 wn = context['wn'] 
 
 if sky_image.dtype==np.complex:

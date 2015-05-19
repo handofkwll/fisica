@@ -10,28 +10,39 @@ class LoadParameters:
     """Class to compute interferograms.
     """
 
-    def __init__(self, sky_spreadsheet='Sky.xlsx', sky_sheet='1point',
+    def __init__(self, sky_spreadsheet=None, sky_sheet=None,
+      sky_fits=None,
       instrument_spreadsheet='FIInS_Instrument_cor3.xlsx'):
         self.result = collections.OrderedDict()
         self.result['substages'] = collections.OrderedDict()
 
-        # access the relevant sheet of the spreadsheet
-        book = xlrd.open_workbook(sky_spreadsheet)
-        sheet = book.sheet_by_name(sky_sheet)
+        if sky_spreadsheet is not None:
+            # access the relevant sheet of the spreadsheet
+            book = xlrd.open_workbook(sky_spreadsheet)
+            sheet = book.sheet_by_name(sky_sheet)
 
-        sheet_dict = collections.OrderedDict()
+            sheet_dict = collections.OrderedDict()
 
-        # Sheet has names in col 0, values in columns 1 to n
-        # Ignore row 0.
+            # Sheet has names in col 0, values in columns 1 to n
+            # Ignore row 0.
 
-        # read column names
-        for row in range(1,sheet.nrows):
-            colname = sheet.cell(row, 0)
-            sheet_dict[colname.value] = {}
-            for col in range(1,sheet.ncols):
-                sheet_dict[colname.value][col] = sheet.cell(row,col).value
+            # read column names
+            for row in range(1,sheet.nrows):
+                colname = sheet.cell(row, 0)
+                sheet_dict[colname.value] = {}
+                for col in range(1,sheet.ncols):
+                    sheet_dict[colname.value][col] = sheet.cell(row,col).value
 
-        self.result['substages']['Sky'] = sheet_dict
+            self.result['substages']['Sky'] = sheet_dict
+
+        else:
+            if sky_fits is None:
+                raise Exception, 'sky simulation not defined'
+
+            # clunky dictionary structure to mimic that from the Excel file
+            # branch
+            self.result['substages']['Sky'] = {'FITS file':{0:sky_fits}}
+            
 
         # the instrument spreadsheet
         instrument_book = xlrd.open_workbook(instrument_spreadsheet)

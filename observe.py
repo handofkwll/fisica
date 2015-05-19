@@ -57,7 +57,7 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
     psf2 = amplitude_beam_2
 
     for it,t in enumerate(times):
-#        print it
+        print it
         config = obs_timeline[t]
         opd = config.smec_position / smec_opd_to_mpd
         ntotal += 1
@@ -111,6 +111,7 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
                 if f1_plane is None:
                     f1_plane = sky_cube[:,:,iwn] * \
                       numpy.conj(psf1[:,:,iwn]) * psf2[:,:,iwn]
+                    f1_cache[f1_key] = f1_plane
                 else:
                     nhit_f1 += 1
 
@@ -266,45 +267,45 @@ class Observe(object):
         chunks.append(slice(last.start, len(fts_wn_truncated)))
 
         # direct call that can be used for debugging
-#        chunk = 0
-#        chunks[0] = slice(0, len(fts_wn_truncated))
-#        job_id = (chunks[chunk].start, chunks[chunk].stop)
-#        powers = {}
-#        fraction_cached = {}
-#        f1_hit_rate = {}
-#        powers[job_id], fraction_cached[job_id], f1_hit_rate[job_id] = \
-#          calculate_visibility(
-#          smec_opd_to_mpd,
-#          sky_model[:,:,chunks[chunk]],
-#          fts_wn_truncated[chunks[chunk]], spatial_axis,
-#          amp_beam_1[:,:,chunks[chunk]], amp_beam_2[:,:,chunks[chunk]], 
-#          obs_timeline, observed_times)
-
-        # submit jobs
-        jobs = {}
-        for chunk in chunks[:4]:
-            indata = (smec_opd_to_mpd,
-                      sky_model[:,:,chunk],
-                      fts_wn_truncated[chunk],
-                      spatial_axis,
-                      amp_beam_1[:,:,chunk],
-                      amp_beam_2[:,:,chunk], 
-                      obs_timeline, observed_times,)
-
-            job_id = (chunk.start, chunk.stop)
-            print 'starting ', job_id
-            jobs[job_id] = self.job_server.submit(calculate_visibility,
-              indata, (), ('numpy','collections',))
-
-        # collect results
+        chunk = 0
+        chunks[0] = slice(0, len(fts_wn_truncated))
+        job_id = (chunks[chunk].start, chunks[chunk].stop)
         powers = {}
         fraction_cached = {}
         f1_hit_rate = {}
-        for chunk in chunks:
-            job_id = (chunk.start, chunk.stop)
-            if jobs[job_id]() is None:
-                raise Exception, 'calculate_visibility has failed for planes %s' % str(job_id)
-            powers[job_id], fraction_cached[job_id], f1_hit_rate[job_id] = jobs[job_id]()
+        powers[job_id], fraction_cached[job_id], f1_hit_rate[job_id] = \
+          calculate_visibility(
+          smec_opd_to_mpd,
+          sky_model[:,:,chunks[chunk]],
+          fts_wn_truncated[chunks[chunk]], spatial_axis,
+          amp_beam_1[:,:,chunks[chunk]], amp_beam_2[:,:,chunks[chunk]], 
+          obs_timeline, observed_times)
+
+        # submit jobs
+#        jobs = {}
+#        for chunk in chunks[:4]:
+#            indata = (smec_opd_to_mpd,
+#                      sky_model[:,:,chunk],
+#                      fts_wn_truncated[chunk],
+#                      spatial_axis,
+#                      amp_beam_1[:,:,chunk],
+#                      amp_beam_2[:,:,chunk], 
+#                      obs_timeline, observed_times,)
+
+#            job_id = (chunk.start, chunk.stop)
+#            print 'starting ', job_id
+#            jobs[job_id] = self.job_server.submit(calculate_visibility,
+#              indata, (), ('numpy','collections',))
+
+        # collect results
+#        powers = {}
+#        fraction_cached = {}
+#        f1_hit_rate = {}
+#        for chunk in chunks:
+#            job_id = (chunk.start, chunk.stop)
+#            if jobs[job_id]() is None:
+#                raise Exception, 'calculate_visibility has failed for planes %s' % str(job_id)
+#            powers[job_id], fraction_cached[job_id], f1_hit_rate[job_id] = jobs[job_id]()
 
         keys = powers.keys()
         visibilities = powers[keys[0]]

@@ -40,11 +40,16 @@ class Renderer(object):
 #        z = zipfile.ZipFile(infile, 'r')
 #        z.extractall(outdir)
 
-    def run(self):
+    def run(self, prefix=''):
         # make a directory to contain this result
         runtime = self.result['runtime']
-        dirname = 'fisica-%s' % runtime
+        if prefix=='':
+            dirname = 'fisica-%s' % runtime
+        else:
+            dirname = 'fisica-%s-%s' % (prefix, runtime)
         os.mkdir(dirname)
+        print 'Weblog:'
+        print '  weblog written to %s' % dirname
 
         # make a resources directory and copy the Bootstrap stuff there
         self.copy_resources(dirname)

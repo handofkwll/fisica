@@ -2,6 +2,8 @@ from __future__ import absolute_import
 
 import collections
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 import common.commonobjects as co
 
@@ -62,10 +64,6 @@ class ReduceInterferogram(object):
         self.previous_results = previous_results
         self.job_server = job_server
 
-        # will need the smec opd to mpd factor
-        fts = self.previous_results['fts']
-        self.smec_opd_to_mpd = fts['smec_opd_to_mpd']
-
         self.reduceint = []
         self.result = collections.OrderedDict()      
 
@@ -86,7 +84,8 @@ class ReduceInterferogram(object):
           verbose=False)
 
         # get observation list
-        observe = self.previous_results['observe']
+        observe = self.previous_results['readfits']
+        self.smec_opd_to_mpd = observe['smec_opd_to_mpd']
         obs_timeline = observe['observed_timeline']
 
         # Construct a dict holding lists of configurations for each
@@ -95,144 +94,123 @@ class ReduceInterferogram(object):
         observed_times = obs_timeline.keys()
         observed_times.sort()
 
+        scanset = set()
+        scans_data = {}
+        data = None
+
         for t in observed_times:
             config = obs_timeline[t]
-            b = (config.baseline_x, config.baseline_y, config.baseline_z)
-            baseline_configs[b].append(config)
+            scan = config.scan_number
 
-        baselines = baseline_configs.keys()
-        baselines.sort()
+            if scan not in scanset:
+                if data is not None:
+                    data = np.array(data)
+                    smec_position = np.array(smec_position)
+                    flag = np.array(flag)        
+                    baseline_x = np.array(baseline_x)
+                    baseline_y = np.array(baseline_y)
+                    baseline_z = np.array(baseline_z)
 
-        # for each baseline assemble config data into arrays
-        baseline_scans = {}
-        baseline_mean = {}
-        baseline_uvspectrum = {}
+                    smec_sorted = np.argsort(smec_position)
+                    data = data[smec_sorted]
+                    smec_position = smec_position[smec_sorted]
+                    flag = flag[smec_sorted]
+                    baseline_x = baseline_x[smec_sorted]
+                    baseline_y = baseline_y[smec_sorted]
+                    baseline_z = baseline_z[smec_sorted]
 
-        for b in baselines:
-            data = []
-            smec_position = []
-            flag = []
+                    scans_data[current_scan] = (
+                      data,
+                      smec_position,
+                      flag,
+                      baseline_x,
+                      baseline_y,
+                      baseline_z)
 
-            for config in baseline_configs[b]:
+                data = [config.data]
+                smec_position = [config.smec_nominal_position]
+                flag = [config.flag]
+                baseline_x = [config.baseline_x]
+                baseline_y = [config.baseline_y]
+                baseline_z = [config.baseline_z]
+                current_scan = scan
+                scanset.update([scan])
+            else:
                 data.append(config.data)
-                # using the nominal mirror position not the actual one
                 smec_position.append(config.smec_nominal_position)
                 flag.append(config.flag)
+                baseline_x.append(config.baseline_x)
+                baseline_y.append(config.baseline_y)
+                baseline_z.append(config.baseline_z)
 
-            data = np.array(data)
-            smec_position = np.array(smec_position)
-            flag = np.array(flag)        
+        scans = scans_data.keys()
+        scans.sort()
+        scan_interferograms = {}
+        scan_uvspectra = {}
 
-            # identify scans within the data flow
-            flag_sections = find_flagged_sections(flag)
+        for scan in scans:
+            data, smec_position, flag, baseline_x, baseline_y, \
+              baseline_z = scans_data[scan]       
 
-            # extract scans from the data stream
-            scans = []
-            mark = 0
-            for flag_section in flag_sections:
-                interferogram = data[mark:flag_section[0]]
-                opd = 100.0 * smec_position[mark:flag_section[0]] / \
-                  self.smec_opd_to_mpd
+            interferogram = data[flag==False]
+            opd = 100.0 * smec_position[flag==False] / self.smec_opd_to_mpd
 
-                if len(interferogram):
-                    axis = co.Axis(data=opd, title='OPD', units='cm')
-                    scan = co.Spectrum(
-                      data=interferogram,
-                      flag=np.zeros(np.shape(interferogram), np.bool),
-                      axis=axis,
-                      title='scan interferogram',
-                      units='')
-                    scans.append(scan)
-
-                mark = flag_section[1]
-
-            # deal with last scan
-            interferogram = data[mark:]
-            opd = 100.0 * smec_position[mark:] / self.smec_opd_to_mpd
             if len(interferogram):
                 axis = co.Axis(data=opd, title='OPD', units='cm')
-                scan = co.Spectrum(
+                scan_interferogram = co.Spectrum(
                   data=interferogram,
                   flag=np.zeros(np.shape(interferogram), np.bool),
-                  axis=axis, 
+                  axis=axis,
                   title='scan interferogram',
                   units='')
-                scans.append(scan)
+                scan_interferograms[scan] = scan_interferogram
+
+                # now convert interferogram to spectrum at this u-v position
+                # first, shift interferogram so that 0 opd is at index 0
+                # must ask David N how to do this properly
+                postzero = []
+                prezero = []
+                postzero_opd = []
+                prezero_opd = []
+                zero_opd_found = False
+
+                for i, opd in enumerate(scan_interferogram.axis.data):
+                    if abs(opd) < 1e-10:
+                        zero_opd_found = True
+                    if not zero_opd_found:
+                        prezero.append(scan_interferogram.data[i])
+                        prezero_opd.append(scan_interferogram.axis.data[i])
+                    else:
+                        postzero.append(scan_interferogram.data[i])
+                        postzero_opd.append(scan_interferogram.axis.data[i])
             
-            baseline_scans[b] = scans
+                shifted = postzero + prezero
+                shifted_opd = postzero_opd + prezero_opd
 
-            # now obtain mean of scans for each baseline
+                shifted = np.array(shifted)
+                shifted_opd = np.array(shifted_opd)
 
-            interferogram_sum = np.zeros(np.shape(scans[0].data))
-            interferogram_n = 0
-    
-            for iscan, scan in enumerate(scans):
-                # assume opd ranges are the same but sort them into
-                # ascending order
-                opd = scan.axis.data
-                opd_sort = np.argsort(opd)
-                interferogram_sum += scan.data[opd_sort]
-                interferogram_n += 1
+                # spectrum is complex
+                spectrum = np.fft.fft(shifted)
+                wavenumber = np.fft.fftfreq(
+                  n=spectrum.size,
+                  d=abs(shifted_opd[1] - shifted_opd[0]))
 
-            interferogram_mean = interferogram_sum / interferogram_n
+                # save it
+                uvspectrum = UVspectrum(
+                  scan_number=scan,
+                  baseline_x = baseline_x,
+                  baseline_y = baseline_y,
+                  baseline_z = baseline_z,
+                  interferogram=shifted,
+                  opd=shifted_opd,
+                  spectrum=spectrum,
+                  wavenumber=wavenumber)             
 
-            axis = co.Axis(data=opd[opd_sort], title='OPD', units='cm')
-            scan_mean = co.Spectrum(
-              data=interferogram_mean,
-              flag=np.zeros(np.shape(interferogram_mean), np.bool),
-              axis=axis, 
-              title='mean interferogram',
-              units='')
+                scan_uvspectra[scan] = uvspectrum
 
-            baseline_mean[b] = scan_mean
-
-            # now convert interferogram to spectrum at this u-v position
-            # first, shift interferogram so that 0 opd is at index 0
-            # must ask David N how to do this properly
-            postzero = []
-            prezero = []
-            postzero_opd = []
-            prezero_opd = []
-            zero_opd_found = False
-
-            for i, opd in enumerate(scan_mean.axis.data):
-                if abs(opd) < 1e-10:
-                    zero_opd_found = True
-                if not zero_opd_found:
-                    prezero.append(scan_mean.data[i])
-                    prezero_opd.append(scan_mean.axis.data[i])
-                else:
-                    postzero.append(scan_mean.data[i])
-                    postzero_opd.append(scan_mean.axis.data[i])
-            
-            shifted = postzero + prezero
-            shifted_opd = postzero_opd + prezero_opd
-
-            shifted = np.array(shifted)
-            shifted_opd = np.array(shifted_opd)
-
-            # spectrum is complex
-            spectrum = np.fft.fft(shifted)
-            wavenumber = np.fft.fftfreq(
-              n=spectrum.size,
-              d=abs(shifted_opd[1] - shifted_opd[0]))
-      
-            # save it
-            uvspectrum = UVspectrum(
-              None,
-              b[0], 
-              b[1],
-              0.0,
-              shifted,
-              shifted_opd,
-              spectrum,
-              wavenumber)             
-
-            baseline_uvspectrum[b] = uvspectrum
-
-        self.result['baseline_scans'] = baseline_scans
-        self.result['baseline_mean'] = baseline_mean
-        self.result['baseline_uvspectrum'] = baseline_uvspectrum
+        self.result['scan_interferograms'] = scan_interferograms
+        self.result['scan_uvspectra'] = scan_uvspectra
         
         return self.result
                 
@@ -240,5 +218,5 @@ class ReduceInterferogram(object):
         return '''
 ReduceInterferogram : {num_uvspectra}
 '''.format(
-          num_uvspectra=len(self.result['baseline_uvspectrum']))
+          num_uvspectra=len(self.result['scan_uvspectra']))
 
