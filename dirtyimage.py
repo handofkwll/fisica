@@ -63,23 +63,28 @@ def calculate_dirty_plane(b_x_list, b_y_list, spectra, wn_spectra,
             dirtybeam[iy,:] += contribution.real
 
     # fit Gaussian to centre of dirty beam and use this as the 'clean beam'
-    fitter = fitgaussian.FitGaussian()
-    dirty_centre = numpy.array(dirtybeam[npix/2-5:npix/2+5,
-      npix/2-5:npix/2+5])
-    p = fitter.fitgaussian(dirty_centre)
+    try:
+        fitter = fitgaussian.FitGaussian()
+        dirty_centre = numpy.array(dirtybeam[npix/2-5:npix/2+5,
+          npix/2-5:npix/2+5])
+        p = fitter.fitgaussian(dirty_centre)
 
-    # construct the clean beam
-    cp = (1.0, float(npix)/2.0, float(npix)/2.0, p[3], p[4], p[5])
-    rotgauss = fitter.gaussian(*cp)
-    cleanbeam = numpy.fromfunction(rotgauss, numpy.shape(dirtybeam))
-#    cleanbeam = dirtybeam
+        # construct the clean beam
+        cp = (1.0, float(npix)/2.0, float(npix)/2.0, p[3], p[4], p[5])
+        rotgauss = fitter.gaussian(*cp)
+        cleanbeam = numpy.fromfunction(rotgauss, numpy.shape(dirtybeam))
+    except:
+        print 'Gaussian fit to centre of dirty beam failed for wavenumber %s' %\
+          wn
+        cleanbeam = None
 
     # normalise
     # The sum of the dirty beam should equal the 0 baseline vis measurement: 0
     # Normalising the volume would preserve flux under convolution but
     # is problematic as the volume is 0, so normalise the peak to 1.
     dirtybeam /= numpy.max(dirtybeam)
-    cleanbeam /= numpy.max(cleanbeam)
+    if cleanbeam is not None:
+        cleanbeam /= numpy.max(cleanbeam)
 
     # normalise dirty map by 2 times number of Fourier components added
     image /= 2.0 * len(b_x_list)
