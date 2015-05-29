@@ -66,7 +66,7 @@ will be running python from - that is where the code will look for them.
   * In [4]: f=pyfiins.PyFIInS(sky_file='SkyTest.xlsx', sky_sheet='Master')
   * In [5]: f.simulate()
 
-  It should run for 15 minutes or so, producing lots of debug statements 
+  It should run for 50 minutes or so, producing lots of debug statements 
   and a few 'warnings', eventually finishing with:
 
   * .....
