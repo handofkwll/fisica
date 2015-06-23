@@ -35,28 +35,26 @@ that to install IPython and the other modules needed:
   * matplotlib (for plotting) 
   * parallelpython (for parallel processing)
  
-  You will also need to install:
-  * mako and twitter bootstrap (weblog generation)
- 
   If the installation has worked then you should be able to type ipython, then:
 
   * In [1]: import numpy
   * In [2]: import scipy
   * In [3]: import matplotlib
   * In [4]: import pp
-  * In [5]: import mako
 
   with no errors.
 
-2. Check out the trunk code from GitHub.
+2. Check out the code from GitHub, install it in a fresh directory.
 
-3. Copy the .xlsx files from fisica/excel into the directory you 
-will be running python from - that is where the code will look for them.
+3. Create a different fresh directory to run the simulator from
+and copy the .xlsx files from fisica/excel into it - that is where 
+the code will look for them.
 
 4. Start up python then:
 
+  tell python where to look for the code and 'import' it
+
   * In [1]: import sys
-  *  tell python where to look for the code
   * In [2]: sys.path.append('/users/jfl/fisica')
   * In [3]: import pyfiins
 
