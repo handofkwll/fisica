@@ -6,9 +6,7 @@ import matplotlib.pyplot as plt
 import os.path
 
 mylookup = context['mylookup']
-
 beamsgenerator = context['data']['primarybeams']
-wavenumbers = beamsgenerator['primary beam'].keys()
 %>
 
 <h2>Beam Generation Parameters</h2>
@@ -31,14 +29,41 @@ wavenumbers = beamsgenerator['primary beam'].keys()
 
 <%
 # construct html pages with primary beam plots
-for wn in wavenumbers:
-    link = os.path.join(context['dirname'], 'primary_beam%s.html' % (wn))
+baselines = beamsgenerator['primary intensity beam'].keys()
+wavenumbers = beamsgenerator['primary intensity beam'][baselines[0]].axes[2].data
+
+for baseline in baselines:
+    for wn in wavenumbers:
+        link = os.path.join(context['dirname'],
+          'primary_amplitude_beam_%s_%s.html' % (baseline, wn))
+        with open(link, 'w') as f:
+            template = mylookup.get_template('beamplot.html')
+            context_copy = context.kwargs
+            context_copy['stage'] = 'primarybeams'
+            context_copy['component'] = 'primary amplitude beam'
+            context_copy['subcomponent'] = baseline
+            context_copy['wn'] = wn
+            f.write(template.render(**context_copy))
+
+# construct html pages with model E field plots
+model_grid = beamsgenerator['primary illumination']
+
+# organise the model grid so that thumbnails are grouped 
+# together per wavelength and ranked in increasing baseline
+# within that
+plot_grid = model_grid.keys()
+plot_grid = sorted(plot_grid, cmp=lambda x,y: cmp(x[::-1], y[::-1]))
+
+for baseline, lamb in plot_grid:
+    wn = 1 / (lamb * 1.e-4)
+    link = os.path.join(context['dirname'],
+      'primary_illumination%s_%s.html' % (baseline, lamb))
     with open(link, 'w') as f:
-        template = mylookup.get_template('beamplot.html')
+        template = mylookup.get_template('illumination.html')
         context_copy = context.kwargs
-        context_copy['wn'] = wn
         context_copy['stage'] = 'primarybeams'
-        context_copy['beamtype'] = 'primary beam'
+        context_copy['component'] = 'primary illumination'
+        context_copy['subcomponent'] = (baseline,lamb) 
         f.write(template.render(**context_copy))
 %>
 
@@ -46,15 +71,31 @@ for wn in wavenumbers:
 
 <h3>Primary Beams</h3>
 <div class="row">
-% for wn in beamsgenerator['primary beam'].keys():
+% for wn in wavenumbers:
     <% 
     wnformatted = '%6.4gcm-1' % wn 
     %>
+    % for baseline in baselines:
   <div class="col-xs-6 col-md-3">
-    <a href="primary_beam${wn}.html" class="thumbnail">
-      <img src="primary_beam${wn}.png" alt="...">
+    <a href="primary_amplitude_beam_${baseline}_${wn}.html" class="thumbnail">
+      <img src="primary_amplitude_beam_${baseline}_${wn}.png" alt="...">
       <div>
-        <h4>${wnformatted}</h4>
+        <h4>${baseline} ${wnformatted}</h4>
+      </div>
+    </a>
+  </div>
+    % endfor
+% endfor
+</div>
+
+<h3>Primary Illumination</h3>
+<div class="row">
+% for baseline, lamb in plot_grid:
+  <div class="col-xs-6 col-md-3">
+    <a href="primary_illumination${baseline}_${lamb}.html" class="thumbnail">
+      <img src="primary_illumination${baseline}_${lamb}.png" alt="...">
+      <div>
+        <h4>${baseline} ${lamb}</h4>
       </div>
     </a>
   </div>

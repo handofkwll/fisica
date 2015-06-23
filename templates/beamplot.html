@@ -4,6 +4,7 @@
 <%
 import matplotlib.pyplot as plt
 import os.path
+import numpy as np
 import string
 
 _valid_chars = "_.%s%s" % (string.ascii_letters, string.digits)
@@ -20,32 +21,89 @@ def sanitize(text):
     filename = ''.join(_char_replacer(c) for c in text)
     return filename
 
+def small_font(ax):
+    '''Use small font so that subplots do not overwrite each other.'''
+    for item in (
+      [ax.title,
+      ax.xaxis.label,
+      ax.yaxis.label] +
+      ax.get_xticklabels() +
+      ax.get_yticklabels()):
+        item.set_fontsize(8)
+    return
 
-plt.figure()
+fig = plt.figure()
 
-wn = context['wn']
 stage = context['stage']
-beamtype = context['beamtype']
+component = context['component']
+subcomponent = context['subcomponent']
+wn = context['wn']
 
-beam_image = context['data'][stage][beamtype][wn]
-plt.imshow(beam_image.data, interpolation='nearest', origin='lower',
-  aspect='equal', extent=[beam_image.axes[0].data[0],
-  beam_image.axes[0].data[-1], beam_image.axes[1].data[0],
-  beam_image.axes[1].data[-1]])
-plt.axis('image')
+beam_cube = context['data'][stage][component][subcomponent]
+beam_wn = beam_cube.axes[2].data
+beam_image = np.squeeze(beam_cube.data[:,:,beam_wn==wn])
 
-plt.colorbar(orientation='vertical')
-plt.xlabel(beam_image.axes[0].title)
-plt.ylabel(beam_image.axes[1].title)
-plt.title(beam_image.title)
+if beam_cube.data.dtype == np.complex128:
 
-sane_beamtype = sanitize(beamtype)
-filename = '%s%s.png' % (sane_beamtype, wn)
+    # amplitude
+    ax = fig.add_subplot(1, 2, 1)
+    plt.imshow(np.abs(beam_image), interpolation='nearest',
+      origin='lower',
+      aspect='equal', extent=[beam_cube.axes[0].data[0],
+      beam_cube.axes[0].data[-1], beam_cube.axes[1].data[0],
+      beam_cube.axes[1].data[-1]])
+    plt.axis('image')
+
+    cbar = plt.colorbar(orientation='vertical', shrink=0.7)
+    ax.set_xlabel(beam_cube.axes[0].title)
+    ax.set_ylabel(beam_cube.axes[1].title)
+    ax.set_title('Amplitude')
+    small_font(ax)
+    cbar.ax.tick_params(labelsize=8)
+
+    # phase
+    ax = fig.add_subplot(1, 2, 2)
+    plt.imshow(np.angle(beam_image), interpolation='nearest',
+      origin='lower',
+      aspect='equal', extent=[beam_cube.axes[0].data[0],
+      beam_cube.axes[0].data[-1], beam_cube.axes[1].data[0],
+      beam_cube.axes[1].data[-1]])
+    plt.axis('image')
+
+    cbar = plt.colorbar(orientation='vertical', shrink=0.7)
+    ax.set_xlabel(beam_cube.axes[0].title)
+    ax.set_ylabel(beam_cube.axes[1].title)
+    ax.set_title('Phase')
+    small_font(ax)
+    cbar.ax.tick_params(labelsize=8)
+
+else:
+    plt.imshow(beam_image, interpolation='nearest', origin='lower',
+      aspect='equal', extent=[beam_cube.axes[0].data[0],
+      beam_cube.axes[0].data[-1], beam_cube.axes[1].data[0],
+      beam_cube.axes[1].data[-1]])
+    plt.axis('image')
+
+    cbar = plt.colorbar(orientation='vertical', shrink=0.7)
+    ax.set_xlabel(beam_cube.axes[0].title)
+    ax.set_ylabel(beam_cube.axes[1].title)
+    small_font(ax)
+    cbar.ax.tick_params(labelsize=8)
+
+plt.figtext(0, 0, '%s baseline %s wn %s' % 
+  (beam_cube.title, subcomponent, wn))
+
+# adjust subplot spacing to remove overlaps
+plt.tight_layout()
+
+sane_component = sanitize(str(component))
+sane_subcomponent = sanitize(str(subcomponent))
+filename = '%s_%s_%s.png' % (sane_component, sane_subcomponent, wn)
 plt.savefig(os.path.join(context['dirname'], filename))
 plt.close()
 %>
 
 <!-- link to the plot from html -->
 
-<img src='${sane_beamtype}${wn}.png' alt="The beam should appear here">
+<img src='${sane_component}_${sane_subcomponent}_${wn}.png' alt="The beam should appear here">
 

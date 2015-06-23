@@ -9,6 +9,7 @@ import fts
 import loadparameters
 import observe_interpolate as observe
 import primarybeamsgenerator
+import pbmodelgenerator
 import renderer
 import skygenerator
 import skyloader
@@ -101,7 +102,7 @@ class PyFIInS(object):
             print skyload
    
         # generate primary beams
-        primarybeamsgen = primarybeamsgenerator.PrimaryBeamsGenerator(
+        primarybeamsgen = pbmodelgenerator.PrimaryBeamsGenerator(
           previous_results=self.result,
           job_server=self.job_server)
         self.result['primarybeams'] = primarybeamsgen.run()

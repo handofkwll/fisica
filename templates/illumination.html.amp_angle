@@ -1,0 +1,142 @@
+<%inherit file="base.html"/>
+
+<!-- do the plotting -->
+<%
+import matplotlib.pyplot as plt
+import numpy as np
+import os.path
+import string
+
+def small_font(ax):
+    '''Use small font so that subplots do not overwrite each other.'''
+    for item in (
+      [ax.title,
+      ax.xaxis.label,
+      ax.yaxis.label] +
+      ax.get_xticklabels() +
+      ax.get_yticklabels()):
+        item.set_fontsize(8)
+    return
+
+stage = context['stage']
+component = context['component']
+baswav = context['subcomponent']
+
+model = context['data'][stage][component][baswav]
+
+fig = plt.figure()
+
+# Ex amplitude
+ax = fig.add_subplot(2, 3, 1)
+
+plt.imshow(np.abs(model['ex'].data), interpolation='nearest',
+  origin='lower', aspect='equal', 
+  extent=[model['ex'].axes[0].data[0],
+  model['ex'].axes[0].data[-1], model['ex'].axes[1].data[0],
+  model['ex'].axes[1].data[-1]])
+plt.axis('image')
+
+cbar = plt.colorbar(orientation='vertical', shrink=0.7)
+ax.set_xlabel(model['ex'].axes[0].title)
+ax.set_ylabel(model['ex'].axes[1].title)
+ax.set_title('Amp %s' % model['ex'].title)
+small_font(ax)
+cbar.ax.tick_params(labelsize=8)
+
+# Ex phase
+ax = fig.add_subplot(2, 3, 4)
+
+plt.imshow(np.angle(model['ex'].data), interpolation='nearest',
+  origin='lower', aspect='equal', 
+  extent=[model['ex'].axes[0].data[0],
+  model['ex'].axes[0].data[-1], model['ex'].axes[1].data[0],
+  model['ex'].axes[1].data[-1]])
+plt.axis('image')
+
+cbar = plt.colorbar(orientation='vertical', shrink=0.7)
+ax.set_xlabel(model['ex'].axes[0].title)
+ax.set_ylabel(model['ex'].axes[1].title)
+ax.set_title('Phase %s' % model['ex'].title)
+small_font(ax)
+cbar.ax.tick_params(labelsize=8)
+
+# Ey amplitude
+ax = fig.add_subplot(2, 3, 2)
+
+plt.imshow(np.abs(model['ey'].data), interpolation='nearest',
+  origin='lower', aspect='equal', 
+  extent=[model['ey'].axes[0].data[0],
+  model['ey'].axes[0].data[-1], model['ey'].axes[1].data[0],
+  model['ey'].axes[1].data[-1]])
+plt.axis('image')
+
+cbar = plt.colorbar(orientation='vertical', shrink=0.7)
+ax.set_xlabel(model['ey'].axes[0].title)
+ax.set_ylabel(model['ey'].axes[1].title)
+ax.set_title('Amp %s' % model['ey'].title)
+small_font(ax)
+cbar.ax.tick_params(labelsize=8)
+
+# Ey phase
+ax = fig.add_subplot(2, 3, 5)
+
+plt.imshow(np.angle(model['ey'].data), interpolation='nearest',
+  origin='lower', aspect='equal', 
+  extent=[model['ey'].axes[0].data[0],
+  model['ey'].axes[0].data[-1], model['ey'].axes[1].data[0],
+  model['ey'].axes[1].data[-1]])
+plt.axis('image')
+
+cbar = plt.colorbar(orientation='vertical', shrink=0.7)
+ax.set_xlabel(model['ey'].axes[0].title)
+ax.set_ylabel(model['ey'].axes[1].title)
+ax.set_title('Phase %s' % model['ey'].title)
+small_font(ax)
+cbar.ax.tick_params(labelsize=8)
+
+# Ez amplitude
+ax = fig.add_subplot(2, 3, 3)
+
+plt.imshow(np.abs(model['ez'].data), interpolation='nearest',
+  origin='lower', aspect='equal', 
+  extent=[model['ez'].axes[0].data[0],
+  model['ez'].axes[0].data[-1], model['ez'].axes[1].data[0],
+  model['ez'].axes[1].data[-1]])
+plt.axis('image')
+
+cbar = plt.colorbar(orientation='vertical', shrink=0.7)
+ax.set_xlabel(model['ez'].axes[0].title)
+ax.set_ylabel(model['ez'].axes[1].title)
+ax.set_title('Amp %s' % model['ez'].title)
+small_font(ax)
+cbar.ax.tick_params(labelsize=8)
+
+# Ez phase
+ax = fig.add_subplot(2, 3, 6)
+
+plt.imshow(np.angle(model['ez'].data), interpolation='nearest',
+  origin='lower', aspect='equal', 
+  extent=[model['ez'].axes[0].data[0],
+  model['ez'].axes[0].data[-1], model['ez'].axes[1].data[0],
+  model['ez'].axes[1].data[-1]])
+plt.axis('image')
+
+cbar = plt.colorbar(orientation='vertical', shrink=0.7)
+ax.set_xlabel(model['ez'].axes[0].title)
+ax.set_ylabel(model['ez'].axes[1].title)
+ax.set_title('Phase %s' % model['ez'].title)
+small_font(ax)
+cbar.ax.tick_params(labelsize=8)
+
+# adjust subplot spacing to remove overlaps
+plt.tight_layout()
+
+filename = 'primary_illumination%s_%s.png' % (baswav[0], baswav[1])
+plt.savefig(os.path.join(context['dirname'], filename))
+plt.close()
+%>
+
+<!-- link to the plot from html -->
+
+<img src='primary_illumination${baswav[0]}_${baswav[1]}.png' alt="The primary illumination should appear here">
+
