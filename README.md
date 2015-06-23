@@ -55,7 +55,7 @@ the code will look for them.
   tell python where to look for the code and 'import' it
 
   * In [1]: import sys
-  * In [2]: sys.path.append('<your code directory>/fisica')
+  * In [2]: sys.path.append('\*your code directory\*/fisica')
   * In [3]: import pyfiins
 
   construct the simulator specifying a file describing the sky model 
