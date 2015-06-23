@@ -46,7 +46,7 @@ that to install IPython and the other modules needed:
 
 2. Check out the code from GitHub, install it in a fresh directory.
 
-3. Create a different fresh directory to run the simulator from
+3. Create a different 'working' directory to run the simulator from
 and copy the .xlsx files from fisica/excel into it - that is where 
 the code will look for them.
 
