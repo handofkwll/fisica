@@ -24,7 +24,8 @@ class PyFIInS(object):
     """FISICA simulator.
     """
     def __init__(self, sky_file='SkySparams.xlsx', sky_sheet='1point',
-      instrument_spreadsheet='FIInS_Instrument_cor3.xlsx'):
+      instrument_spreadsheet='FIInS_Instrument_cor3.xlsx',
+      beam_model_dir='.'):
         # is this an Excel spreadsheet with source parameters to simulate?
         # or is it a FITS file containing a cube simulated beforehand?
         self.sky_spreadsheet = None
@@ -47,6 +48,7 @@ class PyFIInS(object):
             pass
 
         self.instrument_spreadsheet = instrument_spreadsheet
+        self.beam_model_dir = beam_model_dir
 
         self.result = collections.OrderedDict()
 
@@ -104,6 +106,7 @@ class PyFIInS(object):
         # generate primary beams
         primarybeamsgen = pbmodelgenerator.PrimaryBeamsGenerator(
           previous_results=self.result,
+          beam_model_dir = self.beam_model_dir,
           job_server=self.job_server)
         self.result['primarybeams'] = primarybeamsgen.run()
         print primarybeamsgen
