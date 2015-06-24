@@ -58,10 +58,11 @@ the code will look for them.
   * In [2]: sys.path.append('\*your code directory\*/fisica')
   * In [3]: import pyfiins
 
-  construct the simulator specifying a file describing the sky model 
-  to use
+  construct the simulator specifying a file with the sky model 
+  to use, and indicating where the beam models can be found
+  (relative to the working directory)
 
-  * In [4]: f=pyfiins.PyFIInS(sky_file='SkyTest.xlsx', sky_sheet='Master')
+  * In [4]: f=pyfiins.PyFIInS(sky_file='SkyTest.xlsx', sky_sheet='Master', beam_model_dir='../fisica/beam_models/Smooth_Walled_Horn/Band 4 GRASP')
   * In [5]: f.simulate()
 
   It should run for 50 minutes or so, producing lots of debug statements 
