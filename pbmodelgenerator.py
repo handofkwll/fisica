@@ -11,6 +11,14 @@ def _getfilelist(filedir, fileroot):
     """Utility routine to return a list of all files in
     directory 'filedir' whose names start with the string in
     'fileroot'.
+
+    filedir  - The name of the directory containing the files.
+    fileroot - Returned files will have names starting with this
+               string.
+
+    returns:
+             - A list of all the files in 'filedir' whose
+               names begin with the string in 'fileroot'.
     """
     files = os.listdir(filedir)
     regexp = re.compile('%s.*' % fileroot)
@@ -18,10 +26,26 @@ def _getfilelist(filedir, fileroot):
     return files
 
 def _get_baseline_wavelength_models(filedir, filelist):
-    """Utility routine to process a list files with names
+    """Utility routine to process a list Maynooth
+    beam model files with names
     of form ..._bas<baseline>_wav<wavelength>...
-    and return a list of tuples (baseline, wavelength) for
-    which files are present.
+    and return a dictionary of the model data for
+    each (baseline, wavelength) present.
+
+    filedir  - The name of the directory containing the files.
+    filelist - List of files names of form 
+               <blah>_bas<baseline>_wav<wavelength>
+
+    returns:
+             - A dictionary whose keys are tuples
+               (baseline, wavelength) derived by parsing
+               the names in 'filelist'. The value at
+               each key is the illumination model read in
+               from that file. This is itself a dict
+               with keys 'limits', 'ex', 'ey' and 'ez'
+               holding the extent of the modelled area
+               and matrices with the x, y, z components
+               of the E field. 
     """
     result = {}
     baseline_re = re.compile('.*bas([0-9]+).*')
@@ -53,6 +77,20 @@ def _get_baseline_wavelength_models(filedir, filelist):
 def _readpbfile(filedir, pbfile):
     """Utility routine to read in a primary beam model from
     a Maynooth format file.
+
+    filedir  - The name of the directory containing the file.
+    pbfile   - The name of the file containing the primary beam
+               model.
+
+    returns:
+             - xmin. The minimum of the x extent covered.
+             - ymin. The minimum of the y extent covered.
+             - xmax. The maximum of the x extent covered.
+             - ymax. The maximum of the y extent covered.
+             - ex_cube. Cube object containing E_x at each x,y.
+               The third cube dim is degenerate. 
+             - ey_cube. Cube object containing E_y at each x,y.
+             - ez_cube. Cube object containing E_z at each x,y.
     """
     f = open(os.path.join(filedir, pbfile), mode='r')
     line_no = 0
@@ -118,7 +156,7 @@ def _readpbfile(filedir, pbfile):
 
     return xmin, ymin, xmax, ymax, ex_cube, ey_cube, ez_cube
 
-def calculate_primary_beam(npix, pixsize, m1_diameter, wn, nuv,):
+def calculate_primary_beam(npix, pixsize, m1_diameter, wn, nuv):
     """Routine to calculate the primary beams on a 
     sky map with npix x npix pixels of specified pixsize.
     
@@ -204,9 +242,12 @@ def calculate_primary_beam_from_pbmodel(npix, pixsize, m1_diameter, wn,
     pixsize     - pixel size of sky map (radians)
     m1_diameter - Diameter of the flux collector primary
                   mirrors (metres).
-    wn          - wavenumber of observation (cm-1)
-    nuv         - the number of pixels per mirror radius used to 'sample'
-                  the uv plane.
+    wn          - wavenumber of observation (cm-1).
+    pbmodel     - complex E field just in front of primary.
+    xmin        - minimum x coord of pbmodel.
+    ymin        - minimum y coord of pbmodel.
+    xmax        - maximum x coord of pbmodel.
+    ymax        - maximum y coord of pbmodel.
 
     returns:    
     primary_beam - npix by npix numpy complex array with amplitude
@@ -272,25 +313,34 @@ class PrimaryBeamsGenerator(object):
     """Class to generate the primary beam(s) of the simulated observation.
     """
 
-    def __init__(self, previous_results, job_server):
+    def __init__(self, previous_results, beam_model_dir, job_server):
+        """Constructor.
+        previous_results - Current results structure of the simulation run.
+        job_server       - ParallelPython job server.
+        """
         self.previous_results = previous_results
+        self.beam_model_dir = beam_model_dir
         self.result = collections.OrderedDict()
         self.job_server = job_server
-
-        self.file_root = 'on_axis_horn'
 
         self.nuv = 15
 
     def run(self):
+        """Method that does the work.
+        """
         print 'Calculating primary beams...'
 
+        # collector parameters
+        telescope = self.previous_results['telescope']
+        self.result['beam_model_dir'] = beam_model_dir = self.beam_model_dir
+        #'/Users/jfl/Dropbox/FP7-FISICA/Topical Telecon Software/Software_Data/Smooth_Walled_Horn/Band 4 GRASP'
+        self.result['beam_model_type'] = beam_model_type = telescope['beam_model_type']
+
         # list all files with specified root
-        filedir = '/Users/jfl/Dropbox/FP7-FISICA/Topical Telecon Software/Software_Data/Smooth_Walled_Horn/Band 4 GRASP'
-        fileroot = 'corrected_on_axis_horn'
-        filelist = _getfilelist(filedir, fileroot)
+        filelist = _getfilelist(beam_model_dir, beam_model_type)
 
         # get the grid of models available for baselines/wavelengths
-        models = _get_baseline_wavelength_models(filedir, filelist)
+        models = _get_baseline_wavelength_models(beam_model_dir, filelist)
         self.result['primary illumination'] = models
 
         # gather relevant instrument configuration 
@@ -338,15 +388,14 @@ class PrimaryBeamsGenerator(object):
             wnlist.sort()
 
             # now compute beams for each wn required
-#            for wavenum in wn[:4]:
-            for wavenum in wn:
-                print 'wavenum', wavenum
+            for wavenum in wn[:4]:
+#            for wavenum in wn:
+                #print 'wavenum', wavenum
 
                 # use the illumination model that is closest 
                 # in wavenumber
                 model_wn = np.array(wnlist)
                 model_wn = model_wn[np.argmin(model_wn - wavenum)]
-                print 'model_wn', model_wn
 
                 chosen_model = models[(baseline, model_wn)]
                 xmin, ymin, xmax, ymax = chosen_model['limits']
@@ -365,8 +414,8 @@ class PrimaryBeamsGenerator(object):
               np.float)
             primary_amplitude_beam = np.zeros([npix,npix,len(wn)],
               np.complex)
-#            for iwn,wavenum in enumerate(wn[:4]):
-            for iwn,wavenum in enumerate(wn):
+            for iwn,wavenum in enumerate(wn[:4]):
+#            for iwn,wavenum in enumerate(wn):
                 if jobs[wavenum]() is None:
                     raise Exception, 'calculate_primary_beams has failed'
 
@@ -383,9 +432,22 @@ class PrimaryBeamsGenerator(object):
         return self.result
 
     def __repr__(self):
-
-        return '''
+        blurb = '''
 PrimaryBeamsGenerator:
-  nuv : {nuv}
-'''.format(nuv=self.nuv)
+  Models read from directory - '{dir}'
+  from files with root - '{root}'
+  Baseline Wavenumber'''.format(
+          dir=self.result['beam_model_dir'],
+          root=self.result['beam_model_type'])
 
+        keys = self.result['primary illumination'].keys()
+        if keys:
+            for k in self.result['primary illumination'].keys():
+                blurb += '''
+  {baseline}   {wn}'''.format(baseline=k[0],
+                              wn=k[1])
+        else:
+            blurb += '''
+  no data read'''
+
+        return blurb
