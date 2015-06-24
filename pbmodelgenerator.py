@@ -388,8 +388,8 @@ class PrimaryBeamsGenerator(object):
             wnlist.sort()
 
             # now compute beams for each wn required
-            for wavenum in wn[:4]:
-#            for wavenum in wn:
+#            for wavenum in wn[:4]:
+            for wavenum in wn:
                 #print 'wavenum', wavenum
 
                 # use the illumination model that is closest 
@@ -414,8 +414,8 @@ class PrimaryBeamsGenerator(object):
               np.float)
             primary_amplitude_beam = np.zeros([npix,npix,len(wn)],
               np.complex)
-            for iwn,wavenum in enumerate(wn[:4]):
-#            for iwn,wavenum in enumerate(wn):
+#            for iwn,wavenum in enumerate(wn[:4]):
+            for iwn,wavenum in enumerate(wn):
                 if jobs[wavenum]() is None:
                     raise Exception, 'calculate_primary_beams has failed'
 
