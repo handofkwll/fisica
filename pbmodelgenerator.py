@@ -156,82 +156,55 @@ def _readpbfile(filedir, pbfile):
 
     return xmin, ymin, xmax, ymax, ex_cube, ey_cube, ez_cube
 
-def calculate_primary_beam(npix, pixsize, m1_diameter, wn, nuv):
-    """Routine to calculate the primary beams on a 
-    sky map with npix x npix pixels of specified pixsize.
-    
-    npix        - x, y dim of square sky map
-    pixsize     - pixel size of sky map (radians)
-    m1_diameter - Diameter of the flux collector primary
-                  mirrors (metres).
-    wn          - wavenumber of observation (cm-1)
-    nuv         - the number of pixels per mirror radius used to 'sample'
-                  the uv plane.
+def _get_perfect_baseline_wavelength_model(m1_diameter):
+    """Utility routine to construct a Maynooth type
+    result that is just even illumination across the
+    collector primary.
 
-    returns:    
-    primary_beam - npix by npix numpy complex array with amplitude
-                   primary beam.
+    m1_diameter - Diameter of collector primary in metres.
 
-    The primary beam is constructed by calculating the Fourier
-    transform of the primary mirror amplitude/phase profile.
+    returns:
+             - A dictionary with one key (50.0, 100.0)
+               whose value is a model with even 
+               illumination across the collector 
+               primary.
     """
+    result = {}
 
-    lamb = 1.0 / (wn * 100.0)
+    # extent similar to Maynooth models
+    xmin = -0.6 * m1_diameter
+    ymin = -0.6 * m1_diameter
+    xmax = 0.6 * m1_diameter
+    ymax = 0.6 * m1_diameter
+    nx = 101
 
-    # maximum baseline in the UV plane corresponds to the cube pixsize
-    # at this wavelength
-    maxbx = lamb / (2.0 * pixsize)
+    # the 'perfect' illumination model is a circle
+    # of ones over the mirror area, zeros outside
+    exy = np.zeros([nx,nx], np.complex)
+    pos = np.indices([nx,nx], np.float)
+    pos -= (nx-1)/2
+    pos *= (xmax - xmin) / (nx-1)
+    exy[(pos[0]**2 + pos[1]**2) < (m1_diameter / 2.0)**2] = 1.0
+    ez = np.zeros([nx,nx], np.complex)
 
-    primary_amplitude_beam = numpy.zeros([npix, npix], dtype=numpy.complex)
+    # store the results in Cube objects
+    axis = np.arange(nx, dtype=np.float)
+    assert nx%2 == 1
+    axis = axis - ((nx-1) / 2)
+    axis *= (xmax - xmin) / float(nx-1)
+    axis1 = co.Axis(data=axis, title='x', units='m') 
+    axis2 = co.Axis(data=axis, title='y', units='m') 
 
-    # get grid indices relative to centre of array [npix/2-1, npix/2-1]
-    grid = numpy.indices((npix, npix))
-    grid -= (npix/2 - 1)
+    ex_cube = co.Cube(data=exy, axes=[axis1, axis2], title='$E_x$')
+    ey_cube = co.Cube(data=exy, axes=[axis1, axis2], title='$E_y$')
+    ez_cube = co.Cube(data=ez, axes=[axis1, axis2], title='$E_z$')
 
-    # build up Fourier transform by coadding cosines corresponding to
-    # each baseline in the uv plane
-    rpix = npix / 2
+    models = {}
+    models[(50.0, 100.0)] = {
+      'limits': (xmin, ymin, xmax, ymax),
+      'ex':ex_cube, 'ey':ey_cube, 'ez':ez_cube}
 
-    # uv radius in metres
-    radius = 0.5 * m1_diameter
-
-    # construct a list of 'baselines' covered by the primary mirror.
-    # Only baselines in the first quadrant - others are included by
-    # symmetry.
-    bxbylist = []
-    for mx in range(nuv):
-        bx = radius * float(mx) / float(nuv - 1)
-        for my in range(nuv):
-            by = radius * float(my) / float(nuv - 1)
-            if bx**2 + by**2 < radius**2:
-                bxbylist.append((bx, by))
-
-    # Calculate the Fourier transform.
-    for bxby in bxbylist:
-
-        # Used following to test algorithm. This baseline should
-        # produce a cosine wave with 1 cycle covering the x extent
-        # of the image.
-        #bxby = (lamb / (2.0 * rpix * pixsize), 0.0)
-
-        # length and angle of baseline relative to x axis
-        length = numpy.sqrt(bxby[0]**2 + bxby[1]**2) / maxbx
-        theta = numpy.arctan2(bxby[1], bxby[0])
-
-        contribution = grid[1] * numpy.cos(theta) + grid[0] * numpy.sin(theta)
-        contribution = numpy.exp(1j * contribution * numpy.pi * length)
-
-        primary_amplitude_beam += contribution
-
-        # baselines are symmetric in x so coadd the x 'mirror' of
-        # 'contribution' as well.
-
-        primary_amplitude_beam += contribution[::-1]
-
-    # normalise 
-    primary_amplitude_beam /= numpy.max(primary_amplitude_beam.real)
-
-    return primary_amplitude_beam
+    return models
 
 def calculate_primary_beam_from_pbmodel(npix, pixsize, m1_diameter, wn,
   pbmodel, xmin, ymin, xmax, ymax,):
@@ -285,9 +258,13 @@ def calculate_primary_beam_from_pbmodel(npix, pixsize, m1_diameter, wn,
 
     # Calculate the Fourier transform.
     # .. pbmodel stored [x,y], y varies fastest
-    for ix in numpy.arange(nx, step=3):
+    # .. only use every index to speed things up by a factor 9
+    # .. but take care to use indeces symmetric about middle
+    step = 3
+    start = ((nx-1) / 2) % step
+    for ix in numpy.arange(start=start, stop=nx, step=step):
         x = (ix - ix0) * dx
-        for iy in numpy.arange(ny, step=3):
+        for iy in numpy.arange(start=start, stop=ny, step=step):
             y = (iy - iy0) * dy
 
             # Used following to test algorithm. This baseline should
@@ -305,6 +282,8 @@ def calculate_primary_beam_from_pbmodel(npix, pixsize, m1_diameter, wn,
             contribution *= pbmodel[ix,iy]
 
             primary_amplitude_beam += contribution
+
+    # normalisation?
 
     return primary_amplitude_beam
 
@@ -331,27 +310,16 @@ class PrimaryBeamsGenerator(object):
         print 'Calculating primary beams...'
 
         # collector parameters
-        telescope = self.previous_results['telescope']
-        self.result['beam_model_dir'] = beam_model_dir = self.beam_model_dir
-        #'/Users/jfl/Dropbox/FP7-FISICA/Topical Telecon Software/Software_Data/Smooth_Walled_Horn/Band 4 GRASP'
-        self.result['beam_model_type'] = beam_model_type = telescope['beam_model_type']
-
-        # list all files with specified root
-        filelist = _getfilelist(beam_model_dir, beam_model_type)
-
-        # get the grid of models available for baselines/wavelengths
-        models = _get_baseline_wavelength_models(beam_model_dir, filelist)
-        self.result['primary illumination'] = models
+        telescope = self.previous_results['loadparameters']['substages']\
+          ['Telescope']
+        m1_diameter = telescope['Primary mirror diameter']
+        self.result['beam_model_type'] = beam_model_type = telescope['Beam model type']
 
         # gather relevant instrument configuration 
         cubeparams = self.previous_results['skymodel']
         self.result['frequency axis'] = wn = cubeparams['frequency axis']
         self.result['pixsize [rad]'] = pixsize = cubeparams['pixsize [rad]']
         self.result['npix'] = npix = len(cubeparams['spatial axis [arcsec]'])
-
-        telescope = self.previous_results['loadparameters']['substages']\
-          ['Telescope']
-        m1_diameter = telescope['Primary mirror diameter']
 
         rpix = npix / 2
         # spatial axes same for all wavelengths
@@ -366,26 +334,45 @@ class PrimaryBeamsGenerator(object):
         self.result['primary intensity beam'] = collections.OrderedDict()
         self.result['primary amplitude beam'] = collections.OrderedDict()
 
-        # calculate beams for each wn on each baseline modelled
-        jobs = {}
+        if beam_model_type.lower().strip() == 'perfect':
+            print 'perfect'
 
-        # iterate through baselines modelled
+            # in this case the model is not a function of baseline or
+            # wavenumber so just calculate a canonical result
+            models = _get_perfect_baseline_wavelength_model(m1_diameter)
+
+        else:
+            self.result['beam_model_dir'] = beam_model_dir = self.beam_model_dir
+
+            # list all files with specified root
+            filelist = _getfilelist(beam_model_dir, beam_model_type)
+
+            # get the grid of models available for baselines/wavelengths
+            models = _get_baseline_wavelength_models(beam_model_dir, filelist)
+
+        self.result['primary illumination'] = models
+
+        # get list of baselines modelled
         model_grid = models.keys()
         baselines = set()
         for k in model_grid:
             baselines.update([k[0]])
         baselines = list(baselines)
         baselines.sort()
+
+        # get wavenumbers for which models available on this baseline
+        wnlist = set()
+        for k in model_grid:
+            wnlist.update([k[1]])
+        wnlist = list(wnlist)
+        wnlist.sort()
   
+        # calculate beams for each wn on each baseline modelled
+        jobs = {}
+
+        # iterate through baselines modelled
         for baseline in baselines:
             print 'baseline', baseline
-
-            # get wavenumbers for which models available on this baseline
-            wnlist = set()
-            for k in model_grid:
-                wnlist.update([k[1]])
-            wnlist = list(wnlist)
-            wnlist.sort()
 
             # now compute beams for each wn required
 #            for wavenum in wn[:4]:
@@ -409,7 +396,6 @@ class PrimaryBeamsGenerator(object):
                   indata, (), ('numpy', 'math', 'zernike',))
 
             # collect results
-
             primary_intensity_beam = np.zeros([npix,npix,len(wn)],
               np.float)
             primary_amplitude_beam = np.zeros([npix,npix,len(wn)],
@@ -433,21 +419,28 @@ class PrimaryBeamsGenerator(object):
 
     def __repr__(self):
         blurb = '''
-PrimaryBeamsGenerator:
+PrimaryBeamsGenerator:'''
+
+        if self.result['beam_model_type'].lower().strip() == 'perfect':
+            blurb += '''
+  Evenly illuminated primary'''
+
+        else:
+            blurb += '''
   Models read from directory - '{dir}'
   from files with root - '{root}'
   Baseline Wavenumber'''.format(
-          dir=self.result['beam_model_dir'],
-          root=self.result['beam_model_type'])
+              dir=self.result['beam_model_dir'],
+              root=self.result['beam_model_type'])
 
-        keys = self.result['primary illumination'].keys()
-        if keys:
-            for k in self.result['primary illumination'].keys():
-                blurb += '''
+            keys = self.result['primary illumination'].keys()
+            if keys:
+                for k in self.result['primary illumination'].keys():
+                    blurb += '''
   {baseline}   {wn}'''.format(baseline=k[0],
                               wn=k[1])
-        else:
-            blurb += '''
+            else:
+                blurb += '''
   no data read'''
 
         return blurb
