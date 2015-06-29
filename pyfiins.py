@@ -8,7 +8,6 @@ import pp
 import fts
 import loadparameters
 import observe_interpolate as observe
-import primarybeamsgenerator
 import pbmodelgenerator
 import renderer
 import skygenerator

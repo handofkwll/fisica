@@ -298,31 +298,19 @@ class PrimaryBeamsGenerator(object):
         job_server       - ParallelPython job server.
         """
         self.previous_results = previous_results
-        self.beam_model_dir = beam_model_dir
-        self.result = collections.OrderedDict()
         self.job_server = job_server
 
-        self.nuv = 15
+        self.beam_model_dir = beam_model_dir
+        self.result = collections.OrderedDict()
+        self.result['beam_model_dir'] = beam_model_dir
 
-    def run(self):
-        """Method that does the work.
+    def _calculate_beam(self, beam_model_type, beam_model_dir, wn, npix,
+      pixsize, m1_diameter):
         """
-        print 'Calculating primary beams...'
+        """
 
-        # collector parameters
-        telescope = self.previous_results['loadparameters']['substages']\
-          ['Telescope']
-        m1_diameter = telescope['Primary mirror diameter']
-        self.result['beam_model_type'] = beam_model_type = telescope['Beam model type']
-
-        # gather relevant instrument configuration 
-        cubeparams = self.previous_results['skymodel']
-        self.result['frequency axis'] = wn = cubeparams['frequency axis']
-        self.result['pixsize [rad]'] = pixsize = cubeparams['pixsize [rad]']
-        self.result['npix'] = npix = len(cubeparams['spatial axis [arcsec]'])
-
+        # spatial axes same for all wavelengths/model types
         rpix = npix / 2
-        # spatial axes same for all wavelengths
         axis = np.arange(-rpix, rpix, dtype=np.float)
         axis *= pixsize
         axis = np.rad2deg(axis) * 3600.0
@@ -331,26 +319,22 @@ class PrimaryBeamsGenerator(object):
         axis3 = co.Axis(data=wn, title='Frequency', units='cm-1')
 
         # containers for results
-        self.result['primary intensity beam'] = collections.OrderedDict()
-        self.result['primary amplitude beam'] = collections.OrderedDict()
+        intensity_beams = collections.OrderedDict()
+        amplitude_beams = collections.OrderedDict()
 
         if beam_model_type.lower().strip() == 'perfect':
-            print 'perfect'
-
             # in this case the model is not a function of baseline or
             # wavenumber so just calculate a canonical result
             models = _get_perfect_baseline_wavelength_model(m1_diameter)
 
         else:
-            self.result['beam_model_dir'] = beam_model_dir = self.beam_model_dir
-
             # list all files with specified root
             filelist = _getfilelist(beam_model_dir, beam_model_type)
 
             # get the grid of models available for baselines/wavelengths
             models = _get_baseline_wavelength_models(beam_model_dir, filelist)
 
-        self.result['primary illumination'] = models
+        primary_illumination = models
 
         # get list of baselines modelled
         model_grid = models.keys()
@@ -396,51 +380,119 @@ class PrimaryBeamsGenerator(object):
                   indata, (), ('numpy', 'math', 'zernike',))
 
             # collect results
-            primary_intensity_beam = np.zeros([npix,npix,len(wn)],
-              np.float)
-            primary_amplitude_beam = np.zeros([npix,npix,len(wn)],
-              np.complex)
+            intensity_beam = np.zeros([npix,npix,len(wn)], np.float)
+            amplitude_beam = np.zeros([npix,npix,len(wn)], np.complex)
 #            for iwn,wavenum in enumerate(wn[:4]):
             for iwn,wavenum in enumerate(wn):
                 if jobs[wavenum]() is None:
-                    raise Exception, 'calculate_primary_beams has failed'
+                    raise Exception, \
+                      'calculate_primary_beam_from_pbmodel has failed'
 
-                primary_amplitude_beam[:,:,iwn] = temp = jobs[wavenum]()
-                primary_intensity_beam[:,:,iwn] = (temp * np.conjugate(temp)).real
+                amplitude_beam[:,:,iwn] = temp = jobs[wavenum]()
+                intensity_beam[:,:,iwn] = (temp * np.conjugate(temp)).real
 
-            cube = co.Cube(data=primary_intensity_beam, axes=[axis1, axis2, axis3],
-              title='Intensity Primary Beam')
-            self.result['primary intensity beam'][baseline] = cube
-            cube = co.Cube(data=primary_amplitude_beam, axes=[axis1, axis2, axis3],
-              title='Amplitude Primary Beam')
-            self.result['primary amplitude beam'][baseline] = cube
+            intensity_beams[baseline] = co.Cube(data=intensity_beam,
+              axes=[axis1, axis2, axis3], title='Intensity Beam')
+            amplitude_beams[baseline] = co.Cube(data=amplitude_beam,
+              axes=[axis1, axis2, axis3], title='Amplitude Beam')
+
+        return intensity_beams, amplitude_beams, models
+
+    def run(self):
+        """Method that does the work.
+        """
+        print 'Calculating primary beams...'
+
+        # collector parameters
+        telescope = self.previous_results['loadparameters']['substages']\
+          ['Telescope']
+        m1_diameter = telescope['Primary mirror diameter']
+        self.result['c1_beam_model_type'] = c1_beam_model_type = \
+          telescope['Collector 1 beam model type']
+        self.result['c2_beam_model_type'] = c2_beam_model_type = \
+          telescope['Collector 2 beam model type']
+
+        # gather relevant instrument configuration 
+        cubeparams = self.previous_results['skymodel']
+        self.result['frequency axis'] = wn = cubeparams['frequency axis']
+        self.result['pixsize [rad]'] = pixsize = cubeparams['pixsize [rad]']
+        self.result['npix'] = npix = len(cubeparams['spatial axis [arcsec]'])
+
+        # get result for collector 1
+        self.result['collector 1 intensity beam'],\
+          self.result['collector 1 amplitude beam'],\
+          self.result['collector 1 primary illumination'] = \
+          self._calculate_beam(c1_beam_model_type, self.beam_model_dir,
+            wn, npix, pixsize, m1_diameter)
+
+        # get result for collector 2
+        if c2_beam_model_type == c1_beam_model_type:
+            self.result['collector 2 intensity beam'] = \
+              self.result['collector 1 intensity beam'] 
+            self.result['collector 2 amplitude beam'] = \
+              self.result['collector 1 amplitude beam']
+            self.result['collector 2 primary illumination'] = \
+              self.result['collector 1 primary illumination']
+        else:
+            self.result['collector 2 intensity beam'],\
+              self.result['collector 2 amplitude beam'],\
+              self.result['collector 2 primary illumination'] = \
+              self._calculate_beam(c2_beam_model_type, self.beam_model_dir,
+                wn, npix, pixsize, m1_diameter)
 
         return self.result
 
     def __repr__(self):
         blurb = '''
-PrimaryBeamsGenerator:'''
+PrimaryBeamsGenerator:
+  Collector 1:'''
 
-        if self.result['beam_model_type'].lower().strip() == 'perfect':
+        if self.result['c1_beam_model_type'].lower().strip() == 'perfect':
             blurb += '''
-  Evenly illuminated primary'''
+    Evenly illuminated primary'''
 
         else:
             blurb += '''
-  Models read from directory - '{dir}'
-  from files with root - '{root}'
-  Baseline Wavenumber'''.format(
+    Models read from directory - '{dir}'
+    from files with root - '{root}'
+    Baseline Wavenumber'''.format(
               dir=self.result['beam_model_dir'],
-              root=self.result['beam_model_type'])
+              root=self.result['c1_beam_model_type'])
 
-            keys = self.result['primary illumination'].keys()
+            keys = self.result['collector 1 primary illumination'].keys()
             if keys:
-                for k in self.result['primary illumination'].keys():
+                for k in self.result['collector 1 primary illumination'].keys():
                     blurb += '''
-  {baseline}   {wn}'''.format(baseline=k[0],
+    {baseline}   {wn}'''.format(baseline=k[0],
                               wn=k[1])
             else:
                 blurb += '''
-  no data read'''
+    no data read'''
+
+        blurb = '''
+
+  Collector 2:'''
+
+        if self.result['c2_beam_model_type'].lower().strip() == 'perfect':
+            blurb += '''
+    Evenly illuminated primary'''
+
+        else:
+            blurb += '''
+    Models read from directory - '{dir}'
+    from files with root - '{root}'
+    Baseline Wavenumber'''.format(
+              dir=self.result['beam_model_dir'],
+              root=self.result['c2_beam_model_type'])
+
+            keys = self.result['collector 2 primary illumination'].keys()
+            if keys:
+                for k in self.result['collector 2 primary illumination'].keys():
+                    blurb += '''
+    {baseline}   {wn}'''.format(baseline=k[0],
+                              wn=k[1])
+            else:
+                blurb += '''
+    no data read'''
 
         return blurb

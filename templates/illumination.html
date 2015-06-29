@@ -131,7 +131,8 @@ cbar.ax.tick_params(labelsize=8)
 # adjust subplot spacing to remove overlaps
 plt.tight_layout()
 
-filename = 'primary_illumination%s_%s.png' % (baswav[0], baswav[1])
+filename = '%s_%s_%s.png' % (component, baswav[0], baswav[1])
+filename = filename.replace(' ', '_')
 plt.savefig(os.path.join(context['dirname'], filename))
 plt.close()
 %>

@@ -43,52 +43,37 @@ beam_cube = context['data'][stage][component][subcomponent]
 beam_wn = beam_cube.axes[2].data
 beam_image = np.squeeze(beam_cube.data[:,:,beam_wn==wn])
 
-if beam_cube.data.dtype == np.complex128:
+# amplitude
+ax = fig.add_subplot(1, 2, 1)
+plt.imshow(np.abs(beam_image), interpolation='nearest',
+  origin='lower',
+  aspect='equal', extent=[beam_cube.axes[0].data[0],
+  beam_cube.axes[0].data[-1], beam_cube.axes[1].data[0],
+  beam_cube.axes[1].data[-1]])
+plt.axis('image')
 
-    # amplitude
-    ax = fig.add_subplot(1, 2, 1)
-    plt.imshow(np.abs(beam_image), interpolation='nearest',
-      origin='lower',
-      aspect='equal', extent=[beam_cube.axes[0].data[0],
-      beam_cube.axes[0].data[-1], beam_cube.axes[1].data[0],
-      beam_cube.axes[1].data[-1]])
-    plt.axis('image')
+cbar = plt.colorbar(orientation='vertical', shrink=0.7)
+ax.set_xlabel(beam_cube.axes[0].title)
+ax.set_ylabel(beam_cube.axes[1].title)
+ax.set_title('Amplitude %s' % component)
+small_font(ax)
+cbar.ax.tick_params(labelsize=8)
 
-    cbar = plt.colorbar(orientation='vertical', shrink=0.7)
-    ax.set_xlabel(beam_cube.axes[0].title)
-    ax.set_ylabel(beam_cube.axes[1].title)
-    ax.set_title('Amplitude')
-    small_font(ax)
-    cbar.ax.tick_params(labelsize=8)
+# phase
+ax = fig.add_subplot(1, 2, 2)
+plt.imshow(np.angle(beam_image), interpolation='nearest',
+  origin='lower',
+  aspect='equal', extent=[beam_cube.axes[0].data[0],
+  beam_cube.axes[0].data[-1], beam_cube.axes[1].data[0],
+  beam_cube.axes[1].data[-1]])
+plt.axis('image')
 
-    # phase
-    ax = fig.add_subplot(1, 2, 2)
-    plt.imshow(np.angle(beam_image), interpolation='nearest',
-      origin='lower',
-      aspect='equal', extent=[beam_cube.axes[0].data[0],
-      beam_cube.axes[0].data[-1], beam_cube.axes[1].data[0],
-      beam_cube.axes[1].data[-1]])
-    plt.axis('image')
-
-    cbar = plt.colorbar(orientation='vertical', shrink=0.7)
-    ax.set_xlabel(beam_cube.axes[0].title)
-    ax.set_ylabel(beam_cube.axes[1].title)
-    ax.set_title('Phase')
-    small_font(ax)
-    cbar.ax.tick_params(labelsize=8)
-
-else:
-    plt.imshow(beam_image, interpolation='nearest', origin='lower',
-      aspect='equal', extent=[beam_cube.axes[0].data[0],
-      beam_cube.axes[0].data[-1], beam_cube.axes[1].data[0],
-      beam_cube.axes[1].data[-1]])
-    plt.axis('image')
-
-    cbar = plt.colorbar(orientation='vertical', shrink=0.7)
-    ax.set_xlabel(beam_cube.axes[0].title)
-    ax.set_ylabel(beam_cube.axes[1].title)
-    small_font(ax)
-    cbar.ax.tick_params(labelsize=8)
+cbar = plt.colorbar(orientation='vertical', shrink=0.7)
+ax.set_xlabel(beam_cube.axes[0].title)
+ax.set_ylabel(beam_cube.axes[1].title)
+ax.set_title('Phase %s' % component)
+small_font(ax)
+cbar.ax.tick_params(labelsize=8)
 
 plt.figtext(0, 0, '%s baseline %s wn %s' % 
   (beam_cube.title, subcomponent, wn))
@@ -98,7 +83,8 @@ plt.tight_layout()
 
 sane_component = sanitize(str(component))
 sane_subcomponent = sanitize(str(subcomponent))
-filename = '%s_%s_%s.png' % (sane_component, sane_subcomponent, wn)
+filename = '%s_%s_%s.png' % (sane_component, 
+  sane_subcomponent, wn)
 plt.savefig(os.path.join(context['dirname'], filename))
 plt.close()
 %>

@@ -217,8 +217,8 @@ class Observe(object):
 
         # access primary beam information
         primarybeams = self.previous_results['primarybeams']
-        amp_beam_1 = primarybeams['primary amplitude beam']
-        amp_beam_2 = primarybeams['primary amplitude beam']
+        amp_beam_1 = primarybeams['collector 1 amplitude beam']
+        amp_beam_2 = primarybeams['collector 2 amplitude beam']
 
         # access required FTS information
         fts = self.previous_results['fts']
@@ -325,7 +325,7 @@ class Observe(object):
                 elif chunk_model_1 is not None and chunk_model_1 != model_b_1:
                     istart = ichunk
                     break
-                elif chunk_model_2 is not None and chunk_model_2 != model_b_1:
+                elif chunk_model_2 is not None and chunk_model_2 != model_b_2:
                     istart = ichunk
                     break
 
