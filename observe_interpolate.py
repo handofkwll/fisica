@@ -342,7 +342,7 @@ class Observe(object):
                 
             # get the beam models appropriate to this chunk
             amp_beam_1_chunk = amp_beam_1[model_b_1].data
-            amp_beam_2_chunk = amp_beam_1[model_b_2].data
+            amp_beam_2_chunk = amp_beam_2[model_b_2].data
              
             if not parallel:
                 chunk = chunks[0]
