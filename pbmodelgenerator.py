@@ -259,7 +259,7 @@ def calculate_primary_beam_from_pbmodel(npix, pixsize, m1_diameter, wn,
     # Calculate the Fourier transform.
     # .. pbmodel stored [x,y], y varies fastest
     # .. only use every index to speed things up by a factor 9
-    # .. but take care to use indeces symmetric about middle
+    # .. but take care to use indices symmetric about middle
     step = 3
     start = ((nx-1) / 2) % step
     for ix in numpy.arange(start=start, stop=nx, step=step):
@@ -283,7 +283,14 @@ def calculate_primary_beam_from_pbmodel(npix, pixsize, m1_diameter, wn,
 
             primary_amplitude_beam += contribution
 
-    # normalisation?
+    # DON'T LEAVE THIS IN
+#    primary_amplitude_beam = numpy.abs(primary_amplitude_beam) + 1j * numpy.zeros([npix, npix])
+
+
+    # normalise
+    beam_max = numpy.max(numpy.abs(primary_amplitude_beam))
+    if beam_max > 0.0:
+        primary_amplitude_beam /= beam_max
 
     return primary_amplitude_beam
 
@@ -469,7 +476,7 @@ PrimaryBeamsGenerator:
                 blurb += '''
     no data read'''
 
-        blurb = '''
+        blurb += '''
 
   Collector 2:'''
 
