@@ -33,9 +33,13 @@ that to install IPython and the other modules needed:
   * numpy (for fast array processing)
   * scipy (scientific functions and constants)
   * matplotlib (for plotting) 
+
+  The following package may not be known to Anaconda so you should install it
+  following the installation instructions at www.parallelpython.com
+
   * parallelpython (for parallel processing)
  
-  If the installation has worked then you should be able to type ipython, then:
+  If the installations have worked then you should be able to type ipython, then:
 
   * In [1]: import numpy
   * In [2]: import scipy
