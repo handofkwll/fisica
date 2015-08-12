@@ -54,6 +54,9 @@ class WriteFITS(object):
         smec_velocity_error = []
         flag = []
         data = []
+        pure_data = []
+        cr_data = []
+        detector_noise_data = []
         pointing1_x = []
         pointing1_y = []
         pointing2_x = []
@@ -72,6 +75,9 @@ class WriteFITS(object):
             smec_velocity_error.append(config.smec_vel_error)
             flag.append(config.flag)
             data.append(config.data)
+            pure_data.append(config.pure_data)
+            cr_data.append(config.cr_data)
+            detector_noise_data.append(config.detector_noise_data)
             pointing1_x.append(config.pointing1_x)
             pointing1_y.append(config.pointing1_y)
             pointing2_x.append(config.pointing2_x)
@@ -122,6 +128,12 @@ class WriteFITS(object):
           array=np.array(flag)),
           pyfits.Column(name='Data', format='E',
           array=np.array(data)),
+          pyfits.Column(name='Pure Data', format='E',
+          array=np.array(pure_data)),
+          pyfits.Column(name='Cosmic Ray Data', format='E',
+          array=np.array(cr_data)),
+          pyfits.Column(name='Detector Noise Data', format='E',
+          array=np.array(detector_noise_data)),
           pyfits.Column(name='Pointing1 X', format='E',
           array=np.array(pointing1_x)),
           pyfits.Column(name='Pointing1 Y', format='E',

@@ -25,7 +25,7 @@ for t in times:
 
 # plot every 100th scan
 scan_numbers = [scan_number for scan_number in
-  scan_configs.keys() if scan_number%100==0]
+  scan_configs.keys() if scan_number%100==0 or (scan_number-1)%100==0]
 scan_numbers.sort()      
 
 # for each scan construct a set of data objects for each 
@@ -90,7 +90,7 @@ for scan_number in scan_numbers:
       axis=axis, title='collector 2 y offset', units='arcsec')
     scans_pointing2_y[scan_number] = scan
 
-scan_link = {}
+scan_link = collections.OrderedDict()
 
 # plot the data objects for each scan
 for scan_number in scan_numbers:

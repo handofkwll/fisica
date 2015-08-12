@@ -98,7 +98,7 @@ for scan_number in scan_numbers:
       axis=axis, title='data', units='')
     scans_data[scan_number] = scan
 
-scan_link = {}
+scan_link = collections.OrderedDict()
 
 # plot the data objects for each scan
 for scan_number in scan_numbers:

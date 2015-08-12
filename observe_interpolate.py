@@ -55,6 +55,12 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
             print it
         config = obs_timeline[t]
 
+        # if the baseline is bad then there is no signal
+        if config.baseline_flag:
+            for iwn, wn in enumerate(wn_axis):
+                spectra[t][wn] = 0.0
+            continue
+
         bx = config.baseline_x
         by = config.baseline_y
         bz = config.baseline_z
@@ -304,13 +310,18 @@ class Observe(object):
             for ichunk in range(istart, len(observed_times)):
 
                 # stop building if chunk len is 40000
-                if ichunk-istart > 40000:
+                if len(timeline_chunk) > 40000:
                     istart = ichunk
                     break
 
-                # or if either of the beam models change because 
-                # of the varying baseline
                 config = obs_timeline[observed_times[ichunk]]
+
+                # ignore if baseline flagged bad
+                if config.baseline_flag:
+                    continue
+
+                # stop building if either of the beam models change because 
+                # of the varying baseline
                 bx = config.baseline_x
                 by = config.baseline_y
                 bz = config.baseline_z
@@ -428,7 +439,7 @@ class Observe(object):
                 power = spectrum_fft[0].real
 
                 # set the measured value
-                config = config._replace(data = power)
+                config = config._replace(data = power, pure_data=power)
                 obs_timeline[t] = config
 
         self.result['observed_timeline'] = obs_timeline

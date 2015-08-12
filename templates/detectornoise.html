@@ -1,0 +1,17 @@
+<%inherit file="base.html"/>
+
+    <div class="row-fluid">
+      <table class="table table-condensed" summary="FTS parameters">
+        <tbody>
+          <%
+          detectornoise = context['data']['detectornoise']
+          %>
+          % for k,v in detectornoise.items():
+          <tr>
+            <td>${k}</td>
+            <td>${v}</td>
+          </tr>
+          % endfor
+        </tbody>
+      </table>
+    <div>
