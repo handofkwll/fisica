@@ -139,5 +139,8 @@ plt.close()
 
 <!-- link to the plot from html -->
 
-<img src='primary_illumination${baswav[0]}_${baswav[1]}.png' alt="The primary illumination should appear here">
+<%
+temp = component.replace(' ', '_')
+%>
+<img src='${temp}_${baswav[0]}_${baswav[1]}.png' alt="The primary illumination should appear here">
 

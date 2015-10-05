@@ -308,11 +308,12 @@ class PrimaryBeamsGenerator(object):
         self.job_server = job_server
 
         self.beam_model_dir = beam_model_dir
+
         self.result = collections.OrderedDict()
         self.result['beam_model_dir'] = beam_model_dir
 
-    def _calculate_beam(self, beam_model_type, beam_model_dir, wn, npix,
-      pixsize, m1_diameter):
+    def _calculate_beam(self, beam_model_type, beam_model_dir, 
+      beam_model_pol, wn, npix, pixsize, m1_diameter):
         """
         """
 
@@ -377,10 +378,17 @@ class PrimaryBeamsGenerator(object):
 
                 chosen_model = models[(baseline, model_wn)]
                 xmin, ymin, xmax, ymax = chosen_model['limits']
-                ey = chosen_model['ey'].data
+                if beam_model_pol.upper().strip() == 'X':
+                    efield = chosen_model['ex'].data
+                elif beam_model_pol.upper().strip() == 'Y':
+                    efield = chosen_model['ey'].data
+                elif beam_model_pol.upper().strip() == 'Z':
+                    efield = chosen_model['ez'].data
+                else:
+                    raise Exception, 'bad model pol: %s' % beam_model_pol
 
                 # submit jobs
-                indata = (npix, pixsize, m1_diameter, wavenum, ey, 
+                indata = (npix, pixsize, m1_diameter, wavenum, efield, 
                   xmin, ymin, xmax, ymax,)
                 jobs[wavenum] = self.job_server.submit(
                   calculate_primary_beam_from_pbmodel,
@@ -418,6 +426,8 @@ class PrimaryBeamsGenerator(object):
           telescope['Collector 1 beam model type']
         self.result['c2_beam_model_type'] = c2_beam_model_type = \
           telescope['Collector 2 beam model type']
+        self.result['beam_model_pol'] = beam_model_pol = \
+          telescope['Beam model polarization']
 
         # gather relevant instrument configuration 
         cubeparams = self.previous_results['skymodel']
@@ -430,7 +440,7 @@ class PrimaryBeamsGenerator(object):
           self.result['collector 1 amplitude beam'],\
           self.result['collector 1 primary illumination'] = \
           self._calculate_beam(c1_beam_model_type, self.beam_model_dir,
-            wn, npix, pixsize, m1_diameter)
+            beam_model_pol, wn, npix, pixsize, m1_diameter)
 
         # get result for collector 2
         if c2_beam_model_type == c1_beam_model_type:
@@ -462,9 +472,11 @@ PrimaryBeamsGenerator:
             blurb += '''
     Models read from directory - '{dir}'
     from files with root - '{root}'
+    with polarization - '{pol}'
     Baseline Wavenumber'''.format(
               dir=self.result['beam_model_dir'],
-              root=self.result['c1_beam_model_type'])
+              root=self.result['c1_beam_model_type'],
+              pol=self.result['beam_model_pol'])
 
             keys = self.result['collector 1 primary illumination'].keys()
             if keys:
@@ -488,9 +500,11 @@ PrimaryBeamsGenerator:
             blurb += '''
     Models read from directory - '{dir}'
     from files with root - '{root}'
+    with polarization - '{pol}'
     Baseline Wavenumber'''.format(
               dir=self.result['beam_model_dir'],
-              root=self.result['c2_beam_model_type'])
+              root=self.result['c2_beam_model_type'],
+              pol=self.result['beam_model_pol'])
 
             keys = self.result['collector 2 primary illumination'].keys()
             if keys:

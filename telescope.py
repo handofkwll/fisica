@@ -24,6 +24,7 @@ class Telescope(object):
         self.result['pointing_error_type'] = telparm['Pointing error type']
         self.result['c1_beam_model_type'] = telparm['Collector 1 beam model type']
         self.result['c2_beam_model_type'] = telparm['Collector 2 beam model type']
+        self.result['beam_model_pol'] = telparm['Beam model polarization']
 
     def run(self):
         #print 'Telescope.run'        
@@ -39,6 +40,7 @@ Telescope:
   pointing error : {pointing}
   collector 1 beam model : {model1}
   collector 2 beam model : {model2}
+  polarization           : {pol}
 '''.format(
           diameter=self.result['m1_diameter'],
           temp=self.result['mirror_temp'],
@@ -46,5 +48,6 @@ Telescope:
           nmirror=self.result['n_telescope_mirrors'],
           pointing=self.result['pointing_error_type'],
           model1=self.result['c1_beam_model_type'],
-          model2=self.result['c2_beam_model_type'])
+          model2=self.result['c2_beam_model_type'],
+          pol=self.result['beam_model_pol'])
 
