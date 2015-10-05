@@ -26,7 +26,7 @@ class SkyLoader(object):
         hdulist = pyfits.open(sky_fits)
         print hdulist.info()
         prihdr = hdulist[0].header
-        print prihdr
+        print repr(prihdr)
         skydata = hdulist[0].data
 
         # copying Matlab version
@@ -60,9 +60,12 @@ class SkyLoader(object):
 
         bunit = prihdr['BUNIT']
 
+        hdulist.close()
+
         # spatial axes same for all wavelengths - arcsec
         if 'DEG' in cunit1.upper():
-            spatial_axis = (np.arange(nx) - crpix1) * cdelt1 * 3600.0
+            spatial_axis = (crval1 + 
+              (np.arange(nx) + 1 - crpix1) * cdelt1) * 3600.0
         else:
             raise Exception, 'cannot handle CUNIT1=%s' % cunit1
 
@@ -104,11 +107,6 @@ class SkyLoader(object):
         self.result['fvec_wn'] = fvec_wn
         self.result['npix'] = nx
         self.result['pixsize [rad]'] = pixsize_rad
-
-#        self.result['wn'] = fts_wn = fts['fts_wn_truncated']
-
-#        self.result['pixsize [arcsec]'] = np.rad2deg(pixsize) * 3600.0
-#        self.result['beam diam [rad]'] = 2.0 * max_beam_radius
 
         return self.result
 
