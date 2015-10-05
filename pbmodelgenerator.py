@@ -258,7 +258,7 @@ def calculate_primary_beam_from_pbmodel(npix, pixsize, m1_diameter, wn,
 
     # Calculate the Fourier transform.
     # .. pbmodel stored [x,y], y varies fastest
-    # .. only use every index to speed things up by a factor 9
+    # .. only use every 3rd index to speed things up by a factor 9
     # .. but take care to use indices symmetric about middle
     step = 3
     start = ((nx-1) / 2) % step
@@ -382,21 +382,24 @@ class PrimaryBeamsGenerator(object):
                 # submit jobs
                 indata = (npix, pixsize, m1_diameter, wavenum, ey, 
                   xmin, ymin, xmax, ymax,)
-                jobs[wavenum] = self.job_server.submit(
-                  calculate_primary_beam_from_pbmodel,
-                  indata, (), ('numpy', 'math', 'zernike',))
+##                jobs[wavenum] = self.job_server.submit(
+##                  calculate_primary_beam_from_pbmodel,
+##                  indata, (), ('numpy', 'math', 'zernike',))
 
             # collect results
-            intensity_beam = np.zeros([npix,npix,len(wn)], np.float)
-            amplitude_beam = np.zeros([npix,npix,len(wn)], np.complex)
+##            intensity_beam = np.zeros([npix,npix,len(wn)], np.float)
+##            amplitude_beam = np.zeros([npix,npix,len(wn)], np.complex)
+            print 'beams set to 1'
+            intensity_beam = np.ones([npix,npix,len(wn)], np.float)
+            amplitude_beam = np.ones([npix,npix,len(wn)], np.complex)
 #            for iwn,wavenum in enumerate(wn[:4]):
-            for iwn,wavenum in enumerate(wn):
-                if jobs[wavenum]() is None:
-                    raise Exception, \
-                      'calculate_primary_beam_from_pbmodel has failed'
+##            for iwn,wavenum in enumerate(wn):
+##              if jobs[wavenum]() is None:
+##                    raise Exception, \
+##                      'calculate_primary_beam_from_pbmodel has failed'
 
-                amplitude_beam[:,:,iwn] = temp = jobs[wavenum]()
-                intensity_beam[:,:,iwn] = (temp * np.conjugate(temp)).real
+##                amplitude_beam[:,:,iwn] = temp = jobs[wavenum]()
+##                intensity_beam[:,:,iwn] = (temp * np.conjugate(temp)).real
 
             intensity_beams[baseline] = co.Cube(data=intensity_beam,
               axes=[axis1, axis2, axis3], title='Intensity Beam')
