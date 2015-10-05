@@ -30,7 +30,7 @@ class ReadFITS(object):
         hdulist.info()
         prihdr = hdulist[0].header
         print '..header information'
-        print prihdr
+        print repr(prihdr)
 
         # general info needed by the reduction
         smec_opd_to_mpd = prihdr['smec_o2m']
