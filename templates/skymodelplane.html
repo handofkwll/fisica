@@ -29,14 +29,15 @@ stagename = context['stagename']
 resultname = context['resultname']
 
 sky_image = context['data'][stagename][resultname][:,:,iwn]
-spatial_axis = context['data'][stagename]['spatial axis [arcsec]']
+spatial_axis0 = context['data'][stagename]['spatial axis [arcsec]']
+spatial_axis1 = context['data'][stagename]['spatial axis [arcsec]']
 wn = context['wn'] 
 
 if sky_image.dtype==np.complex:
     plt.subplot(211)
     plt.imshow(sky_image.real, interpolation='nearest', origin='lower',
-      aspect='equal', extent=[spatial_axis[0], spatial_axis[-1],
-      spatial_axis[0], spatial_axis[-1]])
+      aspect='equal', extent=[spatial_axis0[0], spatial_axis0[-1],
+      spatial_axis1[0], spatial_axis1[-1]])
 #      vmax=np.max(sky_image.real)*1.1,
 #      vmin=np.min(sky_image.real)*0.9)
     plt.colorbar(orientation='vertical')
@@ -45,8 +46,8 @@ if sky_image.dtype==np.complex:
 
     plt.subplot(212)
     plt.imshow(sky_image.imag, interpolation='nearest', origin='lower',
-      aspect='equal', extent=[spatial_axis[0], spatial_axis[-1],
-      spatial_axis[0], spatial_axis[-1]])
+      aspect='equal', extent=[spatial_axis0[0], spatial_axis0[-1],
+      spatial_axis1[0], spatial_axis1[-1]])
 #      vmax=np.max(sky_image.imag)*1.1,
 #      vmin=np.min(sky_image.imag)*0.9)
     plt.colorbar(orientation='vertical')
@@ -55,8 +56,8 @@ if sky_image.dtype==np.complex:
 
 else:
     plt.imshow(sky_image, interpolation='nearest', origin='lower',
-      aspect='equal', extent=[spatial_axis[0], spatial_axis[-1],
-      spatial_axis[0], spatial_axis[-1]])
+      aspect='equal', extent=[spatial_axis0[0], spatial_axis0[-1],
+      spatial_axis1[0], spatial_axis1[-1]])
 #      vmax=np.max(sky_image)*1.1,
 #      vmin=np.min(sky_image)*0.9)
     plt.colorbar(orientation='vertical')
