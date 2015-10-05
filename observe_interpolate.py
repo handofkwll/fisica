@@ -6,6 +6,8 @@ import numpy
 import psutil
 import time
 
+import matplotlib.pyplot
+
 def data_size(sky_cube, amplitude_beam_1, amplitude_beam_2):
     """Routine to calculate size of dominant data arrays in
     calculate_visibility.
@@ -14,19 +16,22 @@ def data_size(sky_cube, amplitude_beam_1, amplitude_beam_2):
       amplitude_beam_2.nbytes
     return result
 
-def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
-  spatial_axis,
-  amplitude_beam_1, amplitude_beam_2, obs_timeline,
+def calculate_visibility(sky_cube, wn_axis,
+  spatial_axis, amplitude_beam_1, amplitude_beam_2, obs_timeline,
   parallel):
     """Routine to calculate the visibility for a specified
-    baseline for one plane in a sky model.
+    baseline for all planes in a sky model.
 
     Parameters:
-    baseline          - (u,v) in metres
-    wn                - wavenumber of observation (cm-1)
-    sky_plane         - 2d sky image at this wn
-    spatial_freq_axis - The spatial frequency axis of the sky plane
-                        Fourier transform
+    sky_cube          - 3d sky cube [i,j,wn]
+    wn_axis           - wavenumbers of frequency axis
+    spatial_axis      - the spatial offsets of i,j axes
+    amplitude_beam_1  - the complex amplitude beam of collector 1
+    amplitude_beam_2  - the complex amplitude beam of collector 2
+    obs_timeline      - a dict containing the instrument configurations
+                        to be simulated 
+    parallel          - is this method being run in parallel with other
+                        instances
     """ 
     nx,ny,nwn = numpy.shape(sky_cube)
     spectra = collections.defaultdict(dict)
@@ -39,7 +44,7 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
     jgrid = grid[0] - centre
     igrid = grid[1] - centre
 
-    # calculate the u/v axis (u axis == v axis in this case)
+    # calculate the u/v axis values (u axis == v axis in this case)
     u = numpy.fft.fftfreq(nx, spatial_axis[1] - spatial_axis[0])
 
     # initialize cache
@@ -132,7 +137,7 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
             #plt.savefig(filename)
             #plt.close()
 
-            # ..multiply the sky cube by the collectors' amp beams
+            # ..multiply the sky cube by the collectors' complex amp beams
             f1 = sky_cube * numpy.conj(amplitude_beam_1[jbeam, ibeam]) * \
               amplitude_beam_2[jbeam, ibeam]
 
@@ -148,6 +153,7 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
         for iwn, wn in enumerate(wn_axis):
             lamb = 1.0 / (wn * 100.0)
 
+            # find where the baseline falls on the sky_fft cube
             ang_freq = 1.0 / (numpy.rad2deg(lamb / bx) * 3600.0)
             col = ang_freq / (u[1] - u[0])
 
@@ -159,7 +165,40 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
             row_lo = int(numpy.floor(row))
             row_hi = int(numpy.ceil(row))
 
-            # set amp/phase at this frequency
+#            if iwn==10:
+#                print iwn, wn
+            
+#                plt = matplotlib.pyplot
+#                plt.figure()
+
+#                print col_lo, col_hi, row_lo, row_hi
+
+#                plt.subplot(211)
+#                plt.imshow(sky_fft[row_lo-5:row_hi+5,col_lo-5:col_hi+5,iwn].real, interpolation='nearest', origin='lower',
+#                  aspect='equal')
+#                plt.colorbar(orientation='vertical')
+#                plt.axis('image')
+#                plt.title('real')
+
+                #plt.subplot(212)
+                #plt.imshow(res, interpolation='nearest', origin='lower',
+                #  aspect='equal', extent=[0, imshape[0], 0, imshape[1]],
+                #  vmax=numpy.max(res[imshape[0]/4:imshape[0]*3/4,
+                #  imshape[1]/4:imshape[1]*3/4]),
+                #  vmin=numpy.min(res[imshape[0]/4:imshape[0]*3/4,
+                #  imshape[1]/4:imshape[1]*3/4]))
+                #plt.colorbar(orientation='vertical')
+                #plt.axis('image')
+                #plt.title('bangle %s' % bangle)
+
+#                filename = 'fft.png'
+#                plt.savefig(filename)
+#                plt.close()
+#                x = 1 / 0
+
+            # amps/phases at these angular freqs - using amp/phase
+            # instead of real and imaginary components as these
+            # should not suffer from wrapping issues
             amp_lolo = numpy.abs(sky_fft[row_lo,col_lo,iwn])
             amp_hilo = numpy.abs(sky_fft[row_hi,col_lo,iwn])
             amp_lohi = numpy.abs(sky_fft[row_lo,col_hi,iwn])
@@ -170,6 +209,7 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
             ang_lohi = numpy.angle(sky_fft[row_lo,col_hi,iwn])
             ang_hihi = numpy.angle(sky_fft[row_hi,col_hi,iwn])
 
+            # try to fix phase wrapping problems 
             unwrapped = numpy.unwrap(
               numpy.array([ang_lolo, ang_hilo, ang_lohi, ang_hihi]))
             ang_lolo = unwrapped[0] 
@@ -177,7 +217,7 @@ def calculate_visibility(smec_opd_to_mpd, sky_cube, wn_axis,
             ang_lohi = unwrapped[2] 
             ang_hihi = unwrapped[3] 
  
-            # using bilinear interpolation
+            # interpolate the fft value using bilinear interpolation
             amp = amp_lolo + \
               (amp_lohi - amp_lolo) * (col - col_lo) + \
               (amp_hilo - amp_lolo) * (row - row_lo) + \
@@ -361,7 +401,6 @@ class Observe(object):
                 powers = {}
                 powers[job_id] = \
                   calculate_visibility(
-                  smec_opd_to_mpd,
                   sky_model[:,:,chunk],
                   fts_wn_truncated[chunk],
                   spatial_axis,
@@ -373,7 +412,7 @@ class Observe(object):
                 # submit jobs
                 jobs = {}
                 for chunk in chunks:
-                    indata = (smec_opd_to_mpd,
+                    indata = (
                       sky_model[:,:,chunk],
                       fts_wn_truncated[chunk],
                       spatial_axis,
@@ -402,7 +441,7 @@ class Observe(object):
                 for t in spectra.keys():
                     spectra[t].update(powers[k][t])
 
-            # calculate powers for each time
+            # calculate power for each time
             for t in obs_timeline_chunk:
                 config = obs_timeline[t]
                 opd = config.smec_position / smec_opd_to_mpd
