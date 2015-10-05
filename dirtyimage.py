@@ -173,7 +173,6 @@ class DirtyImage(object):
         self.result['dirtybeam'] = dirtybeam
         self.result['cleanbeam'] = cleanbeam
         self.result['spatial axis [arcsec]'] = spatial_axis
-        self.result['spatial axis'] = spatial_axis
         self.result['wavenumber [cm-1]'] = wavenumber
 
         return self.result
