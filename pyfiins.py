@@ -140,11 +140,11 @@ class PyFIInS(object):
         print obs
 
         # add noise, cosmic rays, detector time constant
-        with_errors = addnoise.AddNoise(
-          parameters=obs_specification,
-          previous_results=self.result)
-        self.result['addnoise'] = with_errors.run()
-        print with_errors
+#        with_errors = addnoise.AddNoise(
+#          parameters=obs_specification,
+#          previous_results=self.result)
+#        self.result['addnoise'] = with_errors.run()
+#        print with_errors
 
         # write out the interferograms as FITS files
         fits = writefits.WriteFITS(previous_results=self.result)
