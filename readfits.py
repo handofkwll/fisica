@@ -30,7 +30,7 @@ class ReadFITS(object):
         hdulist.info()
         prihdr = hdulist[0].header
         print '..header information'
-        print prihdr
+        print repr(prihdr)
 
         # general info needed by the reduction
         smec_opd_to_mpd = prihdr['smec_o2m']
@@ -53,6 +53,9 @@ class ReadFITS(object):
         smec_velocity_errors = table.field('SMEC Velocity Error')
         flag = table.field('Flag')
         data = table.field('Data')
+        pure_data = table.field('Pure Data')
+        cr_data = table.field('Cosmic Ray Data')
+        detector_noise_data = table.field('Detector Noise Data')
         pointing1_x = table.field('Pointing1 X')
         pointing1_y = table.field('Pointing1 Y')
         pointing2_x = table.field('Pointing2 X')
@@ -68,7 +71,7 @@ class ReadFITS(object):
               smec_velocity_errors[i],
               pointing1_x[i], pointing1_y[i],
               pointing2_x[i], pointing2_y[i],
-              data[i])
+              data[i], pure_data[i], cr_data[i], detector_noise_data[i])
 
         self.result['observed_timeline'] = obs_timeline
         self.result['smec_opd_to_mpd'] = smec_opd_to_mpd
