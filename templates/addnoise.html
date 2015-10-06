@@ -1,0 +1,171 @@
+<%inherit file="base.html"/>
+<%
+import types
+import matplotlib.pyplot as plt
+import os.path
+import numpy as np
+
+# get data from context
+addnoise = context['data']['addnoise']
+%>
+
+<div class="row-fluid">
+  <table class="table table-condensed" summary="Added Noise Information">
+    <tbody>
+      % for k,v in addnoise.items():
+          <tr>
+            <td>${k}</td>
+          % if type(v) == types.DictType:
+            <td>This is a dictionary and has not been rendered</td>
+          % elif type(v) == types.ListType:
+            <td>This is a list and has not been rendered</td>
+          % elif type(v) == np.ndarray:
+            <td>This is a numpy array and has not been rendered</td>
+          % else:
+            <td>${v}</td>
+          % endif
+          </tr>
+      % endfor
+    </tbody>
+  </table>
+<div>
+
+<%
+timeline = addnoise['timeline']
+obs_times = timeline.keys()
+obs_times.sort()
+obs_times = np.array(obs_times)
+
+# first plot all cosmic ray data
+cr_data = []
+for t in obs_times:
+    cr_data.append(timeline[t].cr_data)
+
+# plot the cr_data versus time
+xaxis_data = obs_times
+xaxis_title = 'Time'
+xaxis_units = 's'
+ylabel = 'Signal'
+title = 'Cosmic Ray Data'
+
+plt.figure()
+plt.plot(xaxis_data, cr_data, 'g-')
+xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
+plt.xlabel(xlabel)
+plt.ylabel(ylabel)
+plt.title(title)
+
+plt.savefig(os.path.join(context['dirname'], 'cosmic_rays.png'))
+plt.close()
+%>
+
+<!-- link to the plot from html -->
+
+<img src='cosmic_rays.png' alt="Cosmic Ray Data">
+
+<%
+# second plot cosmic ray amplitudes, they should follow a Moyal
+# distribution
+glitchpeaks = addnoise['glitch peaks']
+
+if len(glitchpeaks):
+    moyal, moyalx = addnoise['glitch peaks moyal']
+
+    plt.figure()
+
+    xlabel = 'Amplitude'
+    ylabel = 'Number'
+    title = 'Cosmic Ray Data'
+
+    # plot histogram of peaks
+    binvals, bins, patches = plt.hist(glitchpeaks, bins=40, alpha=0.3)
+
+    # plot moyal distribution normalised to histogram bin values
+    moyal *= ((np.sum(binvals) * (bins[1] - bins[0])) / (np.sum(moyal) * (moyalx[1] - moyalx[0])))
+    plt.plot(moyalx, moyal, label='$f(x)$')
+
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+
+    plt.savefig(os.path.join(context['dirname'], 'cr_peak_distribution.png'))
+    plt.close()
+%>
+
+% if len(glitchpeaks):
+    <img src='cr_peak_distribution.png' alt="Cosmic Ray Peak Distribution">
+% endif
+
+<%
+if len(glitchpeaks):
+    # Third, plot all cosmic ray glitch profiles, normalised to the glitch
+    # peak. These should also show a (different) Moyal distribution.
+
+    glitch_times = addnoise['glitch times']
+
+    xdata = []
+    ydata = []
+    for nglitch,glitch_time in enumerate(glitch_times):
+        glitchSpread = obs_times[(obs_times > (glitch_time - 0.02)) & 
+          (obs_times < (glitch_time + 0.06))]
+
+        peak = glitchpeaks[nglitch]
+        for t in glitchSpread:
+            ydata.append(timeline[t].cr_data / peak)
+            xdata.append(t - glitch_time)
+
+    plt.figure()
+
+    xaxis_title = 'Relative time'
+    xaxis_units = 's'
+    ylabel = 'Normalised amplitude'
+    title = 'Cosmic Ray Profile'
+
+    plt.plot(xdata, ydata, '.')
+    xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+
+    plt.savefig(os.path.join(context['dirname'], 'cr_profile.png'))
+    plt.close()
+%>
+
+% if len(glitchpeaks):
+    <img src='cr_profile.png' alt="Cosmic Ray Peak Profile">
+% endif
+
+<%
+# Fourth, plot section around delta function to verify detector time constant
+# This is a debug option that works in combination with some commented out code
+# in addnoise.py
+debug_plot = False
+
+if debug_plot:
+    xdata = []
+    ydata = []
+
+    for t in obs_times[:100]:
+        ydata.append(timeline[t].data)
+        xdata.append(t)
+
+    plt.figure()
+
+    xaxis_title = 'Time'
+    xaxis_units = 's'
+    ylabel = 'Amplitude'
+    title = 'Detector time constant'
+
+    plt.plot(xdata, ydata, '.')
+    xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+
+    plt.savefig(os.path.join(context['dirname'], 'time_constant.png'))
+    plt.close()
+%>
+
+% if debug_plot:
+    <img src='time_constant.png' alt="Time Constant">
+% endif
