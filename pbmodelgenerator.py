@@ -258,7 +258,7 @@ def calculate_primary_beam_from_pbmodel(npix, pixsize, m1_diameter, wn,
 
     # Calculate the Fourier transform.
     # .. pbmodel stored [x,y], y varies fastest
-    # .. only use every index to speed things up by a factor 9
+    # .. only use every 3rd index to speed things up by a factor 9
     # .. but take care to use indices symmetric about middle
     step = 3
     start = ((nx-1) / 2) % step
@@ -367,7 +367,6 @@ class PrimaryBeamsGenerator(object):
             print 'baseline', baseline
 
             # now compute beams for each wn required
-#            for wavenum in wn[:4]:
             for wavenum in wn:
                 #print 'wavenum', wavenum
 
@@ -397,7 +396,9 @@ class PrimaryBeamsGenerator(object):
             # collect results
             intensity_beam = np.zeros([npix,npix,len(wn)], np.float)
             amplitude_beam = np.zeros([npix,npix,len(wn)], np.complex)
-#            for iwn,wavenum in enumerate(wn[:4]):
+##            print 'beams set to 1'
+##            intensity_beam = np.ones([npix,npix,len(wn)], np.float)
+##            amplitude_beam = np.ones([npix,npix,len(wn)], np.complex)
             for iwn,wavenum in enumerate(wn):
                 if jobs[wavenum]() is None:
                     raise Exception, \
