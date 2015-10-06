@@ -54,6 +54,9 @@ class WriteFITS(object):
         smec_velocity_error = []
         flag = []
         data = []
+        pure_data = []
+        cr_data = []
+        detector_noise_data = []
         pointing1_x = []
         pointing1_y = []
         pointing2_x = []
@@ -72,6 +75,9 @@ class WriteFITS(object):
             smec_velocity_error.append(config.smec_vel_error)
             flag.append(config.flag)
             data.append(config.data)
+            pure_data.append(config.pure_data)
+            cr_data.append(config.cr_data)
+            detector_noise_data.append(config.detector_noise_data)
             pointing1_x.append(config.pointing1_x)
             pointing1_y.append(config.pointing1_y)
             pointing2_x.append(config.pointing2_x)
@@ -122,6 +128,12 @@ class WriteFITS(object):
           array=np.array(flag)),
           pyfits.Column(name='Data', format='E',
           array=np.array(data)),
+          pyfits.Column(name='Pure Data', format='E',
+          array=np.array(pure_data)),
+          pyfits.Column(name='Cosmic Ray Data', format='E',
+          array=np.array(cr_data)),
+          pyfits.Column(name='Detector Noise Data', format='E',
+          array=np.array(detector_noise_data)),
           pyfits.Column(name='Pointing1 X', format='E',
           array=np.array(pointing1_x)),
           pyfits.Column(name='Pointing1 Y', format='E',
@@ -142,3 +154,86 @@ class WriteFITS(object):
 WriteFITS:
   FITS file : {fitsfile}
 '''.format(fitsfile=self.result['fitsfile'])
+
+
+class WriteFITSCube(object):
+    """Class to write out cube to a FITS Table.
+    """
+
+    def __init__(self, cube, fitsname=None):
+        """Constructor.
+
+        Parameters:
+        previous_results - simulator result structure.
+        """
+        self.cube = cube
+        self.fitsname = fitsname
+        self.result = {}
+
+    def run(self):
+        """Method to write the FITS data.
+        """
+        print 'WriteFITSCube.run'
+
+        if self.fitsname is None: 
+            # construct the name of the file
+            print 'need to construct FITS filename'
+            self.fitsname = 'writefitscube.fits'
+
+        # create a Header object and primary HDU - this will contain
+        # general information
+        prihdr = pyfits.Header()
+        prihdr['COMMENT'] = 'This FITS file was created by WriteFITSCube'
+
+        # swap axes to get data into Fortan order as expected by FITS
+        data = self.cube.data
+        data = np.swapaxes(data, 0, 2)
+
+        # calculate some header values
+        axis1 = self.cube.axes[0].data
+        axis2 = self.cube.axes[1].data
+        axis3 = self.cube.axes[2].data
+
+        cdelt1 = (axis1[1] - axis1[0]) / 3600.0
+        cdelt2 = (axis2[1] - axis2[0]) / 3600.0
+        # assuming freq axis is in cm-1
+        cdelt3 = (axis3[1] - axis3[0]) * 3.0e10
+
+        crpix1 = 1
+        crpix2 = 1
+        crpix3 = 1
+
+        crval1 = axis1[crpix1-1] / 3600.0
+        crval2 = axis2[crpix2-1] / 3600.0
+        crval3 = axis3[crpix3-1] * 3.0e10
+
+        cunit1 = 'DEG'
+        cunit2 = 'DEG'
+        cunit3 = 'HZ'
+
+        prihdr['CDELT1'] = cdelt1
+        prihdr['CDELT2'] = cdelt2
+        prihdr['CDELT3'] = cdelt3
+
+        prihdr['CRVAL1'] = crval1
+        prihdr['CRVAL2'] = crval2
+        prihdr['CRVAL3'] = crval3
+
+        prihdr['CRPIX1'] = crpix1
+        prihdr['CRPIX2'] = crpix2
+        prihdr['CRPIX3'] = crpix3
+
+        prihdr['CUNIT1'] = cunit1
+        prihdr['CUNIT2'] = cunit2
+        prihdr['CUNIT3'] = cunit3
+
+        prihdr['BUNIT'] = 'JY/PIXEL'
+
+        prihdu = pyfits.PrimaryHDU(header=prihdr, data=data)
+        hdulist = pyfits.HDUList([prihdu])
+
+        # write the HDU list to a file
+        hdulist.writeto(self.fitsname, clobber=True)
+        self.result['fitsfile'] = self.fitsname
+
+        return self.result
