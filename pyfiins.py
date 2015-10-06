@@ -5,8 +5,11 @@ import collections
 import datetime
 import pp
 
+import addnoise
+import detectornoise
 import fts
 import loadparameters
+import noise
 import observe_interpolate as observe
 import pbmodelgenerator
 import renderer
@@ -88,6 +91,18 @@ class PyFIInS(object):
         self.result['uvmapgenerator'] = uvmapgen.run()
         print uvmapgen
 
+        # calculate noise
+        rumble = noise.Noise(parameters=obs_specification,
+          previous_results=self.result)
+        self.result['noise'] = rumble.run()
+        print rumble
+
+        # calculate detector noise
+        dn = detectornoise.DetectorNoise(parameters=obs_specification,
+          previous_results=self.result)
+        self.result['detectornoise'] = dn.run()
+        print dn
+
         # construct sky
         if self.sky_spreadsheet is not None:
             skygen = skygenerator.SkyGenerator(
@@ -123,6 +138,13 @@ class PyFIInS(object):
           job_server=self.job_server)
         self.result['observe'] = obs.run()
         print obs
+
+        # add noise, cosmic rays, detector time constant
+#        with_errors = addnoise.AddNoise(
+#          parameters=obs_specification,
+#          previous_results=self.result)
+#        self.result['addnoise'] = with_errors.run()
+#        print with_errors
 
         # write out the interferograms as FITS files
         fits = writefits.WriteFITS(previous_results=self.result)
