@@ -11,12 +11,12 @@ import smecposition
 Config = collections.namedtuple('Config', [
     'scan_number',
     'time',
-    'baseline_x', 'baseline_y', 'baseline_z', 'baseline_number',
+    'baseline_x', 'baseline_y', 'baseline_z', 'baseline_flag',
     'smec_position', 'smec_nominal_position',
     'flag', 'smec_vel_error', 
     'pointing1_x', 'pointing1_y',
     'pointing2_x', 'pointing2_y',
-    'data'],
+    'data', 'pure_data', 'cr_data', 'detector_noise_data'],
     verbose=False)
 
 def find_unflagged_sections(flag):
@@ -113,7 +113,7 @@ class TimeLineGenerator(object):
         #
         #    Each baseline contains n_scans FTS forward/back scans,
         #    separated by an 'interscan' period to allow for
-        #    accleration/deceleration etc.
+        #    acceleration/deceleration etc.
 
         obs_timeline = {}
         baseline_start_time = 0.0
@@ -152,12 +152,36 @@ class TimeLineGenerator(object):
         # iterate through unflagged stretches
 
         start_scan = 0
+
         for section in unflagged_sections:
             section_times = bxby.keys()[section[0]:section[1]]
             start_time = section_times[0]
             end_time = section_times[-1]
 
-            # calculate number of scans if FTS is rune continuously
+            # if there are previous measurements then fill in the times
+            # between the last timestamp and the start of this section
+            # with null measurements. This gives a roughly continuous
+            # timeline that it's easier to add noise and the detector
+            # time response to.
+            if obs_timeline:
+                obs_times = obs_timeline.keys()
+                obs_times.sort()
+                dt = obs_times[-1] - obs_times[-2]
+
+                t = obs_times[-1] + dt
+                while t < start_time:
+                    config = Config(-1, t,
+                      0.0, 0.0, 0.0, True,
+                      obs_timeline[obs_times[-1]].smec_position,
+                      obs_timeline[obs_times[-1]].smec_nominal_position,
+                      True, 0.0, 
+                      0.0, 0.0, 0.0, 0.0, 
+                      0.0, 0.0, 0.0, 0.0)
+
+                    obs_timeline[t] = config
+                    t += dt
+
+            # calculate number of scans if FTS is run continuously,
             # force to be even
             nscans = (end_time - start_time) / \
               (smec_scan_duration + smec_interscan_duration)
@@ -198,18 +222,27 @@ class TimeLineGenerator(object):
                 bflag = bxby[lo_time][2] or bxby[hi_time][2]       
 
                 ib = 0
-                config = Config(scan_number[i], t, bx, by, 0.0, ib,
+                config = Config(scan_number[i], t, bx, by, 0.0, False,
                   smec_position[i], smec_nominal_position[i],
                   smec_flag[i], smec_vel_error[i],
                   pointing1_x[i], pointing1_y[i],
-                  pointing2_x[i], pointing2_y[i], None)
+                  pointing2_x[i], pointing2_y[i],
+                  0.0, 0.0, 0.0, 0.0)
+
+                # sanity check for duplicate times, this should
+                # not happen
                 if obs_timeline.has_key(t):
                     print 'duplicate time', i, t, ib
-                obs_timeline[t] = config 
+
+                obs_timeline[t] = config
 
             # increment scan number ready for next group of scans
             start_scan = np.max(scan_number) + 1
 
+            # print warning if any extrapolating was done. This is caused
+            # by rounding errors so the number should be 0 or 1, anything
+            # larger and you should check that something else is not
+            # awry
             if nextrapolated > 0:
                 print '..number of baseline points extrapolated %s' % \
                   nextrapolated
