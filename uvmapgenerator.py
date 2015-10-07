@@ -23,7 +23,79 @@ class UVMapGenerator(object):
         row = interferometer['Pattern'].keys()[0]
         pattern = interferometer['Pattern'][row]
 
-        if pattern.lower() == 'const l spiral':
+        if pattern.lower() == 'fixed arc length':
+            # the uv pattern is a set of rings, with points distributed
+            # along the ring arcs at roughly equal spacing for all rings
+
+            bmax = interferometer['bmax [m]'][row]
+            bmin = interferometer['bmin [m]'][row]
+            bstep = interferometer['bstep [m]'][row]
+            bmin_ang = interferometer['bminAngle[deg]'][row]
+            # the time to be spent at each baseline position
+            baseline_dwell = interferometer['period [s]'][row]
+
+            # number of baseline radii
+            if bmax == bmin:
+                n_radii = 1
+            else:
+                n_radii = int((bmax - bmin) / bstep) + 1
+
+            # range of baseline radii
+            b = np.linspace(bmin, bmax, n_radii)
+
+            # length of arc corresponding to arc angle at shortest radius.
+            # This will be the arc length used for all rings    
+            arcl = (bmin / 2) * np.deg2rad(bmin_ang)
+
+            # get angle to which arclength corresponds for each ring,
+            # then number of baselines on ring
+            bang_step = np.ones([n_radii])
+            n_baselines_rad = np.ones([n_radii], dtype=np.int)
+
+            for i in range(n_radii):
+                bang_step[i] = (2 * arcl) / b[i]
+                n_baselines_rad[i] = int(((2 * np.pi / bang_step[i]) + 1) / 2)
+    
+            n_baselines = np.sum(n_baselines_rad)
+
+            # construct the baseline positions
+            bxby = collections.OrderedDict()
+            t = 0.0
+
+            for i in range(n_radii):
+                for j in range(n_baselines_rad[i]):
+
+                    # baseline positions
+                    bx = b[i] * np.cos((j-1) * bang_step[i])
+                    by = b[i] * np.sin((j-1) * bang_step[i])
+
+                    # timeline for each position
+                    # first, set the end of the previous 'inter baseline'
+                    # period
+                    flag = True
+                    bxby[t] = (bx, by, flag)
+                    t += 0.001
+
+                    # start and end times at this baseline
+                    flag = False
+                    bxby[t] = (bx, by, flag)
+                    t += baseline_dwell
+                    bxby[t] = (bx, by, flag)
+                    t += 0.001
+
+                    # start the next 'inter baseline period'
+                    flag = True
+                    bxby[t] = (bx, by, flag)
+
+                    # 60 seconds between baseline positions
+                    t += 60.0
+
+            self.result['pattern'] = pattern
+            self.result['bxby'] = bxby
+            self.result['bmin'] = bmin
+            self.result['bmax'] = bmax
+
+        elif pattern.lower() == 'const l spiral':
             # spiral that conserves angular momentum as the baseline is 
             # increased. If moving from bmin=10m to bmax=100m then 
             # there is a factor of 100 change in angular velocity.
