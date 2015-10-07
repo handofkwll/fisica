@@ -61,6 +61,10 @@ class MakeImage(object):
             print repr(prihdr)
         image_data = hdulist[0].data
 
+        if np.any(np.isnan(image_data)):
+            print 'image array contains NaN values, setting these to 0'
+            image_data[np.isnan(image_data)] = 0.0
+
         # Note that, like C (and unlike FORTRAN), Python is 0-indexed and 
         # the indices have the slowest axis first and fastest changing axis
         # last; i.e. for a 2-D image, the fast axis (X-axis) which 
@@ -72,13 +76,12 @@ class MakeImage(object):
         # axes - image_data ends with shape [AXIS2, AXIS1]
         image_data = np.squeeze(image_data)
         assert len(image_data.shape) == 2
-        # don't swap axes - looks like Fomalhaut data is in C order
-        #image_data = np.swapaxes(image_data, 0, 1)
+        # for Fomalhaut don't swap axes - looks like Fomalhaut data is in C order
+        image_data = np.swapaxes(image_data, 0, 1)
 
         datashape = np.shape(image_data)
         nx = datashape[1]
         ny = datashape[0]
-#        assert nx==ny
 
         try:
             object_name = prihdr['OBJECT']
@@ -88,19 +91,26 @@ class MakeImage(object):
         # pixel increments in degrees
         cdelt1 = prihdr['CDELT1']
         cdelt2 = prihdr['CDELT2']
-        cdelt3 = prihdr['CDELT3']
+        try:
+            cdelt3 = prihdr['CDELT3']
+            axis3 = True
+        except:
+            axis3 = False
 
         crval1 = prihdr['CRVAL1']
         crval2 = prihdr['CRVAL2']
-        crval3 = prihdr['CRVAL3']
+        if axis3:
+            crval3 = prihdr['CRVAL3']
 
         crpix1 = prihdr['CRPIX1']
         crpix2 = prihdr['CRPIX2']
-        crpix3 = prihdr['CRPIX3']
+        if axis3:
+            crpix3 = prihdr['CRPIX3']
 
         ctype1 = prihdr['CTYPE1']
         ctype2 = prihdr['CTYPE2']
-        ctype3 = prihdr['CTYPE3']
+        if axis3:
+            ctype3 = prihdr['CTYPE3']
 
         # spatial coords are not stored in Fomalhaut FITS file
         # but look like they may be degrees
@@ -116,47 +126,52 @@ class MakeImage(object):
         except:
             cunit2 = 'DEG'
 
-        cunit3 = prihdr['CUNIT3']
+        if axis3:
+            cunit3 = prihdr['CUNIT3']
 
         bunit = prihdr['BUNIT']
 
         # calculate axes of FITS image in arcsec
         if 'DEG' in cunit1.upper():
-            # + 1 is in there because FITS arrays are 1-based
-            axis1 = (np.arange(nx) + 1 - crpix1) * cdelt1 * 3600.0
+            cdelt1 *= 3600.0
         else:
             raise Exception, 'cannot handle CUNIT1=%s' % cunit1
 
         if 'DEG' in cunit2.upper():
-            axis2 = (np.arange(ny) + 1 - crpix2) * cdelt2 * 3600.0
+            cdelt2 *= 3600.0
         else:
             raise Exception, 'cannot handle CUNIT2=%s' % cunit2
 
+        # + 1 is in there because FITS arrays are 1-based
+        axis1 = (np.arange(nx) + 1 - crpix1) * cdelt1
+        axis2 = (np.arange(ny) + 1 - crpix2) * cdelt2
+
         # frequency axis
-        if 'HZ' in cunit3.upper():
-            # ..in Hz (+1 is in there because FITS arrays are 1-based)
-            fvec = (np.arange(nfreq) + 1 - crpix3) * cdelt3 + crval3
-            # ..in cm-1
-            fvec_wn = fvec / 3.0e10
-            # ..wavelength in metres
-            fvec_wl = 3.0e8 / fvec
-        elif 'M' in cunit3.upper():
-            # ..wavelength in metres
-            fvec_wl = (np.arange(nfreq) + 1 - crpix3) * cdelt3 + crval3
-            # ..in Hz
-            fvec = 3.0e8 / fvec_wl
-            # ..in cm-1
-            fvec_wn = fvec / 3.0e10
-        else:
-            raise Exception, 'cannot handle CUNIT3=%s' % cunit3
+        if axis3:
+            if 'HZ' in cunit3.upper():
+                # ..in Hz (+1 is in there because FITS arrays are 1-based)
+                fvec = (np.arange(nfreq) + 1 - crpix3) * cdelt3 + crval3
+                # ..in cm-1
+                fvec_wn = fvec / 3.0e10
+                # ..wavelength in metres
+                fvec_wl = 3.0e8 / fvec
+            elif 'M' in cunit3.upper():
+                # ..wavelength in metres
+                fvec_wl = (np.arange(nfreq) + 1 - crpix3) * cdelt3 + crval3
+                # ..in Hz
+                fvec = 3.0e8 / fvec_wl
+                # ..in cm-1
+                fvec_wn = fvec / 3.0e10
+            else:
+                raise Exception, 'cannot handle CUNIT3=%s' % cunit3
 
         # convert from Jy/pixel to W/m2/cm-1/sr-1
-        if 'JY/PIXEL' in bunit.upper():
-            pixsize_rad = np.deg2rad(abs(spatial_axis[1] - spatial_axis[0]) / 3600.0) 
-        elif 'PW' in bunit.upper():
-            print 'picoWatts'
-        else:
-            print 'cannot handle BUNIT=%s' % bunit
+#        if 'JY/PIXEL' in bunit.upper():
+#            pixsize_rad = np.deg2rad(abs(spatial_axis[1] - spatial_axis[0]) / 3600.0) 
+#        elif 'PW' in bunit.upper():
+#            print 'picoWatts'
+#        else:
+#            print 'cannot handle BUNIT=%s' % bunit
 
         hdulist.close()
 
@@ -189,6 +204,9 @@ class MakeImage(object):
 
         print 'target image will be', tnpix, 'x', tnpix, 'square'
 
+        smooth = abs(pixsize / (cdelt1 * self.magnification))
+        print 'smoothing parameter', smooth
+
         # interpolate from FITS image onto target image
         # ..RectBivariateSpline requires axis1 and axis2 be monotonically
         # ..increasing, flip if need to
@@ -198,8 +216,13 @@ class MakeImage(object):
         axis2_mult = np.sign(axis2[1] - axis2[0])
         axis2 *= axis2_mult
 
-        interp = interpolate.RectBivariateSpline(axis1, axis2, image_data)
+        print np.shape(axis1), np.shape(axis2), np.shape(image_data)
+        interp = interpolate.RectBivariateSpline(axis2, axis1, image_data,
+          s=smooth)
+        print 'after'
         target_data = interp(target_axis, target_axis, grid=True)
+        target_data[trpix, trpix] = 0.2
+        print 'after2'
 
         # flip axes back again for plot
         axis1 *= axis1_mult
@@ -212,7 +235,9 @@ class MakeImage(object):
         plt.imshow(image_data, interpolation='nearest', origin='lower',
           aspect='equal', extent=[axis1[0], axis1[-1],
           axis2[0], axis2[-1]],
-          vmax=np.max(image_data), vmin=np.min(image_data))
+          vmax=0.05, vmin=-0.01)
+#          vmax=np.max(image_data[~np.isnan(image_data)]),
+#          vmin=np.min(image_data[~np.isnan(image_data)]))
         plt.colorbar(orientation='vertical')
         plt.axis('image')
         plt.title(object_name)
@@ -233,6 +258,86 @@ class MakeImage(object):
         axis1 = co.Axis(data=target_axis, title=ctype1, units='arcsec') 
         axis2 = co.Axis(data=target_axis, title=ctype2, units='arcsec') 
         image = co.Image(target_data, title=object_name, axes=[axis1, axis2])
+        return image
+
+
+class MakeModelImage(object):
+    """
+    """
+
+    def __init__(self, name, radius, tilt, xcentre, ycentre, max_baseline,
+     wn_max, wn_min,  m1_diameter=2.0, verbose=False):
+        self.name = name
+        self.radius = radius
+        self.tilt = tilt
+        self.xcentre = xcentre
+        self.ycentre = ycentre
+        self.max_baseline = max_baseline
+        self.wn_max = wn_max
+        self.wn_min = wn_min
+        self.m1_diameter = m1_diameter
+        self.verbose = verbose
+
+    def run(self):
+        print 'MakeModelImage.run'
+
+        # calculate pixel size of desired cube, should be as small as
+        # the Nyquist freq of the longest baseline / highest freq
+        pixsize = 1.0 / (self.wn_max * 100.0 * self.max_baseline)
+        pixsize /= 2.0
+        pixsize = np.rad2deg(pixsize) * 3600
+        print 'target pixel size', pixsize, 'arcsec'
+
+        # now get size of target image to be created. This will be 
+        # square, big enough to cover the primary beam, and centred at 
+        # the FITS data array centre
+        primary_beam_r = 1.22 / (self.wn_min * 100 * self.m1_diameter)
+        primary_beam_r = np.rad2deg(primary_beam_r) * 3600 
+        target_extent = 2 * primary_beam_r
+        print 'primary beam diameter', primary_beam_r, 'arcsec'
+
+        tnpix = int(target_extent / pixsize)
+
+        trpix = int(tnpix / 2)
+        trval = 0
+        tdelt = pixsize
+        target_axis = trval + (np.arange(tnpix, dtype=np.float) - trpix) * \
+          tdelt 
+
+        print 'target image will be', tnpix, 'x', tnpix, 'square'
+
+        target_data = np.zeros([tnpix, tnpix])
+
+        theta = np.arange(100) * 2 * np.pi / 100
+        xlist = self.radius * np.sin(theta) 
+        ylist = self.radius * np.cos(theta)
+        ylist *= np.cos(np.deg2rad(self.tilt))
+
+        xlist += self.xcentre
+        ylist += self.ycentre
+         
+        for i,x in enumerate(xlist):
+            target_data[np.abs(target_axis - x) < tdelt/2,
+                   np.abs(target_axis - ylist[i]) < tdelt/2] += 1.0
+
+        # plot the image
+        plt.figure()
+
+        plt.imshow(target_data, interpolation='nearest', origin='lower',
+          aspect='equal', extent=[target_axis[0], target_axis[-1],
+          target_axis[0], target_axis[-1]],
+          vmax=np.max(target_data), vmin=np.min(target_data))
+        plt.colorbar(orientation='vertical')
+        plt.axis('image')
+        plt.title(self.name)
+
+        filename = 'makeimage.png'
+        plt.savefig(filename)
+        plt.close()
+
+        axis1 = co.Axis(data=target_axis, title='RA', units='arcsec') 
+        axis2 = co.Axis(data=target_axis, title='Dec', units='arcsec') 
+        image = co.Image(target_data, title=self.name, axes=[axis1, axis2])
         return image
 
 
