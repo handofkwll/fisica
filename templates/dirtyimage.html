@@ -9,7 +9,7 @@ import common.commonobjects as co
 dirtyimage = context['data']['dirtyimage']
 frequency_axis = dirtyimage['wavenumber [cm-1]']
 
-# construct html pages with sky model plane plots
+# construct html pages with plots of dirty image for each wavenumber
 for iwn,wn in enumerate(frequency_axis):
     link = os.path.join(context['dirname'], 'dirtyimageplane%s.html' % (wn))
     with open(link, 'w') as f:
@@ -19,6 +19,18 @@ for iwn,wn in enumerate(frequency_axis):
         context_copy['iwn'] = iwn
         context_copy['stagename'] = 'dirtyimage'
         context_copy['resultname'] = 'dirtyimage'
+        f.write(template.render(**context_copy))
+
+# construct html pages with plots of dirty beam for each wavenumber
+for iwn,wn in enumerate(frequency_axis):
+    link = os.path.join(context['dirname'], 'dirtybeamplane%s.html' % (wn))
+    with open(link, 'w') as f:
+        template = mylookup.get_template('skymodelplane.html')
+        context_copy = context.kwargs
+        context_copy['wn'] = wn
+        context_copy['iwn'] = iwn
+        context_copy['stagename'] = 'dirtyimage'
+        context_copy['resultname'] = 'dirtybeam'
         f.write(template.render(**context_copy))
 %>
 
@@ -33,6 +45,23 @@ for iwn,wn in enumerate(frequency_axis):
   <div class="col-xs-6 col-md-3">
     <a href="dirtyimageplane${wn}.html" class="thumbnail">
       <img src="dirtyimageplane${wn}.png" alt="...">
+      <div>
+        <h4>${wnformatted}</h4>
+      </div>
+    </a>
+  </div>
+% endfor
+</div>
+
+<h3>Dirty Beam Planes</h3>
+<div class="row">
+% for wn in frequency_axis:
+    <%
+    wnformatted = '%6.4gcm-1' % wn
+    %>
+  <div class="col-xs-6 col-md-3">
+    <a href="dirtybeamplane${wn}.html" class="thumbnail">
+      <img src="dirtybeamplane${wn}.png" alt="...">
       <div>
         <h4>${wnformatted}</h4>
       </div>
