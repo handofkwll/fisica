@@ -11,6 +11,8 @@ def black_body(temperature, wavenumber):
     """Function to calculate Planck function. 
        temperature - Kelvin
        wavenumber - frequency in cm-1
+  
+       Returns jnu in W/m^2/Sr/Hz
     """
     freq = wavenumber * sc.c * 100.0
     if freq > 0:
@@ -25,8 +27,8 @@ def black_body(temperature, wavenumber):
 class BB_spectrum(object):
     """Class to generate BB spectrum.
     """
-    def __init__(self, temperature, frequency_axis, cutoffmin, cutoffmax,
-      emissivity):
+    def __init__(self, temperature, frequency_axis, cutoffmin=None,
+      cutoffmax=None, emissivity=1.0):
         self.temperature = temperature
         self.frequency_axis = frequency_axis
         self.cutoffmin = cutoffmin
@@ -39,16 +41,22 @@ class BB_spectrum(object):
         old_settings = np.seterr(all='ignore')
 
         for iwn,wn in enumerate(self.frequency_axis):
-            # simulate real-life 'rounded' cutoffs numerically  
-            f1 = 1.0 / (1.0 + pow(self.cutoffmin/wn, 18) + 
-              pow(wn/self.cutoffmax, 24))
-            spectrum[iwn] = black_body(self.temperature, wn) * f1 * \
+#            if self.cutoffmin is not None:
+#                # simulate real-life 'rounded' cutoffs numerically  
+#                f1 = 1.0 / (1.0 + (self.cutoffmin/wn)**18 + 
+#                  (wn/self.cutoffmax)**24)
+#            else:
+#                f1 = 1.0
+#            spectrum[iwn] = black_body(self.temperature, wn) * f1 * \
+#              self.emissivity
+            spectrum[iwn] = black_body(self.temperature, wn) * \
               self.emissivity
 
-        # make sure spectrum is zero beyond cutoffs, can cause 
-        # aliasing at high freq
-        spectrum[self.frequency_axis <= self.cutoffmin] = 0.0
-        spectrum[self.frequency_axis >= self.cutoffmax] = 0.0
+        # make sure spectrum is zero beyond cutoffs
+        if self.cutoffmin is not None:
+            spectrum[self.frequency_axis <= self.cutoffmin] = 0.0
+        if self.cutoffmax is not None:
+            spectrum[self.frequency_axis >= self.cutoffmax] = 0.0
 
         # restore fp behaviour
         ignore = np.seterr(**old_settings)
@@ -93,8 +101,6 @@ class SkyGenerator(object):
         max_pixsize = lambda_min / (2.0 * bmax)
         oversampling = 3.0
         pixsize = max_pixsize / oversampling
-#        self.result['pixsize [rad]'] = pixsize = max_pixsize / oversampling
-#        self.result['pixsize [arcsec]'] = np.rad2deg(pixsize) * 3600.0
 
         # Number of pixels per primary beam - measured out to first
         # null of Airy disk.
@@ -103,20 +109,17 @@ class SkyGenerator(object):
         # longest wavelength that has flux (at wnmin), largest beam
         max_beam_radius = 1.22 * (1.0 / (np.min(fts_wn) * 100.0)) /\
           m1_diam
-#        self.result['beam diam [rad]'] = 2.0 * max_beam_radius
          
         # go out to radius of first null
         rpix = int(max_beam_radius / pixsize)
         print 'cubeparameters out of half radius of first null'
         rpix /= 2
         npix = 2 * rpix
-#        self.result['npix'] = npix
 
         # spatial axes same for all wavelengths
         spatial_axis = np.arange(-rpix, rpix, dtype=np.float)
         spatial_axis *= pixsize
         spatial_axis = np.rad2deg(spatial_axis) * 3600.0
-#        self.result['spatial axis [arcsec]'] = axis
 
         return npix, pixsize, spatial_axis
 
