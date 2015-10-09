@@ -22,11 +22,12 @@ class Cube(object):
 class Image(object):
     """Class to hold 2d image, with axes, units, title, etc.
     """
-    def __init__(self, data, axes=[], title='', units=''):
+    def __init__(self, data, axes=[], title='', units='', info={}):
         self.data = data.copy()
         self.axes = axes
         self.title = title
         self.units = units
+        self.info = info
 
 
 class Spectrum(object):
