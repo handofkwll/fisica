@@ -41,14 +41,18 @@ class MakeImage(object):
     """
     """
 
-    def __init__(self, fits_image, max_baseline, wn_max, wn_min, magnification,
-      m1_diameter=2.0, verbose=False):
+    def __init__(self, fits_image, max_baseline, wn_nominal, wn_max, wn_min,
+      magnification, m1_diameter=2.0, plotname=None, verbose=False):
+        assert wn_max > wn_min
+
         self.fits_image = fits_image
         self.max_baseline = max_baseline
+        self.wn_nominal = wn_nominal
         self.wn_max = wn_max
         self.wn_min = wn_min
         self.magnification = magnification
         self.m1_diameter = m1_diameter
+        self.plotname = plotname
         self.verbose = verbose
 
     def run(self):
@@ -59,27 +63,25 @@ class MakeImage(object):
         prihdr = hdulist[0].header
         if self.verbose:
             print repr(prihdr)
-        image_data = hdulist[0].data
+        fits_data = hdulist[0].data
 
-        if np.any(np.isnan(image_data)):
+        if np.any(np.isnan(fits_data)):
             print 'image array contains NaN values, setting these to 0'
-            image_data[np.isnan(image_data)] = 0.0
+            fits_data[np.isnan(fits_data)] = 0.0
 
         # Note that, like C (and unlike FORTRAN), Python is 0-indexed and 
         # the indices have the slowest axis first and fastest changing axis
         # last; i.e. for a 2-D image, the fast axis (X-axis) which 
         # corresponds to the FITS NAXIS1 keyword, is the second index.
 
-        nfreq = image_data.shape[0]
-
         # get rid of degenerate axes (freq), verify data are 2d and swap
-        # axes - image_data ends with shape [AXIS2, AXIS1]
-        image_data = np.squeeze(image_data)
-        assert len(image_data.shape) == 2
+        # axes - fits_data ends with shape [AXIS2, AXIS1]
+        fits_data = np.squeeze(fits_data)
+        assert len(fits_data.shape) == 2
         # for Fomalhaut don't swap axes - looks like Fomalhaut data is in C order
-        image_data = np.swapaxes(image_data, 0, 1)
+        fits_data = np.swapaxes(fits_data, 0, 1)
 
-        datashape = np.shape(image_data)
+        datashape = np.shape(fits_data)
         nx = datashape[1]
         ny = datashape[0]
 
@@ -91,26 +93,15 @@ class MakeImage(object):
         # pixel increments in degrees
         cdelt1 = prihdr['CDELT1']
         cdelt2 = prihdr['CDELT2']
-        try:
-            cdelt3 = prihdr['CDELT3']
-            axis3 = True
-        except:
-            axis3 = False
 
         crval1 = prihdr['CRVAL1']
         crval2 = prihdr['CRVAL2']
-        if axis3:
-            crval3 = prihdr['CRVAL3']
 
         crpix1 = prihdr['CRPIX1']
         crpix2 = prihdr['CRPIX2']
-        if axis3:
-            crpix3 = prihdr['CRPIX3']
 
         ctype1 = prihdr['CTYPE1']
         ctype2 = prihdr['CTYPE2']
-        if axis3:
-            ctype3 = prihdr['CTYPE3']
 
         # spatial coords are not stored in Fomalhaut FITS file
         # but look like they may be degrees
@@ -126,9 +117,6 @@ class MakeImage(object):
         except:
             cunit2 = 'DEG'
 
-        if axis3:
-            cunit3 = prihdr['CUNIT3']
-
         bunit = prihdr['BUNIT']
 
         # calculate axes of FITS image in arcsec
@@ -143,48 +131,32 @@ class MakeImage(object):
             raise Exception, 'cannot handle CUNIT2=%s' % cunit2
 
         # + 1 is in there because FITS arrays are 1-based
-        axis1 = (np.arange(nx) + 1 - crpix1) * cdelt1
-        axis2 = (np.arange(ny) + 1 - crpix2) * cdelt2
+        fits_axis1 = (np.arange(nx) + 1 - crpix1) * cdelt1
+        fits_axis2 = (np.arange(ny) + 1 - crpix2) * cdelt2
 
-        # frequency axis
-        if axis3:
-            if 'HZ' in cunit3.upper():
-                # ..in Hz (+1 is in there because FITS arrays are 1-based)
-                fvec = (np.arange(nfreq) + 1 - crpix3) * cdelt3 + crval3
-                # ..in cm-1
-                fvec_wn = fvec / 3.0e10
-                # ..wavelength in metres
-                fvec_wl = 3.0e8 / fvec
-            elif 'M' in cunit3.upper():
-                # ..wavelength in metres
-                fvec_wl = (np.arange(nfreq) + 1 - crpix3) * cdelt3 + crval3
-                # ..in Hz
-                fvec = 3.0e8 / fvec_wl
-                # ..in cm-1
-                fvec_wn = fvec / 3.0e10
-            else:
-                raise Exception, 'cannot handle CUNIT3=%s' % cunit3
-
-        # convert from Jy/pixel to W/m2/cm-1/sr-1
-#        if 'JY/PIXEL' in bunit.upper():
-#            pixsize_rad = np.deg2rad(abs(spatial_axis[1] - spatial_axis[0]) / 3600.0) 
-#        elif 'PW' in bunit.upper():
-#            print 'picoWatts'
-#        else:
-#            print 'cannot handle BUNIT=%s' % bunit
+        # convert brightness units to Jy/pixel
+        if 'JY/PIXEL' in bunit.upper():
+            pass
+        else:
+            print 'cannot handle BUNIT=%s' % bunit
 
         hdulist.close()
 
+        # pixel area in sr
+        fits_pixarea = abs(np.deg2rad(cdelt1 / 3600) * 
+          np.deg2rad(cdelt2 / 3600)) 
+
         print 'magnifying source by factor', self.magnification
-        axis1 *= self.magnification
-        axis2 *= self.magnification
+        magnified_axis1 = fits_axis1 * self.magnification
+        magnified_axis2 = fits_axis2 * self.magnification
 
         # calculate pixel size of desired cube, should be as small as
         # the Nyquist freq of the longest baseline / highest freq
-        pixsize = 1.0 / (self.wn_max * 100.0 * self.max_baseline)
-        pixsize /= 2.0
-        pixsize = np.rad2deg(pixsize) * 3600
-        print 'target pixel size', pixsize, 'arcsec'
+        target_pixsize = 1.0 / (self.wn_max * 100.0 * self.max_baseline)
+        target_pixsize /= 2.0
+        target_pixarea = target_pixsize**2
+        target_pixsize = np.rad2deg(target_pixsize) * 3600
+        print 'target pixel size', target_pixsize, 'arcsec'
 
         # now get size of target image to be created. This will be 
         # square, big enough to cover the primary beam, and centred at 
@@ -194,70 +166,73 @@ class MakeImage(object):
         target_extent = 2 * primary_beam_r
         print 'primary beam diameter', primary_beam_r, 'arcsec'
 
-        tnpix = int(target_extent / pixsize)
+        tnpix = int(target_extent / target_pixsize)
 
         trpix = int(tnpix / 2)
         trval = 0
-        tdelt = pixsize
+        tdelt = target_pixsize
         target_axis = trval + (np.arange(tnpix, dtype=np.float) - trpix) * \
           tdelt 
 
         print 'target image will be', tnpix, 'x', tnpix, 'square'
 
-        smooth = abs(pixsize / (cdelt1 * self.magnification))
+        smooth = abs(target_pixsize / (cdelt1 * self.magnification))
         print 'smoothing parameter', smooth
 
         # interpolate from FITS image onto target image
         # ..RectBivariateSpline requires axis1 and axis2 be monotonically
         # ..increasing, flip if need to
-        axis1_mult = np.sign(axis1[1] - axis1[0])
-        axis1 *= axis1_mult
+        axis1_mult = np.sign(magnified_axis1[1] - magnified_axis1[0])
+        magnified_axis1 *= axis1_mult
 
-        axis2_mult = np.sign(axis2[1] - axis2[0])
-        axis2 *= axis2_mult
+        axis2_mult = np.sign(magnified_axis2[1] - magnified_axis2[0])
+        magnified_axis2 *= axis2_mult
 
-        print np.shape(axis1), np.shape(axis2), np.shape(image_data)
-        interp = interpolate.RectBivariateSpline(axis2, axis1, image_data,
-          s=smooth)
-        print 'after'
+        print np.shape(magnified_axis1), np.shape(magnified_axis2), np.shape(fits_data)
+        print '..setting up the interpolation'
+        interp = interpolate.RectBivariateSpline(magnified_axis2, 
+          magnified_axis1, fits_data, s=smooth)
+        print '..interpolating'
         target_data = interp(target_axis, target_axis, grid=True)
-        target_data[trpix, trpix] = 0.2
-        print 'after2'
 
-        # flip axes back again for plot
-        axis1 *= axis1_mult
-        axis2 *= axis2_mult
+        # multiply interpolated image by ratio of pixel areas to make
+        # units brightness/pixel for the new pixel size
+        print target_pixarea / (fits_pixarea * self.magnification**2)
 
-        # plot the image
-        plt.figure()
+        target_data *= (target_pixarea / (fits_pixarea * self.magnification**2))
 
-        plt.subplot(211)
-        plt.imshow(image_data, interpolation='nearest', origin='lower',
-          aspect='equal', extent=[axis1[0], axis1[-1],
-          axis2[0], axis2[-1]],
-          vmax=0.05, vmin=-0.01)
-#          vmax=np.max(image_data[~np.isnan(image_data)]),
-#          vmin=np.min(image_data[~np.isnan(image_data)]))
-        plt.colorbar(orientation='vertical')
-        plt.axis('image')
-        plt.title(object_name)
+        if self.plotname:
+            # plot the image
+            print '..plotting'
+            plt.figure()
 
-        plt.subplot(212)
-        plt.imshow(target_data, interpolation='nearest', origin='lower',
-          aspect='equal', extent=[target_axis[0], target_axis[-1],
-          target_axis[0], target_axis[-1]],
-          vmax=np.max(target_data), vmin=np.min(target_data))
-        plt.colorbar(orientation='vertical')
-        plt.axis('image')
-        plt.title('%s - interpolated' % object_name)
+            plt.subplot(211)
+            plt.imshow(fits_data, interpolation='nearest', origin='lower',
+              aspect='equal', extent=[fits_axis1[0], fits_axis1[-1],
+              fits_axis2[0], fits_axis2[-1]],
+              vmax=np.max(fits_data)/5,
+              vmin=np.min(fits_data))
+            plt.colorbar(orientation='vertical')
+            plt.axis('image')
+            plt.title(object_name)
 
-        filename = 'makeimage.png'
-        plt.savefig(filename)
-        plt.close()
+            plt.subplot(212)
+            plt.imshow(target_data, interpolation='nearest', origin='lower',
+              aspect='equal', extent=[target_axis[0], target_axis[-1],
+              target_axis[0], target_axis[-1]],
+              vmax=np.max(target_data)/5, vmin=np.min(target_data))
+            plt.colorbar(orientation='vertical')
+            plt.axis('image')
+            plt.title('%s - interpolated' % object_name)
+
+            filename = self.plotname
+            plt.savefig(filename)
+            plt.close()
 
         axis1 = co.Axis(data=target_axis, title=ctype1, units='arcsec') 
         axis2 = co.Axis(data=target_axis, title=ctype2, units='arcsec') 
-        image = co.Image(target_data, title=object_name, axes=[axis1, axis2])
+        image = co.Image(target_data, title=object_name, axes=[axis1, axis2],
+          units='Jy/pixel', info={'wn nominal':self.wn_nominal})
         return image
 
 
@@ -345,7 +320,8 @@ class MakeSpectrum(object):
     """
     """
 
-    def __init__(self, temperature, beta, wn_min, wn_max, wn_step):
+    def __init__(self, temperature, beta, wn_min, wn_max, wn_step,
+      wn_normalise, plotname=None):
         assert wn_max > wn_min
         assert wn_step > 0
 
@@ -354,30 +330,42 @@ class MakeSpectrum(object):
         self.wn_min = wn_min
         self.wn_max = wn_max
         self.wn_step = wn_step
+        self.wn_normalise = wn_normalise
+        self.plotname = plotname
 
     def run(self):
         print 'MakeSpectrum.run'
 
         nwn = np.ceil(abs((self.wn_max - self.wn_min) / self.wn_step))
-        wn_list = self.wn_min + np.arange(nwn) * self.wn_step
+        wn_vector = self.wn_min + np.arange(nwn) * self.wn_step
 
-        print wn_list
-
-        bb = BB_spectrum(self.temperature, wn_list, wn_list[2],
-          wn_list[-2], 1.0)
+        # spectrum
+        bb = BB_spectrum(self.temperature, wn_vector, cutoffmin=wn_vector[2],
+          cutoffmax=wn_vector[-2], emissivity=1.0)
         spectrum = bb.calculate()
 
-        print spectrum
+        # bb value at wn_normalise
+        bb = BB_spectrum(self.temperature, [self.wn_normalise], emissivity=1.0)
+        norm = bb.calculate()
 
-        # plot the image
-        plt.figure()
+        # and normalise the spectrum at wn_normalise
+        spectrum /= norm
 
-        plt.plot(wn_list, spectrum)
+        # now multiply by (lambda / lambda_normalise)**beta to mimic
+        # dust emissivity variation
+        emissivity = np.ones(np.shape(wn_vector))
+        emissivity *= (self.wn_normalise / wn_vector) ** self.beta
+        spectrum *= emissivity
 
-        filename = 'makespectrum.png'
-        plt.savefig(filename)
-        plt.close()
+        if self.plotname is not None:
+            # plot the spectrum
+            plt.figure()
 
-        axis = co.Axis(data=wn_list, title='wavenumber', units='cm-1')
+            plt.plot(wn_vector, spectrum, 'k')
+            plt.plot(wn_vector, spectrum / emissivity, 'b')
+            plt.savefig(self.plotname)
+            plt.close()
+
+        axis = co.Axis(data=wn_vector, title='wavenumber', units='cm-1')
         result = co.Spectrum(spectrum, axis=axis, title='')
         return result
