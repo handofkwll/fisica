@@ -68,7 +68,25 @@ baseline_x = uvspectrum.baseline_x
 baseline_y = uvspectrum.baseline_y
 baseline_z = uvspectrum.baseline_z
 
-ax.plot(baseline_x, baseline_y, baseline_z)
+# plot uv track during scan, with ball at terminal
+ax.plot(baseline_x, baseline_y, baseline_z, 'k-')
+ax.plot(baseline_x[-1:], baseline_y[-1:], baseline_z[-1:], 'ko')
+
+# plot projections of track onto 2d planes, makes it easier
+# to understand
+lims = ax.get_xlim3d()
+baseline_x_min = np.array(baseline_x)
+baseline_x_min[:] = lims[0]
+ax.plot(baseline_x_min, baseline_y, baseline_z, 'r--')
+lims = ax.get_ylim3d()
+baseline_y_min = np.array(baseline_y)
+baseline_y_min[:] = lims[0]
+ax.plot(baseline_x, baseline_y_min, baseline_z, 'r--')
+lims = ax.get_zlim3d()
+baseline_z_min = np.array(baseline_z)
+baseline_z_min[:] = lims[0]
+ax.plot(baseline_x, baseline_y, baseline_z_min, 'r--')
+
 ax.set_xlabel('baseline x (m)')
 ax.set_ylabel('baseline y (m)')
 ax.set_zlabel('baseline z (m)')
