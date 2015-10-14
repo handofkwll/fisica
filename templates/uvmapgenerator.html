@@ -6,12 +6,46 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os.path
 
+# Get the timeline data from mako context
+try:
+    timeline = context['data']['timeline']['obs_timeline']
+except:
+    print 'unable to plot uvmap - timeline has not been generated'
+    return
+
+times = timeline.keys()
+times.sort()
+
+# build arrays with bx, by for each scan through the timeline
+scans = []
+bx_list = []
+by_list = []
+current_scan = np.nan
+for t in times:
+    if current_scan != timeline[t].scan_number:
+        if (current_scan > 0) and len(bx_list):
+            scans.append((np.array(bx_list), np.array(by_list)))
+            bx_list = []
+            by_list = []
+    current_scan = timeline[t].scan_number
+    bx_list.append(timeline[t].baseline_x)
+    by_list.append(timeline[t].baseline_y)
+
+# deal with last scan if any
+if (current_scan > 0) and len(bx_list):
+    scans.append((np.array(bx_list), np.array(by_list)))
+
+# plot scan points, rotate plot colour with scan_number
 fig, ax = plt.subplots()
-bxby = context['data']['uvmapgenerator']['bxby']
-bxby_times = bxby.keys()
-bx = np.array([v[0] for v in bxby.values()])
-by = np.array([v[1] for v in bxby.values()])
-ax.plot(list(bx) + list(-bx), list(by) + list(-by), 'g.')
+colours = ['r', 'orange', 'y', 'g', 'b']
+
+for iscan,scan in enumerate(scans):
+    bx = scan[0]
+    by = scan[1]
+    colour = colours[iscan%5]
+    ax.plot(list(bx) + list(-bx), list(by) + list(-by), marker='.', 
+      mfc=colour, mec=colour, ms=2, linestyle='')
+
 ax.grid()
 plt.xlabel('u (m)')
 plt.ylabel('v (m)')
