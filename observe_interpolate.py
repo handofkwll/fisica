@@ -16,16 +16,21 @@ def data_size(sky_cube, amplitude_beam_1, amplitude_beam_2):
       amplitude_beam_2.nbytes
     return result
 
-def calculate_visibility(sky_cube, wn_axis,
-  spatial_axis, amplitude_beam_1, amplitude_beam_2, obs_timeline,
+def calculate_visibility(sky_cube, wn_axis, spatial_axis, 
+  m1_area, td0L, td0R, amplitude_beam_1, amplitude_beam_2, obs_timeline,
   parallel):
     """Routine to calculate the visibility for a specified
     baseline for all planes in a sky model.
 
     Parameters:
     sky_cube          - 3d sky cube [i,j,wn]
-    wn_axis           - wavenumbers of frequency axis
+    wn_axis           - wavenumbers of frequency axis in cm-1
     spatial_axis      - the spatial offsets of i,j axes
+    m1_area           - area of collector primaries in m**2
+    td0L              - transmission from primary to detector through
+                      - left interferometer arm
+    td0R              - transmission from primary to detector through
+                      - right interferometer arm
     amplitude_beam_1  - the complex amplitude beam of collector 1
     amplitude_beam_2  - the complex amplitude beam of collector 2
     obs_timeline      - a dict containing the instrument configurations
@@ -34,7 +39,18 @@ def calculate_visibility(sky_cube, wn_axis,
                         instances
     """ 
     nx,ny,nwn = numpy.shape(sky_cube)
+    # spectra will hold the spectral points for each time and wn. The 
+    # complete spectrum can be transformed (done outside this
+    # routine) to give the interferogram at that point
     spectra = collections.defaultdict(dict)
+
+    # i1 and i2 hold the DC component of the power falling onto the 
+    # detector from each collector
+    i1 = collections.defaultdict(dict) 
+    i2 = collections.defaultdict(dict) 
+
+    # width of spectral point in cm-1
+    delta_wn = numpy.abs(wn_axis[1] - wn_axis[0])
 
     # find indices of centre of sky
     centre = numpy.argmin(numpy.abs(spatial_axis))
@@ -137,9 +153,21 @@ def calculate_visibility(sky_cube, wn_axis,
             #plt.savefig(filename)
             #plt.close()
 
-            # ..multiply the sky cube by the collectors' complex amp beams
-            f1 = sky_cube * numpy.conj(amplitude_beam_1[jbeam, ibeam]) * \
+            # ..multiply the sky cube by the collectors' complex amp beams 
+            # ..of each telescope
+            # .. = Amp1 * td0L * Amp2 * td0R * delta_wn
+            # ..where Amp1, Amp2 are sky cube amplitudes from telescopes 1 and 2
+            # ..td0L and td0R are transmissions from telescope to detector 
+            # ..L (telescope 1) and R (telescope 2) arms of interferometer.
+            # ..Here, sky_cube is the sky intensity so 
+            # .. Amp1 = sqrt (sky_cube1 * A1)
+            # .. Amp2 = sqrt (sky_cube2 * A2)
+            # ..where A1, A2 are the collector areas and for now 
+            # ..sky_cube1 = sky_cube2 = sky_cube and A1 = A2 = ??. 
+            f1 = sky_cube * m1_area * td0L * td0R * delta_wn * \
+              numpy.conj(amplitude_beam_1[jbeam, ibeam]) * \
               amplitude_beam_2[jbeam, ibeam]
+            sky_sum = numpy.sum(sky_cube, axis=(0,1))
 
             # ..calculate the FT of the sky planes
             # ....move centre of sky image to origin
@@ -164,37 +192,6 @@ def calculate_visibility(sky_cube, wn_axis,
             col_hi = int(numpy.ceil(col))
             row_lo = int(numpy.floor(row))
             row_hi = int(numpy.ceil(row))
-
-#            if iwn==10:
-#                print iwn, wn
-            
-#                plt = matplotlib.pyplot
-#                plt.figure()
-
-#                print col_lo, col_hi, row_lo, row_hi
-
-#                plt.subplot(211)
-#                plt.imshow(sky_fft[row_lo-5:row_hi+5,col_lo-5:col_hi+5,iwn].real, interpolation='nearest', origin='lower',
-#                  aspect='equal')
-#                plt.colorbar(orientation='vertical')
-#                plt.axis('image')
-#                plt.title('real')
-
-                #plt.subplot(212)
-                #plt.imshow(res, interpolation='nearest', origin='lower',
-                #  aspect='equal', extent=[0, imshape[0], 0, imshape[1]],
-                #  vmax=numpy.max(res[imshape[0]/4:imshape[0]*3/4,
-                #  imshape[1]/4:imshape[1]*3/4]),
-                #  vmin=numpy.min(res[imshape[0]/4:imshape[0]*3/4,
-                #  imshape[1]/4:imshape[1]*3/4]))
-                #plt.colorbar(orientation='vertical')
-                #plt.axis('image')
-                #plt.title('bangle %s' % bangle)
-
-#                filename = 'fft.png'
-#                plt.savefig(filename)
-#                plt.close()
-#                x = 1 / 0
 
             # amps/phases at these angular freqs - using amp/phase
             # instead of real and imaginary components as these
@@ -232,9 +229,11 @@ def calculate_visibility(sky_cube, wn_axis,
 
             vis = amp * numpy.exp(1.0j * angle)
             spectra[t][wn] = vis
+            i1[t][wn] = sky_sum[iwn] * m1_area * td0L * delta_wn
+            i2[t][wn] = sky_sum[iwn] * m1_area * td0R * delta_wn
 
     print 'rotated beam recalculated %s times, time %s' % (nmiss, ctime)
-    return spectra
+    return spectra, i1, i2
 
 
 class Observe(object):
@@ -261,12 +260,17 @@ class Observe(object):
         print 'Observe.run'
         print 'start', time.clock()
 
+        # access telescope information
+        telescope = self.previous_results['telescope']
+        m1_diameter = telescope['m1_diameter']
+        m1_area = np.pi * (m1_diameter/2)**2
+
         # access primary beam information
         primarybeams = self.previous_results['primarybeams']
         amp_beam_1 = primarybeams['collector 1 amplitude beam']
         amp_beam_2 = primarybeams['collector 2 amplitude beam']
 
-        # access required FTS information
+        # access FTS information
         fts = self.previous_results['fts']
         fts_wn = fts['fts_wn']
         fts_wn_truncated = fts['fts_wn_truncated']
@@ -274,7 +278,12 @@ class Observe(object):
         delta_opd = fts['delta_opd'] / 100.0
         smec_opd_to_mpd = fts['smec_opd_to_mpd']
 
-        # access to model sky
+        # access interferometer information
+        noise = self.previous_results['noise']
+        td0L = noise['td0L']
+        td0R = noise['td0R']
+
+        # access model sky
         skygenerator = self.previous_results['skymodel']
         sky_model = skygenerator['sky model']
         spatial_axis = self.result['spatial axis [arcsec]'] = \
@@ -404,6 +413,9 @@ class Observe(object):
                   sky_model[:,:,chunk],
                   fts_wn_truncated[chunk],
                   spatial_axis,
+                  m1_area,
+                  td0L,
+                  td0R,
                   amp_beam_1_chunk[:,:,chunk], amp_beam_2_chunk[:,:,chunk], 
                   obs_timeline_chunk,
                   parallel=False)
@@ -416,6 +428,9 @@ class Observe(object):
                       sky_model[:,:,chunk],
                       fts_wn_truncated[chunk],
                       spatial_axis,
+                      m1_area,
+                      td0L,
+                      td0R,
                       amp_beam_1_chunk[:,:,chunk],
                       amp_beam_2_chunk[:,:,chunk], 
                       obs_timeline_chunk,
@@ -428,18 +443,24 @@ class Observe(object):
 
                 # collect results
                 powers = {}
+                i1 = {}
+                i2 = {}
                 for chunk in chunks:
                     job_id = (chunk.start, chunk.stop)
                     if jobs[job_id]() is None:
                         raise Exception, 'calculate_visibility has failed for planes %s' % str(job_id)
-                    powers[job_id] = jobs[job_id]()
+                    powers[job_id], i1[job_id], i2[job_id] = jobs[job_id]()
 
             # assemble spectra from single/parallel results
             keys = powers.keys()
             spectra = powers[keys[0]]
+            i1_spectra = i1[keys[0]]
+            i2_spectra = i2[keys[0]]
             for k in keys[1:]:
                 for t in spectra.keys():
                     spectra[t].update(powers[k][t])
+                    i1_spectra[t].update(i1[k][t])
+                    i2_spectra[t].update(i2[k][t])
 
             # calculate power for each time
             for t in obs_timeline_chunk:
@@ -448,34 +469,81 @@ class Observe(object):
                 opd_ipos = opd / delta_opd
 
                 spectrum = np.zeros(np.shape(fts_wn), np.complex)
-
                 for iwn, wn in enumerate(fts_wn):
                     try:
                         spectrum[iwn] = spectra[t][wn]
                     except:
                         spectrum[iwn] = 0.0
 
+                # I'll try to add some theoretical background here,
+                # for my own benefit on future visits if nothing else.
+                # Neglecting transmission losses, at the detector:
+                # 
+                #  amp = A1.exp(i.omega.t) + A2.exp(i.([b.theta+l/lambda] + omega).t)
+                #
+                # where b.theta is the delay due baseline projection, 
+                # l is the opd due to the FTS mirror.
+                #
+                #    I = amp.amp*
+                # 
+                # where * denotes complex conjugate. In principle, A1 and A2 are 
+                # complex and functions of u,v and lambda.
+                # This gives:  
+                #    I = I1 + I2 + A1.A2*.exp(-i.b.theta/lambda).exp(-i.l/lambda) +
+                #                  A1*.A2.exp(i.b.theta/lambda).exp(i.l/lambda)
+                #
+                # I think the last 2 terms if integrated over + and - frequency
+                # axes (frequency = c/lambda) are the Fourier Transform of
+                # function that is A1.A2*.exp(-i.b.theta/lambda) on +ve axis,
+                # A1*.A2.exp(i.b.theta/lambda) on -ve axis. The function being
+                # transformed is Hermitian, hence the result is real.
+                #
+                # If A1=A2 then the exponentials simplify to 2*cosine. However,
+                # the method used here is more general.
+                # (I hope this is right - doubts about that are one reason for this
+                # comment).
+                # 
+                # Additional complication. The mesh filter used as a beamsplitter
+                # in the FTS adds a pi/2 phase shift to the reflected beam. Thus
+                # we have:
+                #
+                #  amp = A1.exp(i.omega.t) + i.A2.exp(i.([b.theta+l/lambda] + omega).t)
+                #
+                # at the start of the theory above. This means that the 
+                # Hermitian function is i.A1.A2*.exp(-i.b.theta/lambda) on +ve axis,
+                # -i.A1*.A2.exp(i.b.theta/lambda) on -ve axis.
+
                 # calculate shift needed to move point at opd to 0
                 nfreq = len(fts_wn)
                 ndoublefreq = 2 * (nfreq - 1)
                 shift = np.zeros([ndoublefreq], dtype=np.complex)
                 shift[:nfreq] = np.arange(nfreq, dtype=np.complex)
-                shift[nfreq:] = np.arange(nfreq, dtype=np.complex)[-2:0:-1]
-                shift = np.exp((-2.0j * np.pi * opd_ipos * shift) / \
+                shift[nfreq:] = -np.arange(nfreq, dtype=np.complex)[-2:0:-1]
+                shift = np.exp((2.0j * np.pi * opd_ipos * shift) / \
                   float(ndoublefreq))
 
-                # reflect spectrum about 0 to give unaliased version
-                reflected_spectrum = np.zeros([2*(len(spectrum)-1)], np.complex)
-                reflected_spectrum[:len(spectrum)] = spectrum
-                reflected_spectrum[len(spectrum):] = spectrum[-2:0:-1]
-                temp = reflected_spectrum
+                # multiply by i because of phase shift at metal-mesh
+                # beamsplitter 
+                spectrum *= 1j
+                # reflect conjugate spectrum about 0 to give Hermitian version
+                reflected_spectrum = np.zeros([ndoublefreq], np.complex)
+                reflected_spectrum[:nfreq] = spectrum
+                reflected_spectrum[nfreq:] = np.conjugate(spectrum[-2:0:-1])
 
-                # apply phase shift, make transform Hermitian and inverse fft
+                # apply phase shift and calculate inverse fft
                 reflected_spectrum *= shift
-                reflected_spectrum[len(spectrum):] = \
-                  np.conj(reflected_spectrum[len(spectrum):])
+
                 spectrum_fft = np.fft.ifft(reflected_spectrum)
-                power = spectrum_fft[0].real
+                # remove the 1/n normalisation of ifft where n is the
+                # length of spectrum not reflected_spectrum
+                spectrum_fft *= ndoublefreq
+
+                # interferogram = I1 + I2 + FT(Hermitian spectrum)
+                # I1 and I2 can vary with t if the beam of either collector
+                # moves about
+                power = np.sum(i1_spectra[t].values()) + \
+                  np.sum(i2_spectra[t].values()) + \
+                  spectrum_fft[0].real
 
                 # set the measured value
                 config = config._replace(data = power, pure_data=power)
