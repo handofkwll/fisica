@@ -48,7 +48,10 @@
         <div class="navbar-collapse collapse">
           <ul class="nav navbar-nav">
             % for stage in context['data'].items():
-                % if stage[0] == context['renderstage']:                  
+                % if stage[0] in ['runtime', 'timeline']:
+                    <!-- result components not to be rendered -->
+                    <%pass%>
+                % elif stage[0] == context['renderstage']:                  
             <li class="active"><a href="#">${stage[0]}</a></li>
                 % elif isinstance(stage[1], dict):
                     % if 'substages' in stage[1].keys():
