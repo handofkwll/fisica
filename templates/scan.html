@@ -254,8 +254,7 @@ if data is not None:
     plt.title('signal')
     xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
     plt.xlabel(xlabel)
-    ylabel = ' '.join([v for v in [title, units] if v is not None])
-    plt.ylabel(ylabel)
+    plt.ylabel('power [W]')
 
     for item in (
       [ax.title,
