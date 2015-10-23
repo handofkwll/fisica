@@ -231,6 +231,8 @@ class Noise(object):
         NEPtot2 = NEPtotInst2 + NEPtotBg2
         NEPtot = np.sqrt(NEPtot2)
 
+        self.result['td0L'] = td0L
+        self.result['td0R'] = td0R
         self.result['NEPtotInst'] = NEPtotInst
         self.result['NEPcmb'] = NEPcmb
         self.result['NEPcib'] = NEPcib
