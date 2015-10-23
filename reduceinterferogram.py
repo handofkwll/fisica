@@ -166,8 +166,12 @@ class ReduceInterferogram(object):
                 scan_interferograms[scan] = scan_interferogram
 
                 # now convert interferogram to spectrum at this u-v position
-                # first, shift interferogram so that 0 opd is at index 0
-                # must ask David N how to do this properly
+                # ..first, subtract the DC offset
+                dc = np.mean(interferogram)
+                interferogram -= dc
+
+                # ..second, shift interferogram so that 0 opd is at index 0
+                #   must ask David N how to do this properly
                 postzero = []
                 prezero = []
                 postzero_opd = []
@@ -178,10 +182,10 @@ class ReduceInterferogram(object):
                     if abs(opd) < 1e-10:
                         zero_opd_found = True
                     if not zero_opd_found:
-                        prezero.append(scan_interferogram.data[i])
+                        prezero.append(interferogram[i])
                         prezero_opd.append(scan_interferogram.axis.data[i])
                     else:
-                        postzero.append(scan_interferogram.data[i])
+                        postzero.append(interferogram[i])
                         postzero_opd.append(scan_interferogram.axis.data[i])
             
                 shifted = postzero + prezero
@@ -192,9 +196,17 @@ class ReduceInterferogram(object):
 
                 # spectrum is complex
                 spectrum = np.fft.fft(shifted)
+                spectrum /= len(shifted)
+                # correct for phase shift at beamsplitter
+                spectrum /= 1j    
+
                 wavenumber = np.fft.fftfreq(
                   n=spectrum.size,
                   d=abs(shifted_opd[1] - shifted_opd[0]))
+
+                # Get the half of the Hermitian function that is for +ve freq
+                spectrum = spectrum[wavenumber >= 0]
+                wavenumber = wavenumber[wavenumber >= 0]
 
                 # save it
                 uvspectrum = UVspectrum(
