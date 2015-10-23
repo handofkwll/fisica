@@ -58,11 +58,12 @@ class Renderer(object):
         templates_dir = os.path.dirname(templates.__file__)
         mylookup = TemplateLookup(directories=[templates_dir])
 
-        # render the simulation steps first
+        # render each entry in the result structure, except for some 
+        # to be ignored
+        ignore = ['runtime', 'timeline'] 
         for stage in self.result.items():
 
-            if stage[0] in ['runtime']:
-                # not a proper stage, do not render
+            if stage[0] in ignore:
                 pass
 
             elif isinstance(stage[1], dict) and 'substages' in stage[1].keys():
