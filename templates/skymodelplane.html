@@ -47,7 +47,7 @@ if sky_image.dtype==np.complex:
     plt.imshow(sky_image.imag, interpolation='nearest', origin='lower',
       aspect='equal', extent=[spatial_axis0[0], spatial_axis0[-1],
       spatial_axis1[0], spatial_axis1[-1]])
-    cb.plt.colorbar(orientation='vertical')
+    cb = plt.colorbar(orientation='vertical')
     cb.set_label(r'$Wm^{-2}cm\,pixel^{-1}$')
     plt.axis('image')
     plt.title(r'Sky model imag $\nu$ =%6.4gcm-1' % wn)
@@ -65,6 +65,13 @@ filename = '%splane%s.png' % (resultname, wn)
 filename = sanitize(filename)
 filename = os.path.join(context['dirname'], filename)
 plt.savefig(filename)
+plt.close()
+
+# save image numbers to txt file
+txtfilename = '%splane%s.txt' % (resultname, wn)
+txtfilename = sanitize(txtfilename)
+txtfilename = os.path.join(context['dirname'], txtfilename)
+np.savetxt(txtfilename, sky_image)
 plt.close()
 %>
 
