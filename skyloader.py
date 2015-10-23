@@ -29,9 +29,6 @@ class SkyLoader(object):
         print repr(prihdr)
         skydata = hdulist[0].data
 
-        # copying Matlab version
-        skydata[skydata<0.0] = 0.0
-
         # looks to be an inversion in index order between FITS and Python
         datashape = np.shape(skydata)
         nx = datashape[2]
@@ -43,6 +40,7 @@ class SkyLoader(object):
 
         # pixel increments in degrees
         cdelt1 = prihdr['CDELT1']
+        pixsize_rad = np.deg2rad(cdelt1)
         cdelt2 = prihdr['CDELT2']
         cdelt3 = prihdr['CDELT3']
 
@@ -92,14 +90,19 @@ class SkyLoader(object):
                 skymodel[i,j,:] = np.interp(fts_wn_truncated, fvec_wn,
                   skydata[:,j,i], 0.0, 0.0)
 
-        skydata[skydata<0.0] = 0.0
+        
+        # copying Matlab version, remove -ve numbers (noise) as unphysical
+        skymodel[skymodel<0.0] = 0.0
 
-        # convert from Jy/pixel to W/m2/cm-1/sr-1
+        # convert from Jy/pixel to W/m2/cm-1/pixel
         if 'JY/PIXEL' in bunit.upper():
-            pixsize_rad = np.deg2rad(abs(spatial_axis[1] - spatial_axis[0]) / 3600.0) 
-            skymodel *= (1.0e-26 * 3.0e10 / pixsize_rad**2) 
+            skymodel *= (1.0e-26 * 299792458.0 * 100) 
         else:
             print 'cannot handle BUNIT=%s' % bunit
+
+#        print 'skymodel has single spike'
+#        skymodel[skymodel > 0.0] = 0.0
+#        skymodel[nx/2,nx/2,:] = 1.0
 
         self.result['sky model'] = skymodel
         self.result['spatial axis [arcsec]'] = spatial_axis
