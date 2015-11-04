@@ -72,7 +72,13 @@ def _get_baseline_wavelength_models(filedir, filelist):
         result[(baseline, wn)] = {
           'limits': (xmin, ymin, xmax, ymax),
           'ex':ex, 'ey':ey, 'ez':ez}
-    return result
+
+    # these models are generally not circularly symmetric so  
+    # need to be rotated with the baseline. Set the angular shift
+    # requiring the beam to recalculated.
+    rotation_resolution = 5.0
+
+    return result, rotation_resolution
 
 def _readpbfile(filedir, pbfile):
     """Utility routine to read in a primary beam model from
@@ -204,7 +210,12 @@ def _get_perfect_baseline_wavelength_model(m1_diameter):
       'limits': (xmin, ymin, xmax, ymax),
       'ex':ex_cube, 'ey':ey_cube, 'ez':ez_cube}
 
-    return models
+    # these models are circularly symmetric so do not need to be
+    # rotated with the baseline. Set the angular shift requiring
+    # the beam be rotated to 360 degrees (i.e. never triggered).
+    rotation_resolution = 360.0
+
+    return models, rotation_resolution
 
 def calculate_primary_beam_from_pbmodel(npix, pixsize, m1_diameter, wn,
   pbmodel, xmin, ymin, xmax, ymax,):
@@ -333,18 +344,20 @@ class PrimaryBeamsGenerator(object):
         if beam_model_type.lower().strip() == 'perfect':
             # in this case the model is not a function of baseline or
             # wavenumber so just calculate a canonical result
-            models = _get_perfect_baseline_wavelength_model(m1_diameter)
+            models, rotation_res = _get_perfect_baseline_wavelength_model(
+              m1_diameter)
 
         else:
             # list all files with specified root
             filelist = _getfilelist(beam_model_dir, beam_model_type)
 
             # get the grid of models available for baselines/wavelengths
-            models = _get_baseline_wavelength_models(beam_model_dir, filelist)
+            models, rotation_res = _get_baseline_wavelength_models(
+              beam_model_dir, filelist)
 
         primary_illumination = models
 
-        # get list of baselines modelled
+        # get list of baseline lengths modelled
         model_grid = models.keys()
         baselines = set()
         for k in model_grid:
@@ -362,7 +375,7 @@ class PrimaryBeamsGenerator(object):
         # calculate beams for each wn on each baseline modelled
         jobs = {}
 
-        # iterate through baselines modelled
+        # iterate through baseline lengths modelled
         for baseline in baselines:
             print 'baseline', baseline
 
@@ -396,9 +409,9 @@ class PrimaryBeamsGenerator(object):
             # collect results
             intensity_beam = np.zeros([npix,npix,len(wn)], np.float)
             amplitude_beam = np.zeros([npix,npix,len(wn)], np.complex)
-##            print 'beams set to 1'
-##            intensity_beam = np.ones([npix,npix,len(wn)], np.float)
-##            amplitude_beam = np.ones([npix,npix,len(wn)], np.complex)
+#            print 'beams set to 1'
+#            intensity_beam = np.ones([npix,npix,len(wn)], np.float)
+#            amplitude_beam = np.ones([npix,npix,len(wn)], np.complex)
             for iwn,wavenum in enumerate(wn):
                 if jobs[wavenum]() is None:
                     raise Exception, \
@@ -412,7 +425,7 @@ class PrimaryBeamsGenerator(object):
             amplitude_beams[baseline] = co.Cube(data=amplitude_beam,
               axes=[axis1, axis2, axis3], title='Amplitude Beam')
 
-        return intensity_beams, amplitude_beams, models
+        return intensity_beams, amplitude_beams, models, rotation_res
 
     def run(self):
         """Method that does the work.
@@ -439,7 +452,8 @@ class PrimaryBeamsGenerator(object):
         # get result for collector 1
         self.result['collector 1 intensity beam'],\
           self.result['collector 1 amplitude beam'],\
-          self.result['collector 1 primary illumination'] = \
+          self.result['collector 1 primary illumination'],\
+          self.result['collector 1 rotation resolution'] = \
           self._calculate_beam(c1_beam_model_type, self.beam_model_dir,
             beam_model_pol, wn, npix, pixsize, m1_diameter)
 
@@ -451,10 +465,13 @@ class PrimaryBeamsGenerator(object):
               self.result['collector 1 amplitude beam']
             self.result['collector 2 primary illumination'] = \
               self.result['collector 1 primary illumination']
+            self.result['collector 2 rotation resolution'] = \
+              self.result['collector 1 rotation resolution']
         else:
             self.result['collector 2 intensity beam'],\
               self.result['collector 2 amplitude beam'],\
-              self.result['collector 2 primary illumination'] = \
+              self.result['collector 2 primary illumination'],\
+              self.result['collector 2 rotation resolution'] = \
               self._calculate_beam(c2_beam_model_type, self.beam_model_dir,
                 wn, npix, pixsize, m1_diameter)
 
@@ -490,6 +507,10 @@ PrimaryBeamsGenerator:
     no data read'''
 
         blurb += '''
+    Rotation resolution - {rotres}'''.format(
+          rotres=self.result['collector 1 rotation resolution'])
+
+        blurb += '''
 
   Collector 2:'''
 
@@ -516,5 +537,9 @@ PrimaryBeamsGenerator:
             else:
                 blurb += '''
     no data read'''
+
+        blurb += '''
+    Rotation resolution - {rotres}'''.format(
+          rotres=self.result['collector 2 rotation resolution'])
 
         return blurb
