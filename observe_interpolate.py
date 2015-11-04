@@ -12,12 +12,15 @@ def data_size(sky_cube, amplitude_beam_1, amplitude_beam_2):
     """Routine to calculate size of dominant data arrays in
     calculate_visibility.
     """
-    result = sky_cube.nbytes + amplitude_beam_1.nbytes + \
+    # multiplier must match the amount that the sky cube is 
+    # padded out by for the fft = calculate_visibility.pad_factor**2
+    result = 16 * sky_cube.nbytes + amplitude_beam_1.nbytes + \
       amplitude_beam_2.nbytes
     return result
 
 def calculate_visibility(sky_cube, wn_axis, spatial_axis, 
-  m1_area, td0L, td0R, amplitude_beam_1, amplitude_beam_2, obs_timeline,
+  m1_area, td0L, td0R, amplitude_beam_1, amplitude_beam_2, 
+  beam_angle, obs_timeline,
   parallel):
     """Routine to calculate the visibility for a specified
     baseline for all planes in a sky model.
@@ -33,14 +36,16 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
                       - right interferometer arm
     amplitude_beam_1  - the complex amplitude beam of collector 1
     amplitude_beam_2  - the complex amplitude beam of collector 2
+    beam_angle        - the angle to which the beams are to be rotated
     obs_timeline      - a dict containing the instrument configurations
                         to be simulated 
     parallel          - is this method being run in parallel with other
                         instances
     """ 
     nx,ny,nwn = numpy.shape(sky_cube)
+
     # spectra will hold the spectral points for each time and wn. The 
-    # complete spectrum can be transformed (done outside this
+    # complex spectrum can be transformed (done outside this
     # routine) to give the interferogram at that point
     spectra = collections.defaultdict(dict)
 
@@ -61,16 +66,15 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
     igrid = grid[1] - centre
 
     # calculate the u/v axis values (u axis == v axis in this case)
-    u = numpy.fft.fftfreq(nx, spatial_axis[1] - spatial_axis[0])
-
-    # initialize cache
-    cache_bangle = None
-    cache_bangle_limit = numpy.deg2rad(2.0)
-    nmiss = 0
-    ctime = 0.0
+    pad_factor = 4
+    u = numpy.fft.fftfreq(pad_factor * nx, 
+      spatial_axis[1] - spatial_axis[0])
+    u = numpy.fft.fftshift(u)
 
     obs_times = obs_timeline.keys()
     obs_times.sort()
+    first = True
+
     for it,t in enumerate(obs_times):
         if it%1000 == 0 and not parallel:
             print it
@@ -78,26 +82,23 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
 
         # if the baseline is bad then there is no signal
         if config.baseline_flag:
-            for iwn, wn in enumerate(wn_axis):
+            for wn in wn_axis:
                 spectra[t][wn] = 0.0
+                i1[t][wn] = 0.0
+                i2[t][wn] = 0.0
             continue
 
         bx = config.baseline_x
         by = config.baseline_y
         bz = config.baseline_z
 
-        bangle = numpy.arctan2(bx, by)
-        if cache_bangle is None or \
-          abs(cache_bangle - bangle) > cache_bangle_limit:
-            cstart = time.clock()
-            nmiss += 1
-            #print 'calculating beam * sky because beam angle change has exceeded limit'
-            #print wn_axis[0], t, bx, by, cache_bangle, bangle, cache_bangle_limit 
-            # baseline angle has changed by more than specified limit,
-            # recalculate the sky * conj(psf1) * psf2
-        
+        if first:
+            first = False
+            bangle = numpy.deg2rad(beam_angle) 
+
+            # calculate the sky * conj(psf1) * psf2
             # ..calculate the jbeam,ibeam (=y,x) of the psf
-            #   onto which each map j,i falls. 
+            # ..onto which each map j,i falls. 
             jbeam = jgrid * numpy.cos(bangle) + igrid * numpy.sin(bangle)
             ibeam = -jgrid * numpy.sin(bangle) + igrid * numpy.cos(bangle)  
 
@@ -167,72 +168,47 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
             f1 = sky_cube * m1_area * td0L * td0R * delta_wn * \
               numpy.conj(amplitude_beam_1[jbeam, ibeam]) * \
               amplitude_beam_2[jbeam, ibeam]
-            sky_sum = numpy.sum(sky_cube, axis=(0,1))
+            sky_sum_1 = numpy.sum(
+              sky_cube * numpy.abs(amplitude_beam_1[jbeam,ibeam]), axis=(0,1))
+            sky_sum_2 = numpy.sum(
+              sky_cube * numpy.abs(amplitude_beam_2[jbeam,ibeam]), axis=(0,1))
 
             # ..calculate the FT of the sky planes
             # ....move centre of sky image to origin
-            temp = numpy.fft.fftshift(f1, axes=(0,1,))
+            # note to self, axis 2 is fastest changing in this array,
+            # the ordering is not optimal
+            padding = (pad_factor-1) * nx / 2
+            f1 = numpy.pad(f1, ((padding, padding), (padding, padding), (0,0)),
+              'constant', constant_values=0) 
+            f1 = numpy.fft.fftshift(f1, axes=(0,1,))
             # ....2d fft
-            sky_fft = numpy.fft.fft2(temp, axes=(0,1,))
+            sky_fft = numpy.fft.fft2(f1, axes=(0,1,))
+            del f1
+            sky_fft = numpy.fft.fftshift(sky_fft, axes=(0,1,))
 
-            cache_bangle = bangle
-            ctime += (time.clock() - cstart)
+            interp = {}
+            for iwn, wn in enumerate(wn_axis):
+                interp[iwn] = (
+                  scipy.interpolate.RectBivariateSpline(u, u, sky_fft[:,:,iwn].real),        
+                  scipy.interpolate.RectBivariateSpline(u, u, sky_fft[:,:,iwn].imag))        
+
+        ang_freq_u = numpy.zeros(wn_axis.shape)
+        ang_freq_v = numpy.zeros(wn_axis.shape)
+        for iwn, wn in enumerate(wn_axis):
+            # find where the baseline falls on the sky_fft cube
+            lamb = 1.0 / (wn * 100.0)
+            ang_freq_u[iwn] = 1.0 / (numpy.rad2deg(lamb / bx) * 3600.0)
+            ang_freq_v[iwn] = 1.0 / (numpy.rad2deg(lamb / by) * 3600.0)
+
+        vis_real = interp[iwn][0](ang_freq_v, ang_freq_u, grid=False)
+        vis_imag = interp[iwn][1](ang_freq_v, ang_freq_u, grid=False)
+        vis = vis_real + 1j * vis_imag
 
         for iwn, wn in enumerate(wn_axis):
-            lamb = 1.0 / (wn * 100.0)
+            spectra[t][wn] = vis[iwn]
+            i1[t][wn] = sky_sum_1[iwn] * m1_area * td0L * delta_wn
+            i2[t][wn] = sky_sum_2[iwn] * m1_area * td0R * delta_wn
 
-            # find where the baseline falls on the sky_fft cube
-            ang_freq = 1.0 / (numpy.rad2deg(lamb / bx) * 3600.0)
-            col = ang_freq / (u[1] - u[0])
-
-            ang_freq = 1.0 / (numpy.rad2deg(lamb / by) * 3600.0)
-            row = ang_freq / (u[1] - u[0])
-
-            col_lo = int(numpy.floor(col))
-            col_hi = int(numpy.ceil(col))
-            row_lo = int(numpy.floor(row))
-            row_hi = int(numpy.ceil(row))
-
-            # amps/phases at these angular freqs - using amp/phase
-            # instead of real and imaginary components as these
-            # should not suffer from wrapping issues
-            amp_lolo = numpy.abs(sky_fft[row_lo,col_lo,iwn])
-            amp_hilo = numpy.abs(sky_fft[row_hi,col_lo,iwn])
-            amp_lohi = numpy.abs(sky_fft[row_lo,col_hi,iwn])
-            amp_hihi = numpy.abs(sky_fft[row_hi,col_hi,iwn])
-
-            ang_lolo = numpy.angle(sky_fft[row_lo,col_lo,iwn])
-            ang_hilo = numpy.angle(sky_fft[row_hi,col_lo,iwn])
-            ang_lohi = numpy.angle(sky_fft[row_lo,col_hi,iwn])
-            ang_hihi = numpy.angle(sky_fft[row_hi,col_hi,iwn])
-
-            # try to fix phase wrapping problems 
-            unwrapped = numpy.unwrap(
-              numpy.array([ang_lolo, ang_hilo, ang_lohi, ang_hihi]))
-            ang_lolo = unwrapped[0] 
-            ang_hilo = unwrapped[1]
-            ang_lohi = unwrapped[2] 
-            ang_hihi = unwrapped[3] 
- 
-            # interpolate the fft value using bilinear interpolation
-            amp = amp_lolo + \
-              (amp_lohi - amp_lolo) * (col - col_lo) + \
-              (amp_hilo - amp_lolo) * (row - row_lo) + \
-              (amp_lolo - amp_lohi - amp_hilo + amp_hihi) * \
-              (col - col_lo) * (row - row_lo)
-
-            angle = ang_lolo + \
-              (ang_lohi - ang_lolo) * (col - col_lo) + \
-              (ang_hilo - ang_lolo) * (row - row_lo) + \
-              (ang_lolo - ang_lohi - ang_hilo + ang_hihi) * \
-              (col - col_lo) * (row - row_lo)
-
-            vis = amp * numpy.exp(1.0j * angle)
-            spectra[t][wn] = vis
-            i1[t][wn] = sky_sum[iwn] * m1_area * td0L * delta_wn
-            i2[t][wn] = sky_sum[iwn] * m1_area * td0R * delta_wn
-
-    print 'rotated beam recalculated %s times, time %s' % (nmiss, ctime)
     return spectra, i1, i2
 
 
@@ -269,6 +245,9 @@ class Observe(object):
         primarybeams = self.previous_results['primarybeams']
         amp_beam_1 = primarybeams['collector 1 amplitude beam']
         amp_beam_2 = primarybeams['collector 2 amplitude beam']
+        beam_angle_res = min(
+          primarybeams['collector 1 rotation resolution'],
+          primarybeams['collector 2 rotation resolution'])
 
         # access FTS information
         fts = self.previous_results['fts']
@@ -286,6 +265,8 @@ class Observe(object):
         # access model sky
         skygenerator = self.previous_results['skymodel']
         sky_model = skygenerator['sky model']
+#        sky_model = np.abs(sky_model)
+#        print 'taking abs of sky model'
         spatial_axis = self.result['spatial axis [arcsec]'] = \
           skygenerator['spatial axis [arcsec]']
         nx = len(spatial_axis)
@@ -293,177 +274,299 @@ class Observe(object):
         # get list of instrument configuratons       
         timeline = self.previous_results['timeline']
         obs_timeline = timeline['obs_timeline']
-#        if timeline['pointing_error_type'].upper().strip() != 'ZERO':
-#            print '..pointing errors are enabled, calculating the interferograms will take a long time'
 
         # calculate the measured result for each configuration
         previous_config = None
         observed_times = obs_timeline.keys()
         observed_times.sort()
 
-        if not parallel:
-            # do everything in one call to 'calculate visibility'
-            chunks = []
-            chunks.append(slice(0, len(fts_wn_truncated)))
+        # decide how to slice up the problem frequency-wise
+        ncpus = self.job_server.get_ncpus()        
+        memory = psutil.virtual_memory()
+        memory = memory.total
+        dsize = data_size(sky_model, amp_beam_1.items()[0][1].data,
+          amp_beam_2.items()[0][1].data)
+        print 'ncpus=%s memory=%s data_size=%s' % (ncpus, memory, dsize)
 
-        else:
+        if dsize > memory:
+            raise Exception, 'data size larger than physical memory, not handled'
 
-            # decide how to slice up the problem frequency-wise
-            ncpus = self.job_server.get_ncpus()        
-            memory = psutil.virtual_memory()
-            memory = memory.total
-            dsize = data_size(sky_model, amp_beam_1.items()[0][1].data,
-              amp_beam_2.items()[0][1].data)
-            print 'ncpus=%s memory=%s data_size=%s' % (ncpus, memory, dsize)
+        # ideally ncpus * memory per chunk ~ 0.1 * memory
+        size_per_cpu = 0.125 * memory / ncpus
+        #size_per_cpu = 0.25 * memory / ncpus
+        nchunks = max(ncpus, int(np.ceil(dsize / size_per_cpu)))
 
-            if dsize > memory:
-                raise Exception, 'data size larger than physical memory, not handled'
-
-            chunks = []
-            nchunks = ncpus
-            slice_size = len(fts_wn_truncated) / nchunks
+        chunks = []
+        slice_size = len(fts_wn_truncated) / nchunks
     
-            for chunk in range(nchunks):
-                chunks.append(slice(chunk * slice_size, (chunk+1) * slice_size))
+        for chunk in range(nchunks):
+            chunks.append(slice(chunk * slice_size, (chunk+1) * slice_size))
 
-            # ensure last chunk covers required range
-            last = chunks.pop()
-            chunks.append(slice(last.start, len(fts_wn_truncated)))
+        # ensure last chunk covers required range
+        last = chunks.pop()
+        chunks.append(slice(last.start, len(fts_wn_truncated)))
+
+        print '..calculation will break frequency band into', nchunks, 'chunks'
+
+        # decide how to slice up the problem beam-rotation wise
+        # ..break 360 degrees up into beam angular resolution pieces
+        print '..calculation will rotate primary beam at', beam_angle_res,\
+          'deg intervals'
+        n_beam_angles = int(360/beam_angle_res)
+        exact_beam_angle_res = 360.0 / n_beam_angles
+        beam_angles = np.arange(n_beam_angles) * exact_beam_angle_res
+        beam_bins = {}
+        for beam_angle in beam_angles:
+            beam_bins[beam_angle] = []
+
+        # ..fill segments with times where the segment is occupied
+        for t in observed_times:
+            config = obs_timeline[t]
+            bx = config.baseline_x
+            by = config.baseline_y
+            bz = config.baseline_z
+
+            bangle = numpy.arctan2(bx, by) * 180.0 / np.pi
+            # each bin centre is effectively (bin_angle + 0.5 * exact_beam_angle_res)
+            bangle_index = int(np.floor(bangle / exact_beam_angle_res))
+            if bangle_index < 0:
+                bangle_index += n_beam_angles
+            bin_angle = bangle_index * exact_beam_angle_res
+            beam_bins[bin_angle].append(t)
+
+        #print 'beam_bins'
+        #for k,v in beam_bins.iteritems():
+        #    print k, len(v)
+
+        # slice the problem up pointing wise
+        # ..break pointing into 7x7 grid
+        pointing_bins = collections.defaultdict(list)
+        max_point = 0.0
+        for t in observed_times:
+            config = obs_timeline[t]
+            pointing1_x = config.pointing1_x
+            pointing1_y = config.pointing1_y
+
+            max_point = max(max_point, pointing1_x, pointing1_y)
+
+        # most pointings within 3 arcsec radius of nominal. Outer
+        # ring has radius 4 * pfactor = 0.3
+        pfactor = 0.3 / 4
+        first_circle = [(2*pfactor, 0),
+                        (2*pfactor*np.cos(45), 2*pfactor*np.sin(45)), 
+                        (0, 2*pfactor), 
+                        (2*pfactor*np.cos(135), 2*pfactor*np.sin(135)), 
+                        (-2*pfactor, 0),
+                        (2*pfactor*np.cos(-135), 2*pfactor*np.sin(-135)),
+                        (0, -2*pfactor),
+                        (2*pfactor*np.cos(-45), 2*pfactor*np.sin(-45))] 
+        second_circle = [(4*pfactor, 0),
+                         (4*pfactor*np.cos(22.5), 4*pfactor*np.sin(22.5)), 
+                         (4*pfactor*np.cos(45), 4*pfactor*np.sin(45)), 
+                         (4*pfactor*np.cos(67.5), 4*pfactor*np.sin(67.5)), 
+                         (0, 4*pfactor), 
+                         (4*pfactor*np.cos(112.5), 4*pfactor*np.sin(112.5)), 
+                         (4*pfactor*np.cos(135), 4*pfactor*np.sin(135)), 
+                         (4*pfactor*np.cos(157.5), 4*pfactor*np.sin(157.5)), 
+                         (-4*pfactor, 0),
+                         (4*pfactor*np.cos(-157.5), 4*pfactor*np.sin(-157.5)), 
+                         (4*pfactor*np.cos(-135), 4*pfactor*np.sin(-135)),
+                         (4*pfactor*np.cos(-112.5), 4*pfactor*np.sin(-112.5)), 
+                         (0, -4*pfactor),
+                         (4*pfactor*np.cos(-67.5), 4*pfactor*np.sin(-67.5)), 
+                         (4*pfactor*np.cos(-45), 4*pfactor*np.sin(-45)), 
+                         (4*pfactor*np.cos(-22.5), 4*pfactor*np.sin(-22.5))]
+ 
+        for t in observed_times:
+            config = obs_timeline[t]
+            pointing1_x = config.pointing1_x
+            pointing1_y = config.pointing1_y
+
+            pointing_r = np.sqrt(pointing1_x**2 + pointing1_y**2)
+            if pointing_r < pfactor:
+                pointing_bins[0,0].append(t)
+            elif pointing_r < 3*pfactor:
+                pointing_ang = np.arctan2(pointing1_x, pointing1_y) * 180.0 / np.pi
+                pointing_ang_ind = int(pointing_ang / 45.0)
+                if pointing_ang_ind < 0:
+                    pointing_ang_ind += 8
+                pointing_bins[first_circle[pointing_ang_ind]].append(t)
+            else:
+                pointing_ang = np.arctan2(pointing1_x, pointing1_y) * 180.0 / np.pi
+                pointing_ang_ind = int(pointing_ang / 22.5)
+                if pointing_ang_ind < 0:
+                    pointing_ang_ind += 16
+                pointing_bins[second_circle[pointing_ang_ind]].append(t)
+            
+        # slice up the problem baseline-length-wise
+        #pointing_bins[(0,0)] = observed_times
+
+        # ..populate pointing bins with times 
+
+        # assemble a list of wn_chunk, beam bin, pointing bin
+        calculation_list = []
+        for beam_angle,beam_bin in beam_bins.items():
+            for pointing_bin in pointing_bins.values():
+                times = set(beam_bin)
+                times = times.intersection(pointing_bin)
+                times = list(times)
+                if times:
+                    # break times up into shorter chunks in crude
+                    # avoid memory problems
+                    time_chunks = [times[i:i+100000] for i in range(0, len(times), 100000)]
+                    for time_chunk in time_chunks:
+                        band_chunks = []
+                        for chunk in chunks:
+                            band_chunks.append((time_chunk,
+                              beam_angle + 0.5 * exact_beam_angle_res,
+                              chunk))
+                        calculation_list.append(band_chunks)
+
+        print '..calculation broken into', len(calculation_list), 'pieces' 
 
         # now tackle the timeline
         # ..in preparation, get some info on the range of beam models available
         model_grid_1 = amp_beam_1.keys()
-        baselines_1 = set()
-        for b in model_grid_1:
-            baselines_1.update([b])
-        baselines_1 = list(baselines_1)
-        baselines_1.sort()
+#        baselines_1 = set()
+#        for b in model_grid_1:
+#            baselines_1.update([b])
+#        baselines_1 = list(baselines_1)
+#        baselines_1.sort()
 
-        model_grid_2 = amp_beam_2.keys()
-        baselines_2 = set()
-        for b in model_grid_2:
-            baselines_2.update([b])
-        baselines_2 = list(baselines_2)
-        baselines_2.sort()
+#        model_grid_2 = amp_beam_2.keys()
+#        baselines_2 = set()
+#        for b in model_grid_2:
+#            baselines_2.update([b])
+#        baselines_2 = list(baselines_2)
+#        baselines_2.sort()
 
         # work through the configurations to be observed
-        istart = 0
-        chunk_model_1 = None
-        chunk_model_2 = None
-        looping = True
+#        istart = 0
+#        chunk_model_1 = None
+#        chunk_model_2 = None
+#        looping = True
 
-        while looping:
+#        while looping:
         
             # assemble the times to go into the next timeline chunk
-            timeline_chunk = []
-            for ichunk in range(istart, len(observed_times)):
+#            timeline_chunk = []
+#            for ichunk in range(istart, len(observed_times)):
 
                 # stop building if chunk len is 40000
-                if len(timeline_chunk) > 40000:
-                    istart = ichunk
-                    break
+#                if len(timeline_chunk) > 40000:
+#                    istart = ichunk
+#                    break
 
-                config = obs_timeline[observed_times[ichunk]]
+#                config = obs_timeline[observed_times[ichunk]]
 
                 # ignore if baseline flagged bad
-                if config.baseline_flag:
-                    continue
+#                if config.baseline_flag:
+#                    continue
 
                 # stop building if either of the beam models change because 
                 # of the varying baseline
-                bx = config.baseline_x
-                by = config.baseline_y
-                bz = config.baseline_z
-                blen = np.sqrt(bx**2 + by**2 +bz**2)
+#                bx = config.baseline_x
+#                by = config.baseline_y
+#                bz = config.baseline_z
+#                blen = np.sqrt(bx**2 + by**2 +bz**2)
 
-                model_b_1 = baselines_1[np.argmin(np.abs(baselines_1 - blen))]
-                model_b_2 = baselines_2[np.argmin(np.abs(baselines_2 - blen))]
+#                model_b_1 = baselines_1[np.argmin(np.abs(baselines_1 - blen))]
+#                model_b_2 = baselines_2[np.argmin(np.abs(baselines_2 - blen))]
 
-                if ichunk==istart:
-                    chunk_model_1 = model_b_1
-                    chunk_model_2 = model_b_2
-                elif chunk_model_1 is not None and chunk_model_1 != model_b_1:
-                    istart = ichunk
-                    break
-                elif chunk_model_2 is not None and chunk_model_2 != model_b_2:
-                    istart = ichunk
-                    break
+#                if ichunk==istart:
+#                    chunk_model_1 = model_b_1
+#                    chunk_model_2 = model_b_2
+#                elif chunk_model_1 is not None and chunk_model_1 != model_b_1:
+#                    istart = ichunk
+#                    break
+#                elif chunk_model_2 is not None and chunk_model_2 != model_b_2:
+#                    istart = ichunk
+#                    break
 
                 # OK, append this time to the chunk
-                timeline_chunk.append(ichunk)
-                looping = (ichunk != len(observed_times)-1)
+#                timeline_chunk.append(ichunk)
+#                looping = (ichunk != len(observed_times)-1)
 
-            print '..timeline chunk', timeline_chunk[0], timeline_chunk[-1]
+#            print '..timeline chunk', timeline_chunk[0], timeline_chunk[-1]
 
-            obs_timeline_chunk = {}
-            for it in timeline_chunk:
-                t = observed_times[it]
-                obs_timeline_chunk[t] = obs_timeline[t] 
-                
-            # get the beam models appropriate to this chunk
-            amp_beam_1_chunk = amp_beam_1[model_b_1].data
-            amp_beam_2_chunk = amp_beam_2[model_b_2].data
-             
-            if not parallel:
-                chunk = chunks[0]
-                job_id = (chunk.start, chunk.stop)
-                powers = {}
-                powers[job_id] = \
-                  calculate_visibility(
-                  sky_model[:,:,chunk],
-                  fts_wn_truncated[chunk],
+        # submit jobs
+        jobs = collections.deque()
+        for counter,band_chunks in enumerate(calculation_list):
+            print '..calculation piece', counter
+            spectra = collections.defaultdict(dict)
+            i1_spectra = collections.defaultdict(dict)
+            i2_spectra = collections.defaultdict(dict)
+
+            for calculation in band_chunks:
+                times = calculation[0]
+                beam_angle = calculation[1]
+                wn_chunk = calculation[2]
+
+                obs_timeline_chunk = {}
+                for t in times:
+                    obs_timeline_chunk[t] = obs_timeline[t] 
+
+                # get the beam models appropriate to this chunk
+                model_b_1 = amp_beam_1.keys()[0]
+                model_b_2 = amp_beam_2.keys()[0]
+                amp_beam_1_chunk = amp_beam_1[model_b_1].data
+                amp_beam_2_chunk = amp_beam_2[model_b_2].data
+
+                indata = (
+                  sky_model[:,:,wn_chunk],
+                  fts_wn_truncated[wn_chunk],
                   spatial_axis,
                   m1_area,
                   td0L,
                   td0R,
-                  amp_beam_1_chunk[:,:,chunk], amp_beam_2_chunk[:,:,chunk], 
+                  amp_beam_1_chunk[:,:,wn_chunk],
+                  amp_beam_2_chunk[:,:,wn_chunk],
+                  beam_angle, 
                   obs_timeline_chunk,
-                  parallel=False)
+                  True)
 
-            else:
-                # submit jobs
-                jobs = {}
-                for chunk in chunks:
-                    indata = (
-                      sky_model[:,:,chunk],
-                      fts_wn_truncated[chunk],
-                      spatial_axis,
-                      m1_area,
-                      td0L,
-                      td0R,
-                      amp_beam_1_chunk[:,:,chunk],
-                      amp_beam_2_chunk[:,:,chunk], 
-                      obs_timeline_chunk,
-                      True)
+                job_id = (times[0], times[-1], beam_angle, wn_chunk.start, wn_chunk.stop)
+                job = self.job_server.submit(calculate_visibility,
+                  indata, (),
+                  ('numpy','collections','matplotlib.pyplot','time','scipy.interpolate',))
+                #print '....starting calculation chunk', job_id
+                jobs.append((job_id, job))
 
-                    job_id = (chunk.start, chunk.stop)
-                    print '....starting wavenumber chunk', job_id
-                    jobs[job_id] = self.job_server.submit(calculate_visibility,
-                      indata, (), ('numpy','collections','matplotlib.pyplot','time',))
+                if len(jobs) >= ncpus:
+                    # collect results
 
-                # collect results
-                powers = {}
-                i1 = {}
-                i2 = {}
-                for chunk in chunks:
-                    job_id = (chunk.start, chunk.stop)
-                    if jobs[job_id]() is None:
-                        raise Exception, 'calculate_visibility has failed for planes %s' % str(job_id)
-                    powers[job_id], i1[job_id], i2[job_id] = jobs[job_id]()
+                    job_id,job = jobs.popleft()
+                    if job is None:
+                        raise Exception, 'calculate_visibility has failed for planes %s' % str(job)
+                    #print '....calculation chunk', job_id, 'has completed'
+                    #print 'unpack', time.time()
+                    powers, i1, i2 = job()
 
-            # assemble spectra from single/parallel results
-            keys = powers.keys()
-            spectra = powers[keys[0]]
-            i1_spectra = i1[keys[0]]
-            i2_spectra = i2[keys[0]]
-            for k in keys[1:]:
-                for t in spectra.keys():
-                    spectra[t].update(powers[k][t])
-                    i1_spectra[t].update(i1[k][t])
-                    i2_spectra[t].update(i2[k][t])
+                    result_times = powers.keys()
+                    for t in result_times:
+                        spectra[t].update(powers[t])
+                        i1_spectra[t].update(i1[t])
+                        i2_spectra[t].update(i2[t])
+                    #print 'end unpack', time.time()
+
+            # collect results from remaining jobs
+            while len(jobs) > 0:
+                job_id,job = jobs.popleft()
+                if job is None:
+                    raise Exception, 'calculate_visibility has failed for planes %s' % str(job)
+                #print '....calculation chunk', job_id, 'has completed'
+                # unpacking the result takes a long time - ? tens of seconds
+                powers, i1, i2 = job()
+
+                result_times = powers.keys()
+                for t in result_times:
+                    spectra[t].update(powers[t])
+                    i1_spectra[t].update(i1[t])
+                    i2_spectra[t].update(i2[t])
 
             # calculate power for each time
-            for t in obs_timeline_chunk:
+            #print '..assembling spectrum at each timestamp, calculating interferogram value'
+            for t in result_times:
                 config = obs_timeline[t]
                 opd = config.smec_position / smec_opd_to_mpd
                 opd_ipos = opd / delta_opd
@@ -478,7 +581,7 @@ class Observe(object):
                 # I'll try to add some theoretical background here,
                 # for my own benefit on future visits if nothing else.
                 # Neglecting transmission losses, at the detector:
-                # 
+                #  
                 #  amp = A1.exp(i.omega.t) + A2.exp(i.([b.theta+l/lambda] + omega).t)
                 #
                 # where b.theta is the delay due baseline projection, 
@@ -512,7 +615,7 @@ class Observe(object):
                 # at the start of the theory above. This means that the 
                 # Hermitian function is i.A1.A2*.exp(-i.b.theta/lambda) on +ve axis,
                 # -i.A1*.A2.exp(i.b.theta/lambda) on -ve axis.
-
+  
                 # calculate shift needed to move point at opd to 0
                 nfreq = len(fts_wn)
                 ndoublefreq = 2 * (nfreq - 1)
