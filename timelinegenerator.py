@@ -96,8 +96,10 @@ class TimeLineGenerator(object):
 
         # collector parameters
         telescope = self.previous_results['telescope']
-        self.result['pointing_error_type'] = pointing_error_type = \
-          telescope['pointing_error_type']
+        self.result['c1_pointing_error_type'] = \
+          c1_pointing_error_type = telescope['c1_pointing_error_type']
+        self.result['c2_pointing_error_type'] = \
+          c2_pointing_error_type = telescope['c2_pointing_error_type']
 
         # Construct the obs timeline.
         # The timeline will hold the baseline and FTS mirror position
@@ -119,16 +121,21 @@ class TimeLineGenerator(object):
         baseline_start_time = 0.0
         inter_baseline_time = 3600.0
 
-        # objects to use for generating pointing errors
-        if 'HERSCHEL' in pointing_error_type.upper():
+        # objects to use for generating pointing errors.
+        if 'HERSCHEL' in c1_pointing_error_type.upper():
             pointing1 = pointing.HerschelErrors()
-            pointing2 = pointing.HerschelErrors()
-        elif 'ZERO' in pointing_error_type.upper():
+        elif 'ZERO' in c1_pointing_error_type.upper():
             pointing1 = pointing.ZeroErrors()
+        else:
+            print 'c1 pointing error mode not understood, defaulting to Zero errors'
+            pointing1 = pointing.ZeroErrors()
+
+        if 'HERSCHEL' in c2_pointing_error_type.upper():
+            pointing2 = pointing.HerschelErrors()
+        elif 'ZERO' in c2_pointing_error_type.upper():
             pointing2 = pointing.ZeroErrors()
         else:
-            print 'pointing error mode not understood, defaulting to Zero errors'
-            pointing1 = pointing.ZeroErrors()
+            print 'c2 pointing error mode not understood, defaulting to Zero errors'
             pointing2 = pointing.ZeroErrors()
 
         # object to use for generating SMEC positions
@@ -253,11 +260,13 @@ class TimeLineGenerator(object):
     def __repr__(self):
         return '''
 TimeLineGenerator:
-  Pointing errors  : {pointing_errors}
-  FTS samples/scan : {fts_nsample}
-  timelength length: {timeline_len}
+  C1 pointing errors  : {c1_pointing_errors}
+  C2 pointing errors  : {c2_pointing_errors}
+  FTS samples/scan    : {fts_nsample}
+  timelength length   : {timeline_len}
 '''.format(
-          pointing_errors=self.result['pointing_error_type'],
+          c1_pointing_errors=self.result['c1_pointing_error_type'],
+          c2_pointing_errors=self.result['c2_pointing_error_type'],
           fts_nsample=self.result['fts_nsample'],
           timeline_len=len(self.result['obs_timeline']))
 
