@@ -6,7 +6,8 @@ import numpy
 import psutil
 import time
 
-import matplotlib.pyplot
+#import matplotlib.pyplot
+#import scipy.interpolate
 
 def data_size(sky_cube, amplitude_beam_1, amplitude_beam_2):
     """Routine to calculate size of dominant data arrays in
@@ -20,7 +21,7 @@ def data_size(sky_cube, amplitude_beam_1, amplitude_beam_2):
 
 def calculate_visibility(sky_cube, wn_axis, spatial_axis, 
   m1_area, td0L, td0R, amplitude_beam_1, amplitude_beam_2, 
-  beam_angle, obs_timeline,
+  beam_angle, pointing_offset, obs_timeline,
   parallel):
     """Routine to calculate the visibility for a specified
     baseline for all planes in a sky model.
@@ -37,6 +38,7 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
     amplitude_beam_1  - the complex amplitude beam of collector 1
     amplitude_beam_2  - the complex amplitude beam of collector 2
     beam_angle        - the angle to which the beams are to be rotated
+    pointing_offset   - tuple containing pointing offset in (x,y)
     obs_timeline      - a dict containing the instrument configurations
                         to be simulated 
     parallel          - is this method being run in parallel with other
@@ -61,7 +63,7 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
     centre = numpy.argmin(numpy.abs(spatial_axis))
 
     # get grid of indices for sky, offset origin to centre
-    grid = numpy.indices([nx, ny], numpy.float)
+    grid = numpy.indices([ny, nx], numpy.float)
     jgrid = grid[0] - centre
     igrid = grid[1] - centre
 
@@ -94,13 +96,18 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
 
         if first:
             first = False
-            bangle = numpy.deg2rad(beam_angle) 
 
             # calculate the sky * conj(psf1) * psf2
             # ..calculate the jbeam,ibeam (=y,x) of the psf
-            # ..onto which each map j,i falls. 
+            # ..onto which each map j,i falls, taking into account
+            # ..both the beam rotation and the pointing offset
+            bangle = numpy.deg2rad(beam_angle) 
+            jpointing = pointing_offset[0] / (spatial_axis[1] - spatial_axis[0])
+            ipointing = pointing_offset[1] / (spatial_axis[1] - spatial_axis[0])
             jbeam = jgrid * numpy.cos(bangle) + igrid * numpy.sin(bangle)
             ibeam = -jgrid * numpy.sin(bangle) + igrid * numpy.cos(bangle)  
+            jbeam -= (jpointing * numpy.cos(bangle) + ipointing * numpy.sin(bangle))
+            ibeam -= (-jpointing * numpy.sin(bangle) + ipointing * numpy.cos(bangle))  
 
             # ..remove origin offset
             jbeam += centre
@@ -122,6 +129,7 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
             # through the unrotated beam as a reference. 
             #res1 = numpy.abs(amplitude_beam_1[:,:,0])
             #res1[centre-1:centre+1,:] = 0.0
+            #res1[centre-1:centre+1,centre-1:centre+1] = 2.0
             #res = res1[jbeam, ibeam]
             #imshape = res.shape
 
@@ -148,7 +156,7 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
             #  imshape[1]/4:imshape[1]*3/4]))
             #plt.colorbar(orientation='vertical')
             #plt.axis('image')
-            #plt.title('bangle %s' % bangle)
+            #plt.title('bangle %s pointing j %s i %s' % (bangle, jpointing, ipointing))
 
             #filename = 'rottest%s%s.png' % (bangle, wn_axis[0])
             #plt.savefig(filename)
@@ -387,13 +395,13 @@ class Observe(object):
                 pointing_bins[0,0].append(t)
             elif pointing_r < 3*pfactor:
                 pointing_ang = np.arctan2(pointing1_x, pointing1_y) * 180.0 / np.pi
-                pointing_ang_ind = int(pointing_ang / 45.0)
+                pointing_ang_ind = int(np.floor(pointing_ang / 45.0))
                 if pointing_ang_ind < 0:
                     pointing_ang_ind += 8
                 pointing_bins[first_circle[pointing_ang_ind]].append(t)
             else:
                 pointing_ang = np.arctan2(pointing1_x, pointing1_y) * 180.0 / np.pi
-                pointing_ang_ind = int(pointing_ang / 22.5)
+                pointing_ang_ind = int(np.floor(pointing_ang / 22.5))
                 if pointing_ang_ind < 0:
                     pointing_ang_ind += 16
                 pointing_bins[second_circle[pointing_ang_ind]].append(t)
@@ -406,7 +414,7 @@ class Observe(object):
         # assemble a list of wn_chunk, beam bin, pointing bin
         calculation_list = []
         for beam_angle,beam_bin in beam_bins.items():
-            for pointing_bin in pointing_bins.values():
+            for pointing_offset,pointing_bin in pointing_bins.items():
                 times = set(beam_bin)
                 times = times.intersection(pointing_bin)
                 times = list(times)
@@ -419,6 +427,7 @@ class Observe(object):
                         for chunk in chunks:
                             band_chunks.append((time_chunk,
                               beam_angle + 0.5 * exact_beam_angle_res,
+                              pointing_offset,
                               chunk))
                         calculation_list.append(band_chunks)
 
@@ -500,7 +509,8 @@ class Observe(object):
             for calculation in band_chunks:
                 times = calculation[0]
                 beam_angle = calculation[1]
-                wn_chunk = calculation[2]
+                pointing_offset = calculation[2]
+                wn_chunk = calculation[3]
 
                 obs_timeline_chunk = {}
                 for t in times:
@@ -522,14 +532,16 @@ class Observe(object):
                   amp_beam_1_chunk[:,:,wn_chunk],
                   amp_beam_2_chunk[:,:,wn_chunk],
                   beam_angle, 
+                  pointing_offset,
                   obs_timeline_chunk,
                   True)
 
-                job_id = (times[0], times[-1], beam_angle, wn_chunk.start, wn_chunk.stop)
+                job_id = (times[0], times[-1], beam_angle, pointing_offset, wn_chunk.start,
+                  wn_chunk.stop)
                 job = self.job_server.submit(calculate_visibility,
                   indata, (),
                   ('numpy','collections','matplotlib.pyplot','time','scipy.interpolate',))
-                #print '....starting calculation chunk', job_id
+                print '....starting calculation chunk', job_id, len(times)
                 jobs.append((job_id, job))
 
                 if len(jobs) >= ncpus:
