@@ -125,6 +125,9 @@ class HerschelErrors(object):
         eRA = np.zeros(np.shape(times))
         eDec = np.zeros(np.shape(times))
         for i,t in enumerate(times):
+            # wrap the error arrays if the time is beyond the range
+            # covered
+            t = t % errorTimes[-1]
             error_index = (t - errorTimes[0]) / deltaErrorTime
             ibelow = int(error_index)
             iabove = ibelow + 1
