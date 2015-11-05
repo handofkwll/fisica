@@ -21,7 +21,8 @@ class Telescope(object):
         self.result['mirror_temp'] = telparm['Mirror temp']
         self.result['telescope_emissivity'] = telparm['Telescope emissivity (Etel)']
         self.result['n_telescope_mirrors'] = telparm['Number of mirrors in telescope design']
-        self.result['pointing_error_type'] = telparm['Pointing error type']
+        self.result['c1_pointing_error_type'] = telparm['Collector 1 pointing error type']
+        self.result['c2_pointing_error_type'] = 'Zero'
         self.result['c1_beam_model_type'] = telparm['Collector 1 beam model type']
         self.result['c2_beam_model_type'] = telparm['Collector 2 beam model type']
         self.result['beam_model_pol'] = telparm['Beam model polarization']
@@ -37,7 +38,8 @@ Telescope:
   mirror temp    : {temp}
   tel emissivity : {emissivity}
   n mirrors      : {nmirror}
-  pointing error : {pointing}
+  collector 1 pointing error : {pointing1}
+  collector 2 pointing error : {pointing2}
   collector 1 beam model : {model1}
   collector 2 beam model : {model2}
   polarization           : {pol}
@@ -46,7 +48,8 @@ Telescope:
           temp=self.result['mirror_temp'],
           emissivity=self.result['telescope_emissivity'],
           nmirror=self.result['n_telescope_mirrors'],
-          pointing=self.result['pointing_error_type'],
+          pointing1=self.result['c1_pointing_error_type'],
+          pointing2=self.result['c2_pointing_error_type'],
           model1=self.result['c1_beam_model_type'],
           model2=self.result['c2_beam_model_type'],
           pol=self.result['beam_model_pol'])
