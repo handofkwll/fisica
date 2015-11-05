@@ -35,7 +35,11 @@ for scan in scan_numbers:
 %>
 
 <h3>Baseline Spectra</h3>
-% for baseline in baseline_link.keys():
+<%
+baseline_keys = baseline_link.keys()
+baseline_keys.sort()
+%>
+% for baseline in baseline_keys:
 <div class="col-xs-6 col-md-3">
   <a href="${baseline_link[baseline]}.png" class="thumbnail">
     <img src="${baseline_link[baseline]}.png" alt="...">
