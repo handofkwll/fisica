@@ -21,7 +21,7 @@ def data_size(sky_cube, amplitude_beam_1, amplitude_beam_2):
 
 def calculate_visibility(sky_cube, wn_axis, spatial_axis, 
   m1_area, td0L, td0R, amplitude_beam_1, amplitude_beam_2, 
-  beam_angle, pointing_offset, obs_timeline,
+  beam_angle, pointing_offset_1, pointing_offset_2, obs_timeline,
   parallel):
     """Routine to calculate the visibility for a specified
     baseline for all planes in a sky model.
@@ -38,7 +38,10 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
     amplitude_beam_1  - the complex amplitude beam of collector 1
     amplitude_beam_2  - the complex amplitude beam of collector 2
     beam_angle        - the angle to which the beams are to be rotated
-    pointing_offset   - tuple containing pointing offset in (x,y)
+    pointing_offset_1 - tuple containing pointing offset in (x,y) for
+                        collector 1
+    pointing_offset_2 - tuple containing pointing offset in (x,y) for
+                        collector 2
     obs_timeline      - a dict containing the instrument configurations
                         to be simulated 
     parallel          - is this method being run in parallel with other
@@ -102,25 +105,41 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
             # ..onto which each map j,i falls, taking into account
             # ..both the beam rotation and the pointing offset
             bangle = numpy.deg2rad(beam_angle) 
-            jpointing = pointing_offset[0] / (spatial_axis[1] - spatial_axis[0])
-            ipointing = pointing_offset[1] / (spatial_axis[1] - spatial_axis[0])
             jbeam = jgrid * numpy.cos(bangle) + igrid * numpy.sin(bangle)
             ibeam = -jgrid * numpy.sin(bangle) + igrid * numpy.cos(bangle)  
-            jbeam -= (jpointing * numpy.cos(bangle) + ipointing * numpy.sin(bangle))
-            ibeam -= (-jpointing * numpy.sin(bangle) + ipointing * numpy.cos(bangle))  
+
+            # ..pointing offset for collector 1
+            jpointing1 = pointing_offset_1[0] / (spatial_axis[1] - spatial_axis[0])
+            ipointing1 = pointing_offset_1[1] / (spatial_axis[1] - spatial_axis[0])
+            jbeam1 = jbeam - (jpointing1 * numpy.cos(bangle) + ipointing1 * numpy.sin(bangle))
+            ibeam1 = ibeam - (-jpointing1 * numpy.sin(bangle) + ipointing1 * numpy.cos(bangle))  
 
             # ..remove origin offset
-            jbeam += centre
-            ibeam += centre
+            jbeam1 += centre
+            ibeam1 += centre
  
             # ..convert jbeam, ibeam to nearest integer values
-            jbeam = numpy.rint(jbeam).astype(int)
-            ibeam = numpy.rint(ibeam).astype(int)
+            jbeam1 = numpy.rint(jbeam1).astype(int)
+            ibeam1 = numpy.rint(ibeam1).astype(int)
 
-            jbeam[jbeam<0] = 0
-            jbeam[jbeam>nx-1] = nx-1
-            ibeam[ibeam<0] = 0
-            ibeam[ibeam>nx-1] = nx-1
+            jbeam1[jbeam1<0] = 0
+            jbeam1[jbeam1>nx-1] = nx-1
+            ibeam1[ibeam1<0] = 0
+            ibeam1[ibeam1>nx-1] = nx-1
+
+            # same for collector 2
+            jpointing2 = pointing_offset_2[0] / (spatial_axis[1] - spatial_axis[0])
+            ipointing2 = pointing_offset_2[1] / (spatial_axis[1] - spatial_axis[0])
+            jbeam2 = jbeam - (jpointing2 * numpy.cos(bangle) + ipointing2 * numpy.sin(bangle))
+            ibeam2 = ibeam - (-jpointing2 * numpy.sin(bangle) + ipointing2 * numpy.cos(bangle))  
+            jbeam2 += centre
+            ibeam2 += centre
+            jbeam2 = numpy.rint(jbeam2).astype(int)
+            ibeam2 = numpy.rint(ibeam2).astype(int)
+            jbeam2[jbeam2<0] = 0
+            jbeam2[jbeam2>nx-1] = nx-1
+            ibeam2[ibeam2<0] = 0
+            ibeam2[ibeam2>nx-1] = nx-1
 
             # following bit can be uncommented if you want to check
             # that the beam rotation code is working. It generates
@@ -130,7 +149,7 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
             #res1 = numpy.abs(amplitude_beam_1[:,:,0])
             #res1[centre-1:centre+1,:] = 0.0
             #res1[centre-1:centre+1,centre-1:centre+1] = 2.0
-            #res = res1[jbeam, ibeam]
+            #res = res1[jbeam1, ibeam1]
             #imshape = res.shape
 
             #plt = matplotlib.pyplot
@@ -174,12 +193,12 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
             # ..where A1, A2 are the collector areas and for now 
             # ..sky_cube1 = sky_cube2 = sky_cube and A1 = A2 = ??. 
             f1 = sky_cube * m1_area * td0L * td0R * delta_wn * \
-              numpy.conj(amplitude_beam_1[jbeam, ibeam]) * \
-              amplitude_beam_2[jbeam, ibeam]
+              numpy.conj(amplitude_beam_1[jbeam1, ibeam1]) * \
+              amplitude_beam_2[jbeam2, ibeam2]
             sky_sum_1 = numpy.sum(
-              sky_cube * numpy.abs(amplitude_beam_1[jbeam,ibeam]), axis=(0,1))
+              sky_cube * numpy.abs(amplitude_beam_1[jbeam1,ibeam1]), axis=(0,1))
             sky_sum_2 = numpy.sum(
-              sky_cube * numpy.abs(amplitude_beam_2[jbeam,ibeam]), axis=(0,1))
+              sky_cube * numpy.abs(amplitude_beam_2[jbeam2,ibeam2]), axis=(0,1))
 
             # ..calculate the FT of the sky planes
             # ....move centre of sky image to origin
@@ -414,7 +433,7 @@ class Observe(object):
         # assemble a list of wn_chunk, beam bin, pointing bin
         calculation_list = []
         for beam_angle,beam_bin in beam_bins.items():
-            for pointing_offset,pointing_bin in pointing_bins.items():
+            for pointing_offset_1,pointing_bin in pointing_bins.items():
                 times = set(beam_bin)
                 times = times.intersection(pointing_bin)
                 times = list(times)
@@ -427,7 +446,7 @@ class Observe(object):
                         for chunk in chunks:
                             band_chunks.append((time_chunk,
                               beam_angle + 0.5 * exact_beam_angle_res,
-                              pointing_offset,
+                              pointing_offset_1,
                               chunk))
                         calculation_list.append(band_chunks)
 
@@ -509,7 +528,7 @@ class Observe(object):
             for calculation in band_chunks:
                 times = calculation[0]
                 beam_angle = calculation[1]
-                pointing_offset = calculation[2]
+                pointing_offset_1 = calculation[2]
                 wn_chunk = calculation[3]
 
                 obs_timeline_chunk = {}
@@ -532,16 +551,17 @@ class Observe(object):
                   amp_beam_1_chunk[:,:,wn_chunk],
                   amp_beam_2_chunk[:,:,wn_chunk],
                   beam_angle, 
-                  pointing_offset,
+                  pointing_offset_1,
+                  (0, 0),
                   obs_timeline_chunk,
                   True)
 
-                job_id = (times[0], times[-1], beam_angle, pointing_offset, wn_chunk.start,
+                job_id = (times[0], times[-1], beam_angle, pointing_offset_1, wn_chunk.start,
                   wn_chunk.stop)
                 job = self.job_server.submit(calculate_visibility,
                   indata, (),
                   ('numpy','collections','matplotlib.pyplot','time','scipy.interpolate',))
-                print '....starting calculation chunk', job_id, len(times)
+                #print '....starting calculation chunk', job_id, len(times)
                 jobs.append((job_id, job))
 
                 if len(jobs) >= ncpus:
