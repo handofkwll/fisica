@@ -223,22 +223,6 @@ class LoadParameters:
 
                 self.result['substages'][sheet.name] = sheet_dict
 
-            elif sheet.name == 'SimulatorControl':
-                sheet_dict = collections.OrderedDict()
-
-                # Sheet has names in col 0, values in col 1.
-                # Ignore row 0.
-                name_col = 0
-                entry_col = 1
-
-                for row in range(1,sheet.nrows):
-                    sheet_dict[sheet.cell(row,name_col).value] = \
-                      collections.OrderedDict()
-                    sheet_dict[sheet.cell(row,name_col).value][entry_col] = \
-                      sheet.cell(row,entry_col).value
-
-                self.result['substages'][sheet.name] = sheet_dict
-
             else:
                 print 'loadparameters skipping', sheet.name
 
