@@ -292,8 +292,6 @@ class Observe(object):
         # access model sky
         skygenerator = self.previous_results['skymodel']
         sky_model = skygenerator['sky model']
-#        sky_model = np.abs(sky_model)
-#        print 'taking abs of sky model'
         spatial_axis = self.result['spatial axis [arcsec]'] = \
           skygenerator['spatial axis [arcsec]']
         nx = len(spatial_axis)
