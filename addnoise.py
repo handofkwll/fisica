@@ -3,9 +3,6 @@ from __future__ import absolute_import
 import collections
 import numpy as np
 
-import noise
-import detectornoise
-
 def addDetectorTimeConstant(obs_timeline, time_constant):
     """This function convolves the data stream with exp(-t/tau) (t>0)
     where tau is the detector time constant.
@@ -22,12 +19,10 @@ def addDetectorTimeConstant(obs_timeline, time_constant):
 
         # construct data timeline and detector response
         data = []
-        detector = []
         for t in obs_times:
             data.append(obs_timeline[t].data)
-            detector.append(np.exp(-t/time_constant))
         data = np.array(data)
-        detector = np.array(detector)
+        detector = np.exp(-(obs_times - obs_times[0]) / time_constant)
 
         # uncomment the following to put spike into time series and test detector
         # constant
@@ -77,6 +72,46 @@ def addGlitches(obs_timeline, timesOfGlitches, widthsOfGlitches,
             config = obs_timeline[t]
             config = config._replace(data = data, cr_data=glitchdata)
             obs_timeline[t] = config
+
+def addNoise(obs_timeline, NEPtot, NEPsky, NEPdet, efficiency,
+  f_acq, knee_freq):
+    """This function generates random noise corresponding to the 
+    total NEP, folds in the effect of 1/f noise and adds the
+    result to the detector timeline.
+    """
+    obs_times = obs_timeline.keys()
+    obs_times.sort()
+    obs_times = np.array(obs_times)
+
+    # construct data timeline
+    data = []
+    for t in obs_times:
+        data.append(obs_timeline[t].data)
+    data = np.array(data)
+
+    # get overall NEP
+    NEPall = np.sqrt(NEPtot**2 + NEPsky**2 + NEPdet**2) / efficiency
+    sigma = NEPall * np.sqrt(f_acq)
+    noise = sigma * np.random.standard_normal(data.shape)
+
+    # 1/f noise
+    # ..next line works if obs_times is a regular arithemtic progression
+    #   (which it should be, can uncomment next 2 lines to check)
+    #print np.min(obs_times[1:] - obs_times[:-1])
+    #print np.max(obs_times[1:] - obs_times[:-1])
+    freq_vec = np.fft.fftfreq(len(obs_times), obs_times[1] - obs_times[0])
+    # ..work around fact that freq_vec[0] = 0 
+    freq_vec[0] = freq_vec[1]
+    f_noise = (1 + (knee_freq / np.abs(freq_vec)))**0.5
+     
+    noise = np.fft.ifft(np.fft.fft(noise) * f_noise)
+    noise = noise.real
+
+    # set the modified values
+    for it,t in enumerate(obs_times):
+        config = obs_timeline[t]
+        config = config._replace(data = data[it] + noise[it])
+        obs_timeline[t] = config
 
 def generatePeaks():
     """This function generates random numbers based on the Moyal distribution. 
@@ -145,6 +180,38 @@ def generateRandomGlitches(obs_timeline, cr_rate):
     return numberOfGlitches, timesOfGlitches, widthsOfGlitches, peaksOfGlitches,\
       moyal, x
 
+def nepSky(obs_timeline, cr_rate):
+    """Given the length of the observed timeline, this function 
+    returns the following information:
+    - numberOfGlitches: number of cosmic ray (CR) hits in the detector
+                        timeline. On average there are 2.5 CR hits 
+                        in 66.6s.
+    - timesOfGlitches : sample times when CR hits occur 
+    - widthsOfGlitches: widths of CR glitches 
+    - peaksOfGlitches: peaks of CR glitches                 
+    """
+    obs_times = obs_timeline.keys()
+    obs_times.sort()
+    timespan = obs_times[-1] - obs_times[0]
+
+    numberOfGlitches = np.ceil(timespan * cr_rate)
+    timesOfGlitches = np.random.uniform(0, timespan, numberOfGlitches)
+    myRandomPeaks, moyal, x = generatePeaks()
+    peaksOfGlitches = myRandomPeaks[:numberOfGlitches]
+
+    # All Spire FTS glitches had similar widths: 0.00097
+    widthsOfGlitches = np.ones(numberOfGlitches) * 0.00097
+    
+    #print 'timespan =', timespan
+    #print 'cr rate =', cr_rate
+    #print 'numberOfGlitches =', numberOfGlitches 
+    #print 'timesOfGlitches =', timesOfGlitches
+    #print 'widthsOfGlitches =', widthsOfGlitches
+    #print 'peaksOfGlitches  =', peaksOfGlitches
+
+    return numberOfGlitches, timesOfGlitches, widthsOfGlitches, peaksOfGlitches,\
+      moyal, x
+
 
 class AddNoise(object):
     """Class to add simulated noise, cosmic rays and detector
@@ -166,11 +233,6 @@ class AddNoise(object):
         #print 'AddNoise.run'
 
         # get relevant parameters read from Excel file
-        simulator_control = self.previous_results['loadparameters']['substages']\
-          ['SimulatorControl']
-        row = simulator_control['CosmicRays'].keys()[0]
-        cosmic_ray_rate = simulator_control['CosmicRays'][row]
-
         detectors = self.previous_results['loadparameters']['substages']\
           ['Detectors']
         row = detectors['Detector time constant'].keys()[0]
@@ -178,17 +240,43 @@ class AddNoise(object):
         # convert to seconds
         detector_time_constant *= 1.0e-6
 
+        row = detectors['knee freq'].keys()[0]
+        knee_freq = detectors['knee freq'][row]
+
+        row = detectors['Acquisiton frequency (n tau)'].keys()[0]
+        f_acq = detectors['Acquisiton frequency (n tau)'][row]
+
+        row = detectors['CosmicRays'].keys()[0]
+        cosmic_ray_rate = detectors['CosmicRays'][row]
+
+        backgroundnoise = self.previous_results['backgroundnoise']
+        NEPtot = backgroundnoise['NEPtot']
+        NEPtot = backgroundnoise['NEPtot']
+
+        detectornoise = self.previous_results['detectornoise']
+        NEPdet = detectornoise['NEP']
+        eta = detectornoise['eta']
+
         # get the observation timeline constructed earlier
         timeline = self.previous_results['timeline']
         obs_timeline = timeline['obs_timeline']
 
-        # object to use for generating cosmic ray strikes
+        # construct object to use for generating cosmic ray strikes
         nglitches, glitchtimes, glitchwidths, glitchpeaks, moyal,\
           moyalx = generateRandomGlitches(obs_timeline, cosmic_ray_rate)
 
+        # add background and detector noise to data
+        print 'dummy NEPsky'
+        NEPsky = 0.0
+        print NEPtot, NEPsky, NEPdet, eta, f_acq, knee_freq
+        addNoise(obs_timeline, NEPtot, NEPsky, NEPdet, eta,
+          f_acq, knee_freq)
+
+        # add the cosmic ray strikes
         addGlitches(obs_timeline, glitchtimes, glitchwidths,
           glitchpeaks)
 
+        # apply the detector time constant
         addDetectorTimeConstant(obs_timeline, detector_time_constant)   
 
         self.result['cosmic ray rate'] = cosmic_ray_rate
