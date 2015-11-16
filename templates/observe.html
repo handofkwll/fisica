@@ -37,6 +37,7 @@ scans_pointing1_y = {}
 scans_pointing2_x = {}
 scans_pointing2_y = {}
 scans_data = {}
+scans_pure_data = {}
 
 for scan_number in scan_numbers:
     obs_time = []
@@ -49,6 +50,7 @@ for scan_number in scan_numbers:
     pointing2_x = []
     pointing2_y = []
     data = []    
+    pure_data = []
     
     for config in scan_configs[scan_number]:
         obs_time.append(config.time)
@@ -61,6 +63,7 @@ for scan_number in scan_numbers:
         pointing2_x.append(config.pointing2_x)
         pointing2_y.append(config.pointing2_y)
         data.append(config.data)
+        pure_data.append(config.pure_data)
 
     # Construct objects to be plotted
     axis = co.Axis(data=np.array(obs_time),
@@ -98,6 +101,11 @@ for scan_number in scan_numbers:
       axis=axis, title='data', units='')
     scans_data[scan_number] = scan
 
+    scan = co.Spectrum(data=np.array(pure_data), 
+      flag=np.array(flag), 
+      axis=axis, title='noiseless data', units='')
+    scans_pure_data[scan_number] = scan
+
 scan_link = collections.OrderedDict()
 
 # plot the data objects for each scan
@@ -121,6 +129,7 @@ for scan_number in scan_numbers:
         context_copy['pointing2_x'] = scans_pointing2_x[scan_number]
         context_copy['pointing2_y'] = scans_pointing2_y[scan_number]
         context_copy['interferogram'] = scans_data[scan_number]
+        context_copy['pure_interferogram'] = scans_pure_data[scan_number]
         f.write(template.render(**context_copy))
 %>
 
