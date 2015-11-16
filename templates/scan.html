@@ -46,6 +46,7 @@ pointing1_y = context['pointing1_y']
 pointing2_x = context['pointing2_x']
 pointing2_y = context['pointing2_y']
 data = context.get('interferogram')
+pure_data = context.get('pure_interferogram')
 
 plt.figtext(0.0, 0.0, 'scan %s' % scan)
 
@@ -91,7 +92,9 @@ for item in (
   ax.xaxis.label,
   ax.yaxis.label] +
   ax.get_xticklabels() +
-  ax.get_yticklabels()):
+  ax.get_yticklabels() +
+  [ax.get_xaxis().get_offset_text(),
+  ax.get_yaxis().get_offset_text()]):
     item.set_fontsize(8)
 
 # plot the smec vel error versus time
@@ -135,7 +138,9 @@ for item in (
   ax.xaxis.label,
   ax.yaxis.label] +
   ax.get_xticklabels() +
-  ax.get_yticklabels()):
+  ax.get_yticklabels() +
+  [ax.get_xaxis().get_offset_text(),
+  ax.get_yaxis().get_offset_text()]):
     item.set_fontsize(8)
 
 # plot collector pointing errors versus time
@@ -161,7 +166,9 @@ for item in (
   ax.xaxis.label,
   ax.yaxis.label] +
   ax.get_xticklabels() +
-  ax.get_yticklabels()):
+  ax.get_yticklabels() +
+  [ax.get_xaxis().get_offset_text(),
+  ax.get_yaxis().get_offset_text()]):
     item.set_fontsize(8)
 
 # plot collector pointing errors on 2d display
@@ -181,38 +188,94 @@ for item in (
   ax.xaxis.label,
   ax.yaxis.label] +
   ax.get_xticklabels() +
-  ax.get_yticklabels()):
+  ax.get_yticklabels() +
+  [ax.get_xaxis().get_offset_text(),
+  ax.get_yaxis().get_offset_text()]):
     item.set_fontsize(8)
 
 # plot histograms of pointing errors, same bins for all
 # axes.
-minx1 = np.min(pointing1_x.data)
-miny1 = np.min(pointing1_y.data)
-minx2 = np.min(pointing2_x.data)
-miny2 = np.min(pointing2_y.data)
-mind = min(minx1, miny1, minx2, miny2)
-maxx1 = np.max(pointing1_x.data)
-maxy1 = np.max(pointing1_y.data)
-maxx2 = np.max(pointing2_x.data)
-maxy2 = np.max(pointing2_y.data)
-maxd = max(maxx1, maxy1, maxx2, maxy2)
+#minx1 = np.min(pointing1_x.data)
+#miny1 = np.min(pointing1_y.data)
+#minx2 = np.min(pointing2_x.data)
+#miny2 = np.min(pointing2_y.data)
+#mind = min(minx1, miny1, minx2, miny2)
+#maxx1 = np.max(pointing1_x.data)
+#maxy1 = np.max(pointing1_y.data)
+#maxx2 = np.max(pointing2_x.data)
+#maxy2 = np.max(pointing2_y.data)
+#maxd = max(maxx1, maxy1, maxx2, maxy2)
 
-ax = plt.subplot(325)
-plt.hist(pointing1_x.data, range=(mind, maxd), alpha=0.5)
-plt.hist(pointing1_y.data, range=(mind, maxd), alpha=0.5)
-plt.hist(pointing2_x.data, range=(mind, maxd), alpha=0.5)
-plt.hist(pointing2_y.data, range=(mind, maxd), alpha=0.5)
-plt.title('Collector Pointing - histograms')
+#ax = plt.subplot(325)
+#plt.hist(pointing1_x.data, range=(mind, maxd), alpha=0.5)
+#plt.hist(pointing1_y.data, range=(mind, maxd), alpha=0.5)
+#plt.hist(pointing2_x.data, range=(mind, maxd), alpha=0.5)
+#plt.hist(pointing2_y.data, range=(mind, maxd), alpha=0.5)
+#plt.title('Collector Pointing - histograms')
 
-for item in (
-  [ax.title,
-  ax.xaxis.label,
-  ax.yaxis.label] +
-  ax.get_xticklabels() +
-  ax.get_yticklabels()):
-    item.set_fontsize(8)
+#for item in (
+#  [ax.title,
+#  ax.xaxis.label,
+#  ax.yaxis.label] +
+#  ax.get_xticklabels() +
+#  ax.get_yticklabels()):
+#    item.set_fontsize(8)
 
 # plot the interferogram (data versus time) if present
+if pure_data is not None:
+    try:
+        xaxis_data = pure_data.axis.data
+    except:
+        xaxis_data = np.arange(len(pure_data.data))
+    xaxis_sort = np.argsort(xaxis_data)
+
+    try:
+        xaxis_title = pure_data.axis.title
+    except:
+        xaxis_title = None
+    try:
+        xaxis_units = pure_data.axis.units
+    except:
+        xaxis_units = None
+
+    try:
+        title = pure_data.title
+    except:
+        title = None
+    try:
+        units = pure_data.units
+    except:
+        units = None
+
+    ax = plt.subplot(325)
+
+    flagsections = find_flagged_sections(pure_data.flag[xaxis_sort])
+
+    mark = 0
+    for flagsection in flagsections:
+        plt.plot(xaxis_data[xaxis_sort][mark:flagsection[0]],
+          pure_data.data[xaxis_sort][mark:flagsection[0]], 'g-')
+        plt.plot(xaxis_data[xaxis_sort][flagsection[0]:flagsection[1]],
+          pure_data.data[xaxis_sort][flagsection[0]:flagsection[1]], 'r-')
+        mark = flagsection[1]
+    plt.plot(xaxis_data[xaxis_sort][mark:], pure_data.data[xaxis_sort][mark:], 'g-')
+
+    plt.title('pure signal')
+    xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
+    plt.xlabel(xlabel)
+    plt.ylabel('power [W]')
+
+    for item in (
+      [ax.title,
+      ax.xaxis.label,
+      ax.yaxis.label] +
+      ax.get_xticklabels() +
+      ax.get_yticklabels() +
+      [ax.get_xaxis().get_offset_text(),
+      ax.get_yaxis().get_offset_text()]):
+        item.set_fontsize(8)
+
+# plot the real interferogram (data versus time) if present
 if data is not None:
     try:
         xaxis_data = data.axis.data
@@ -251,7 +314,7 @@ if data is not None:
         mark = flagsection[1]
     plt.plot(xaxis_data[xaxis_sort][mark:], data.data[xaxis_sort][mark:], 'g-')
 
-    plt.title('signal')
+    plt.title('noisy signal')
     xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
     plt.xlabel(xlabel)
     plt.ylabel('power [W]')
@@ -261,7 +324,9 @@ if data is not None:
       ax.xaxis.label,
       ax.yaxis.label] +
       ax.get_xticklabels() +
-      ax.get_yticklabels()):
+      ax.get_yticklabels() +
+      [ax.get_xaxis().get_offset_text(),
+      ax.get_yaxis().get_offset_text()]):
         item.set_fontsize(8)
 
 # adjust subplot spacing to remove overlaps
