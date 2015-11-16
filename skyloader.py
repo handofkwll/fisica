@@ -92,7 +92,9 @@ class SkyLoader(object):
 
         
         # copying Matlab version, remove -ve numbers (noise) as unphysical
-        skymodel[skymodel<0.0] = 0.0
+        # ..now commented out as +ve noise leads to big I1 + I2 signal 
+        # ..which is unrealistic
+#        skymodel[skymodel<0.0] = 0.0
 
         # convert from Jy/pixel to W/m2/cm-1/pixel
         if 'JY/PIXEL' in bunit.upper():
