@@ -285,9 +285,9 @@ class Observe(object):
         smec_opd_to_mpd = fts['smec_opd_to_mpd']
 
         # access interferometer information
-        noise = self.previous_results['noise']
-        td0L = noise['td0L']
-        td0R = noise['td0R']
+        backgroundnoise = self.previous_results['backgroundnoise']
+        td0L = backgroundnoise['td0L']
+        td0R = backgroundnoise['td0R']
 
         # access model sky
         skygenerator = self.previous_results['skymodel']
