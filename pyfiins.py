@@ -6,10 +6,10 @@ import datetime
 import pp
 
 import addnoise
+import backgroundnoise
 import detectornoise
 import fts
 import loadparameters
-import noise
 import observe_interpolate as observe
 import pbmodelgenerator
 import renderer
@@ -91,17 +91,11 @@ class PyFIInS(object):
         self.result['uvmapgenerator'] = uvmapgen.run()
         print uvmapgen
 
-        # calculate noise
-        rumble = noise.Noise(parameters=obs_specification,
-          previous_results=self.result)
-        self.result['noise'] = rumble.run()
-        print rumble
-
-        # calculate detector noise
-        dn = detectornoise.DetectorNoise(parameters=obs_specification,
-          previous_results=self.result)
-        self.result['detectornoise'] = dn.run()
-        print dn
+        # calculate background noise
+        background = backgroundnoise.BackgroundNoise(
+          parameters=obs_specification, previous_results=self.result)
+        self.result['backgroundnoise'] = background.run()
+        print background
 
         # construct sky
         if self.sky_spreadsheet is not None:
@@ -130,6 +124,12 @@ class PyFIInS(object):
           previous_results=self.result)
         self.result['timeline'] = timeline.run()
         print timeline
+
+        # calculate detector noise
+        dn = detectornoise.DetectorNoise(parameters=obs_specification,
+          previous_results=self.result)
+        self.result['detectornoise'] = dn.run()
+        print dn
    
         # calculate interferograms
         obs = observe.Observe(
@@ -140,11 +140,11 @@ class PyFIInS(object):
         print obs
 
         # add noise, cosmic rays, detector time constant
-#        with_errors = addnoise.AddNoise(
-#          parameters=obs_specification,
-#          previous_results=self.result)
-#        self.result['addnoise'] = with_errors.run()
-#        print with_errors
+        with_errors = addnoise.AddNoise(
+          parameters=obs_specification,
+          previous_results=self.result)
+        self.result['addnoise'] = with_errors.run()
+        print with_errors
 
         # write out the interferograms as FITS files
         fits = writefits.WriteFITS(previous_results=self.result)
