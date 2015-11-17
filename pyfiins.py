@@ -25,8 +25,8 @@ import xlrd
 class PyFIInS(object):
     """FISICA simulator.
     """
-    def __init__(self, sky_file='SkySparams.xlsx', sky_sheet='1point',
-      instrument_spreadsheet='FIInS_Instrument_cor3.xlsx',
+    def __init__(self, sky_file='ringcube.fits', sky_sheet='1point',
+      instrument_spreadsheet='FIInS_Instrument.xlsx',
       beam_model_dir='.'):
         # is this an Excel spreadsheet with source parameters to simulate?
         # or is it a FITS file containing a cube simulated beforehand?
