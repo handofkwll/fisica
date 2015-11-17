@@ -53,19 +53,22 @@ class ReduceInterferogram(object):
     the uv cube at that point.
     """
 
-    def __init__(self, previous_results, job_server):
+    def __init__(self, previous_results, data_quality, job_server):
         """Constructor.
 
         Parameters:
         previous_results - Current results structure of the simulation run.
+        data_quality     - Type of interferogram to reduce: 'pure' or 'noisy'
         job_server       - ParallelPython job server.
         """
 
         self.previous_results = previous_results
+        self.data_quality = data_quality
         self.job_server = job_server
 
         self.reduceint = []
-        self.result = collections.OrderedDict()      
+        self.result = collections.OrderedDict()
+        self.result['data_quality'] = data_quality
 
     def run(self):
 #        print 'ReduceInterferogram.run'
@@ -127,7 +130,10 @@ class ReduceInterferogram(object):
                       baseline_y,
                       baseline_z)
 
-                data = [config.data]
+                if self.data_quality == 'pure':
+                    data = [config.pure_data]
+                else:
+                    data = [config.data]
                 smec_position = [config.smec_nominal_position]
                 flag = [config.flag]
                 baseline_x = [config.baseline_x]
@@ -136,7 +142,10 @@ class ReduceInterferogram(object):
                 current_scan = scan
                 scanset.update([scan])
             else:
-                data.append(config.data)
+                if self.data_quality == 'pure':
+                    data.append(config.pure_data)
+                else:
+                    data.append(config.data)
                 smec_position.append(config.smec_nominal_position)
                 flag.append(config.flag)
                 baseline_x.append(config.baseline_x)
@@ -228,7 +237,10 @@ class ReduceInterferogram(object):
                 
     def __repr__(self):
         return '''
-ReduceInterferogram : {num_uvspectra}
+ReduceInterferogram: 
+  Number of spectra : {num_uvspectra}
+  Data quality      : {data_quality}
 '''.format(
-          num_uvspectra=len(self.result['scan_uvspectra']))
+          num_uvspectra=len(self.result['scan_uvspectra']),
+          data_quality=self.result['data_quality'])
 
