@@ -158,7 +158,6 @@ def _readpbfile(filedir, pbfile):
     ez_cube = co.Cube(data=ez, axes=[axis1, axis2], title='$E_z$')
   
     f.close()
-#    assert ravel_index == nx * ny
 
     return xmin, ymin, xmax, ymax, ex_cube, ey_cube, ez_cube
 
@@ -260,7 +259,7 @@ def calculate_primary_beam_from_pbmodel(npix, pixsize, m1_diameter, wn,
     # uv radius in metres
     radius = 0.5 * m1_diameter
 
-    nx,ny = numpy.shape(pbmodel)
+    ny,nx = numpy.shape(pbmodel)
     assert nx%2 == 1
     ix0 = (nx-1) / 2
     iy0 = (ny-1) / 2
@@ -290,7 +289,7 @@ def calculate_primary_beam_from_pbmodel(npix, pixsize, m1_diameter, wn,
 
             contribution = grid[1] * numpy.cos(theta) + grid[0] * numpy.sin(theta)
             contribution = numpy.exp(1j * contribution * numpy.pi * length)
-            contribution *= pbmodel[ix,iy]
+            contribution *= pbmodel[iy,ix]
 
             primary_amplitude_beam += contribution
 
@@ -333,9 +332,9 @@ class PrimaryBeamsGenerator(object):
         axis = np.arange(-rpix, rpix, dtype=np.float)
         axis *= pixsize
         axis = np.rad2deg(axis) * 3600.0
-        axis1 = co.Axis(data=-axis, title='RA offset', units='arcsec') 
+        axis1 = co.Axis(data=wn, title='Frequency', units='cm-1')
         axis2 = co.Axis(data=axis, title='Dec offset', units='arcsec') 
-        axis3 = co.Axis(data=wn, title='Frequency', units='cm-1')
+        axis3 = co.Axis(data=-axis, title='RA offset', units='arcsec') 
 
         # containers for results
         intensity_beams = collections.OrderedDict()
@@ -407,18 +406,18 @@ class PrimaryBeamsGenerator(object):
                   indata, (), ('numpy', 'math', 'zernike',))
 
             # collect results
-            intensity_beam = np.zeros([npix,npix,len(wn)], np.float)
-            amplitude_beam = np.zeros([npix,npix,len(wn)], np.complex)
+            intensity_beam = np.zeros([len(wn),npix,npix], np.float)
+            amplitude_beam = np.zeros([len(wn),npix,npix], np.complex)
 #            print 'beams set to 1'
-#            intensity_beam = np.ones([npix,npix,len(wn)], np.float)
-#            amplitude_beam = np.ones([npix,npix,len(wn)], np.complex)
+#            intensity_beam = np.ones([len(wn),npix,npix], np.float)
+#            amplitude_beam = np.ones([len(wn),npix,npix], np.complex)
             for iwn,wavenum in enumerate(wn):
                 if jobs[wavenum]() is None:
                     raise Exception, \
                       'calculate_primary_beam_from_pbmodel has failed'
 
-                amplitude_beam[:,:,iwn] = temp = jobs[wavenum]()
-                intensity_beam[:,:,iwn] = (temp * np.conjugate(temp)).real
+                amplitude_beam[iwn,:,:] = temp = jobs[wavenum]()
+                intensity_beam[iwn,:,:] = (temp * np.conjugate(temp)).real
 
             intensity_beams[baseline] = co.Cube(data=intensity_beam,
               axes=[axis1, axis2, axis3], title='Intensity Beam')
