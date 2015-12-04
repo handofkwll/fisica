@@ -185,31 +185,35 @@ class WriteFITSCube(object):
         prihdr = pyfits.Header()
         prihdr['COMMENT'] = 'This FITS file was created by WriteFITSCube'
 
-        # swap axes to get data into Fortan order as expected by FITS
+        # data cube comes in with indices [wn, dec, ra]. FITS file expects
+        # data in Fortran order [ra, dec, wn].
+        # Do some axis swapping to achieve this.
         data = self.cube.data
-        data = np.swapaxes(data, 0, 2)
+        print data.shape
+        print self.cube.axes[0].data.shape
+        print self.cube.axes[1].data.shape
+        print self.cube.axes[2].data.shape
+#        data = np.swapaxes(data, 0, 2)
+#        data = np.swapaxes(data, 1, 2)
+        print data.shape
+
+        axis3 = self.cube.axes[0].data
+        axis2 = self.cube.axes[1].data
+        axis1 = self.cube.axes[2].data
 
         # calculate some header values
-        axis1 = self.cube.axes[0].data
-        axis2 = self.cube.axes[1].data
-        axis3 = self.cube.axes[2].data
-
         cdelt1 = (axis1[1] - axis1[0]) / 3600.0
         cdelt2 = (axis2[1] - axis2[0]) / 3600.0
         # assuming freq axis is in cm-1
         cdelt3 = (axis3[1] - axis3[0]) * 3.0e10
 
-        crpix1 = 1
-        crpix2 = 1
-        crpix3 = 1
+        crpix1 = float(1)
+        crpix2 = float(1)
+        crpix3 = float(1)
 
         crval1 = axis1[crpix1-1] / 3600.0
         crval2 = axis2[crpix2-1] / 3600.0
         crval3 = axis3[crpix3-1] * 3.0e10
-
-        cunit1 = 'DEG'
-        cunit2 = 'DEG'
-        cunit3 = 'HZ'
 
         prihdr['CDELT1'] = cdelt1
         prihdr['CDELT2'] = cdelt2
@@ -223,11 +227,23 @@ class WriteFITSCube(object):
         prihdr['CRPIX2'] = crpix2
         prihdr['CRPIX3'] = crpix3
 
-        prihdr['CUNIT1'] = cunit1
-        prihdr['CUNIT2'] = cunit2
-        prihdr['CUNIT3'] = cunit3
+        prihdr['CUNIT1'] = 'DEG     '
+        prihdr['CUNIT2'] = 'DEG     '
+        prihdr['CUNIT3'] = 'HZ      '
 
+        prihdr['CTYPE1'] = 'RA---SIN'
+        prihdr['CTYPE2'] = 'DEC--SIN'
+        prihdr['CTYPE3'] = 'FREQ    '
+   
+        prihdr['BTYPE'] = 'Intensity'
         prihdr['BUNIT'] = 'JY/PIXEL'
+
+        # some fake coordinate info
+        prihdr['EQUINOX'] = float(2000)
+        prihdr['RADESYS'] = 'FK5     '
+        prihdr['SPECSYS'] = 'LSRK    '
+        # VELREF==1 implies LSR velocity frame in CASA
+        prihdr['VELREF'] = 1
 
         prihdu = pyfits.PrimaryHDU(header=prihdr, data=data)
         hdulist = pyfits.HDUList([prihdu])
