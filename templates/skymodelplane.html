@@ -28,7 +28,7 @@ iwn = context['iwn']
 stagename = context['stagename']
 resultname = context['resultname']
 
-sky_image = context['data'][stagename][resultname][:,:,iwn]
+sky_image = context['data'][stagename][resultname][iwn,:,:]
 spatial_axis0 = context['data'][stagename]['spatial axis [arcsec]']
 spatial_axis1 = context['data'][stagename]['spatial axis [arcsec]']
 wn = context['wn'] 

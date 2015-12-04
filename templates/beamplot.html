@@ -40,15 +40,15 @@ subcomponent = context['subcomponent']
 wn = context['wn']
 
 beam_cube = context['data'][stage][component][subcomponent]
-beam_wn = beam_cube.axes[2].data
-beam_image = np.squeeze(beam_cube.data[:,:,beam_wn==wn])
+beam_wn = beam_cube.axes[0].data
+beam_image = np.squeeze(beam_cube.data[beam_wn==wn,:,:])
 
 # amplitude
 ax = fig.add_subplot(1, 2, 1)
 plt.imshow(np.abs(beam_image), interpolation='nearest',
   origin='lower',
-  aspect='equal', extent=[beam_cube.axes[0].data[0],
-  beam_cube.axes[0].data[-1], beam_cube.axes[1].data[0],
+  aspect='equal', extent=[beam_cube.axes[2].data[0],
+  beam_cube.axes[2].data[-1], beam_cube.axes[1].data[0],
   beam_cube.axes[1].data[-1]])
 plt.axis('image')
 

@@ -30,7 +30,7 @@ beamsgenerator = context['data']['primarybeams']
 <%
 # construct html pages with primary beam plots for collector 1.
 baselines_1 = beamsgenerator['collector 1 intensity beam'].keys()
-wavenumbers_1 = beamsgenerator['collector 1 intensity beam'][baselines_1[0]].axes[2].data
+wavenumbers_1 = beamsgenerator['collector 1 intensity beam'][baselines_1[0]].axes[0].data
 
 for baseline in baselines_1:
     for wn in wavenumbers_1:
@@ -68,7 +68,7 @@ for baseline, lamb in plot_grid_1:
 
 # construct html pages with primary beam plots for collector 2.
 baselines_2 = beamsgenerator['collector 2 intensity beam'].keys()
-wavenumbers_2 = beamsgenerator['collector 2 intensity beam'][baselines_2[0]].axes[2].data
+wavenumbers_2 = beamsgenerator['collector 2 intensity beam'][baselines_2[0]].axes[0].data
 
 for baseline in baselines_2:
     for wn in wavenumbers_2:
