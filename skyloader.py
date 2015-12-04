@@ -31,7 +31,6 @@ class SkyLoader(object):
 
         # looks to be an inversion in index order between FITS and Python
         datashape = np.shape(skydata)
-        print datashape
         nx = datashape[2]
         ny = datashape[1]
         if nx != ny:
