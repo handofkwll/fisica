@@ -15,25 +15,31 @@ class MakeCube(object):
     """Class to make a cube from a 2-d image crossed with a spectrum. 
     """
 
-    def __init__(self, image, spectrum):
+    def __init__(self, image, spectrum, cubename='cube.fits'):
         self.image = image
         self.spectrum = spectrum
+        self.cubename = cubename
 
     def run(self):
         print 'MakeCube.run'
 
         # the cube shape is just the image replicated through the spectral
-        # dimension
-        cubeshape = self.image.data.shape + self.spectrum.data.shape
+        # dimension - [wn, dec, ra]
+        cubeshape = self.spectrum.data.shape + self.image.data.shape
         cube = np.zeros(cubeshape, np.float)
+
+        # normalise the image plane so that integrated flux from the 
+        # cube is the spectrum. If the spectrum is in W/m2/Hz then cube
+        # units will be W/m2/Hz/voxel.
+        self.image.data /= np.sum(self.image.data)
       
         # populate each plane of the cube in turn
         for iwn,wn in enumerate(self.spectrum.axis.data):
-            cube[:,:,iwn] = self.image.data * self.spectrum.data[iwn]
+            cube[iwn,:,:] = self.image.data * self.spectrum.data[iwn]
 
         # write the cube to FITS
-        cube = co.Image(data=cube, axes=self.image.axes + [self.spectrum.axis])
-        cubewriter = writefits.WriteFITSCube(cube, 'cube.fits')
+        cube = co.Image(data=cube, axes=[self.spectrum.axis] + self.image.axes)
+        cubewriter = writefits.WriteFITSCube(cube, self.cubename)
         cubewriter.run() 
         
 
@@ -241,7 +247,7 @@ class MakeModelImage(object):
     """
 
     def __init__(self, name, radius, tilt, xcentre, ycentre, max_baseline,
-     wn_max, wn_min,  m1_diameter=2.0, verbose=False):
+     wn_min, wn_max,  m1_diameter=2.0, verbose=False, plotname=None):
         self.name = name
         self.radius = radius
         self.tilt = tilt
@@ -252,6 +258,7 @@ class MakeModelImage(object):
         self.wn_min = wn_min
         self.m1_diameter = m1_diameter
         self.verbose = verbose
+        self.plotname = plotname
 
     def run(self):
         print 'MakeModelImage.run'
@@ -291,28 +298,48 @@ class MakeModelImage(object):
         xlist += self.xcentre
         ylist += self.ycentre
          
+        indices = np.arange(len(target_axis))
         for i,x in enumerate(xlist):
-            target_data[np.abs(target_axis - x) < tdelt/2,
-                   np.abs(target_axis - ylist[i]) < tdelt/2] += 1.0
+            y = ylist[i]
 
-        # plot the image
-        plt.figure()
+            ypix = np.argmin(np.abs(target_axis - y))
+            xpix = np.argmin(np.abs(target_axis - x))
 
-        plt.imshow(target_data, interpolation='nearest', origin='lower',
-          aspect='equal', extent=[target_axis[0], target_axis[-1],
-          target_axis[0], target_axis[-1]],
-          vmax=np.max(target_data), vmin=np.min(target_data))
-        plt.colorbar(orientation='vertical')
-        plt.axis('image')
-        plt.title(self.name)
+            ylo = int(np.floor(ypix - 4))
+            yhi = int(np.ceil(ypix + 4))
+            xlo = int(np.floor(xpix - 4))
+            xhi = int(np.ceil(xpix + 4))
 
-        filename = 'makeimage.png'
-        plt.savefig(filename)
-        plt.close()
+            for ypix in range(ylo, yhi):
+                for xpix in range(xlo, xhi):
+                    if ypix < 0 or ypix > len(target_axis)-1 or \
+                      xpix < 0 or xpix > len(target_axis)-1:
+                        continue
+                    r2 = (target_axis[ypix] - y)**2 + (target_axis[xpix] - x)**2
+                    r2 /= (target_axis[1] - target_axis[0])**2
+                    target_data[ypix, xpix] += np.exp(-r2)
+#              np.abs(target_axis - ylist[i]) < tdelt/2,
+#              np.abs(target_axis - x) < tdelt/2] += 1.0
+
+        if self.plotname is not None:
+
+            # plot the image
+            plt.figure()
+
+            plt.imshow(target_data, interpolation='nearest', origin='lower',
+              aspect='equal', extent=[target_axis[0], target_axis[-1],
+              target_axis[0], target_axis[-1]],
+              vmax=np.max(target_data), vmin=np.min(target_data))
+            plt.colorbar(orientation='vertical')
+            plt.axis('image')
+            plt.title(self.name)
+
+            plt.savefig(self.plotname)
+            plt.close()
 
         axis1 = co.Axis(data=target_axis, title='RA', units='arcsec') 
         axis2 = co.Axis(data=target_axis, title='Dec', units='arcsec') 
-        image = co.Image(target_data, title=self.name, axes=[axis1, axis2])
+        image = co.Image(target_data, title=self.name, axes=[axis2, axis1])
         return image
 
 
@@ -321,7 +348,7 @@ class MakeSpectrum(object):
     """
 
     def __init__(self, temperature, beta, wn_min, wn_max, wn_step,
-      wn_normalise, plotname=None):
+      flux_normalise, wn_normalise, spectral_features=[], plotname=None):
         assert wn_max > wn_min
         assert wn_step > 0
 
@@ -330,8 +357,60 @@ class MakeSpectrum(object):
         self.wn_min = wn_min
         self.wn_max = wn_max
         self.wn_step = wn_step
+        self.flux_normalise = flux_normalise
         self.wn_normalise = wn_normalise
         self.plotname = plotname
+
+        self.forsterite = [
+          (67,0.11),
+          (67.1,0.075),
+          (67.2,0.06),
+          (67.3,0.13),
+          (67.4,0),
+          (67.5,-0.05),
+          (67.6,0.17),
+          (67.7,0.35),
+          (67.8,0.275),
+          (67.9,0.2),
+          (68.0,0.15),
+          (68.1,0.22),
+          (68.2,0.125),
+          (68.3,0.05),
+          (68.4,0.1),
+          (68.5,0.25),
+          (68.6,0.225),
+          (68.7,0.25),
+          (68.8,0.5),
+          (68.9,0.9),
+          (69.0,1.2),
+          (69.1,1.38),
+          (69.2,1.5),
+          (69.3,1.55),
+          (69.4,1.5),
+          (69.5,1.22),
+          (69.6,1.15),
+          (69.7,0.95),
+          (69.8,0.7),
+          (69.9,0.6),
+          (70.0,0.55),
+          (70.1,0.45),
+          (70.2,0.4),
+          (70.3,0.45),
+          (70.4,0.6),
+          (70.5,0.65),
+          (70.6,0.44),
+          (70.7,0.2),
+          (70.8,0.04),
+          (70.9,-0.1),
+          (71.0,-0.15)]
+
+        self.spectral_features = []
+        for feature in spectral_features:
+            if isinstance(feature, basestring) and \
+              ('FORSTERITE' in feature.upper()):
+                self.spectral_features.append(self.forsterite)
+            else:
+                self.spectral_features.append(feature)
 
     def run(self):
         print 'MakeSpectrum.run'
@@ -347,15 +426,39 @@ class MakeSpectrum(object):
         # bb value at wn_normalise
         bb = BB_spectrum(self.temperature, [self.wn_normalise], emissivity=1.0)
         norm = bb.calculate()
+        norm = self.flux_normalise / norm
 
         # and normalise the spectrum at wn_normalise
-        spectrum /= norm
+        spectrum *= norm
 
         # now multiply by (lambda / lambda_normalise)**beta to mimic
         # dust emissivity variation
         emissivity = np.ones(np.shape(wn_vector))
         emissivity *= (self.wn_normalise / wn_vector) ** self.beta
         spectrum *= emissivity
+
+        # now add in spectral features
+        for feature in self.spectral_features:
+            lambs = []
+            fluxes = []
+            for (lamb,flux) in feature:
+                lambs.append(lamb)
+                fluxes.append(flux)
+            lambs = np.array(lambs)
+            fluxes = np.array(fluxes)
+
+            # assume lambda is in microns
+            wn_width = np.abs(wn_vector[1] - wn_vector[0])
+            for iwn,wn in enumerate(wn_vector):
+                wn_lo = wn - wn_width / 2
+                wn_hi = wn + wn_width / 2
+                lam_lo = 1e4 / wn_hi
+                lam_hi = 1e4 / wn_lo
+
+                feat = fluxes[np.logical_and(lambs > lam_lo, lambs < lam_hi)]
+                if len(feat):
+                    feat = np.sum(feat) / len(feat)
+                    spectrum[iwn] += feat
 
         if self.plotname is not None:
             # plot the spectrum
