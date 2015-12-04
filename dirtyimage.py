@@ -128,9 +128,9 @@ class DirtyImage(object):
         wavenumber = wavenumber[wavenumber>fts_wnmin]
 
         # dirty image cube
-        dirtyimage = np.zeros([npix, npix, len(wavenumber)], np.float)
-        dirtybeam = np.zeros([npix, npix, len(wavenumber)], np.float)
-        cleanbeam = np.zeros([npix, npix, len(wavenumber)], np.float)
+        dirtyimage = np.zeros([len(wavenumber), npix, npix], np.float)
+        dirtybeam = np.zeros([len(wavenumber), npix, npix], np.float)
+        cleanbeam = np.zeros([len(wavenumber), npix, npix], np.float)
 
         # calculate dirty image for each wn
         # uvspectrum objects don't pickle which means they can't be
@@ -163,11 +163,11 @@ class DirtyImage(object):
             if jobs[wn]() is None:
                 raise Exception, 'calculate_dirty_plane has failed'
 
-            dirtyimage[:,:,iwn], dirtybeam[:,:,iwn], cleanbeam[:,:,iwn] = jobs[wn]()
-            if iwn==0:
-                f=open('dirty.pickle', 'w')
-                pickle.dump(dirtybeam[:,:,iwn], f)
-                f.close()
+            dirtyimage[iwn,:,:], dirtybeam[iwn,:,:], cleanbeam[iwn,:,:] = jobs[wn]()
+#            if iwn==0:
+#                f=open('dirty.pickle', 'w')
+#                pickle.dump(dirtybeam[:,:,iwn], f)
+#                f.close()
 
         self.result['dirtyimage'] = dirtyimage
         self.result['dirtybeam'] = dirtybeam
@@ -180,10 +180,10 @@ class DirtyImage(object):
     def __repr__(self):
         return '''
 DirtyImage:
-  cube        : {npix} x {npix} x {nwn}
+  cube        : {nwn} x {npix} x {npix}
   # baselines : {nbaselines}
 '''.format(
-           npix=np.shape(self.result['dirtyimage'])[0],
-           nwn=np.shape(self.result['dirtyimage'])[2],
+           npix=np.shape(self.result['dirtyimage'])[2],
+           nwn=np.shape(self.result['dirtyimage'])[0],
            nbaselines=self.nuvspectra)
 
