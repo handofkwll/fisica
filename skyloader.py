@@ -31,6 +31,7 @@ class SkyLoader(object):
 
         # looks to be an inversion in index order between FITS and Python
         datashape = np.shape(skydata)
+        print datashape
         nx = datashape[2]
         ny = datashape[1]
         if nx != ny:
@@ -82,12 +83,12 @@ class SkyLoader(object):
         fts = self.previous_results['fts']
         fts_wn_truncated = fts['fts_wn_truncated']
 
-        skymodel = np.zeros([nx,ny,len(fts_wn_truncated)], np.float)
+        skymodel = np.zeros([len(fts_wn_truncated),ny,nx], np.float)
 
         # interpolate in the spectral dimension from the input model
         for i in range(nx):
             for j in range(ny):
-                skymodel[i,j,:] = np.interp(fts_wn_truncated, fvec_wn,
+                skymodel[:,j,i] = np.interp(fts_wn_truncated, fvec_wn,
                   skydata[:,j,i], 0.0, 0.0)
 
         
@@ -104,7 +105,7 @@ class SkyLoader(object):
 
 #        print 'skymodel has single spike'
 #        skymodel[skymodel > 0.0] = 0.0
-#        skymodel[nx/2,nx/2,:] = 1.0
+#        skymodel[:,nx/2,nx/2] = 1.0
 
         self.result['sky model'] = skymodel
         self.result['spatial axis [arcsec]'] = spatial_axis
