@@ -25,30 +25,10 @@ import xlrd
 class PyFIInS(object):
     """FISICA simulator.
     """
-    def __init__(self, sky_file='ringcube.fits', sky_sheet='1point',
+    def __init__(self, sky_file='ringcube.fits',
       instrument_spreadsheet='FIInS_Instrument.xlsx',
       beam_model_dir='.'):
-        # is this an Excel spreadsheet with source parameters to simulate?
-        # or is it a FITS file containing a cube simulated beforehand?
-        self.sky_spreadsheet = None
-        self.sky_sheet = None
-        self.sky_fits = None
-        try:
-            book = xlrd.open_workbook(sky_file)
-            self.sky_spreadsheet = sky_file
-            self.sky_sheet = sky_sheet
-            print 'sky simulation parameters will be read from Excel file %s' % \
-              sky_file
-        except:
-            pass
-        try:
-            hdulist = pyfits.open(sky_file)
-            self.sky_fits = sky_file
-            print 'a simulated sky datacube will be read from FITS file %s' % \
-              sky_file
-        except:
-            pass
-
+        self.sky_fits = sky_file
         self.instrument_spreadsheet = instrument_spreadsheet
         self.beam_model_dir = beam_model_dir
 
@@ -67,12 +47,11 @@ class PyFIInS(object):
 
         # read parameters
         loadparams = loadparameters.LoadParameters(
-          sky_spreadsheet=self.sky_spreadsheet,
-          sky_sheet=self.sky_sheet,
           sky_fits=self.sky_fits,
           instrument_spreadsheet=self.instrument_spreadsheet)
         obs_specification = loadparams.run()
         self.result['loadparameters'] = obs_specification
+        del loadparams
 
         # generate information on the FTS 
         ftsd = fts.FTS(parameters=obs_specification)
@@ -83,6 +62,7 @@ class PyFIInS(object):
         tel = telescope.Telescope(parameters=obs_specification)
         self.result['telescope'] = tel.run()
         print tel
+        del tel
        
         # generate UV map
         uvmapgen = uvmapgenerator.UVMapGenerator(
@@ -90,27 +70,23 @@ class PyFIInS(object):
           previous_results=self.result)
         self.result['uvmapgenerator'] = uvmapgen.run()
         print uvmapgen
+        del uvmapgen
 
         # calculate background noise
         background = backgroundnoise.BackgroundNoise(
           parameters=obs_specification, previous_results=self.result)
         self.result['backgroundnoise'] = background.run()
         print background
+        del background
 
         # construct sky
-        if self.sky_spreadsheet is not None:
-            skygen = skygenerator.SkyGenerator(
-              parameters=obs_specification,
-              previous_results=self.result)
-            self.result['skymodel'] = skygen.run()
-            print skygen
-        elif self.sky_fits is not None:
-            skyload = skyloader.SkyLoader(
-              parameters=obs_specification,
-              previous_results=self.result)
-            self.result['skymodel'] = skyload.run()
-            print skyload
-   
+        skyload = skyloader.SkyLoader(
+          parameters=obs_specification,
+          previous_results=self.result)
+        self.result['skymodel'] = skyload.run()
+        print skyload
+        del skyload   
+
         # generate primary beams
         primarybeamsgen = pbmodelgenerator.PrimaryBeamsGenerator(
           previous_results=self.result,
@@ -118,19 +94,22 @@ class PyFIInS(object):
           job_server=self.job_server)
         self.result['primarybeams'] = primarybeamsgen.run()
         print primarybeamsgen
-   
+        del primarybeamsgen   
+
         # generate observation framework
         timeline = timelinegenerator.TimeLineGenerator(
           previous_results=self.result)
         self.result['timeline'] = timeline.run()
         print timeline
+        del timeline
 
         # calculate detector noise
         dn = detectornoise.DetectorNoise(parameters=obs_specification,
           previous_results=self.result)
         self.result['detectornoise'] = dn.run()
         print dn
-   
+        del dn   
+
         # calculate interferograms
         obs = observe.Observe(
           parameters=obs_specification,
@@ -138,6 +117,7 @@ class PyFIInS(object):
           job_server=self.job_server)
         self.result['observe'] = obs.run()
         print obs
+        del obs
 
         # add noise, cosmic rays, detector time constant
         with_errors = addnoise.AddNoise(
@@ -145,11 +125,13 @@ class PyFIInS(object):
           previous_results=self.result)
         self.result['addnoise'] = with_errors.run()
         print with_errors
+        del with_errors
 
         # write out the interferograms as FITS files
         fits = writefits.WriteFITS(previous_results=self.result)
         self.result['writefits'] = fits.run()   
         print fits
+        del fits
 
         # construct html description of result
         htmlrenderer = renderer.Renderer(result=self.result)
