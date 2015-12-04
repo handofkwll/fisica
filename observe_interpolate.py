@@ -27,7 +27,7 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
     baseline for all planes in a sky model.
 
     Parameters:
-    sky_cube          - 3d sky cube [i,j,wn]
+    sky_cube          - 3d sky cube [wn,j,i]
     wn_axis           - wavenumbers of frequency axis in cm-1
     spatial_axis      - the spatial offsets of i,j axes
     m1_area           - area of collector primaries in m**2
@@ -47,7 +47,7 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
     parallel          - is this method being run in parallel with other
                         instances
     """ 
-    nx,ny,nwn = numpy.shape(sky_cube)
+    nwn,ny,nx = numpy.shape(sky_cube)
 
     # spectra will hold the spectral points for each time and wn. The 
     # complex spectrum can be transformed (done outside this
@@ -146,7 +146,7 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
             # plots that show the unrotated and rotated beams
             # together, with a horizontal line of zeros written
             # through the unrotated beam as a reference. 
-            #res1 = numpy.abs(amplitude_beam_1[:,:,0])
+            #res1 = numpy.abs(amplitude_beam_1[0,:,:])
             #res1[centre-1:centre+1,:] = 0.0
             #res1[centre-1:centre+1,centre-1:centre+1] = 2.0
             #res = res1[jbeam1, ibeam1]
@@ -157,7 +157,7 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
 
             #plt.subplot(211)
             #plt.imshow(res1, interpolation='nearest', origin='lower',
-            #  aspect='equal', extent=[0, imshape[0], 0, imshape[1]],
+            #  aspect='equal', extent=[0, imshape[1], 0, imshape[0]],
             #  vmax=numpy.max(res1[imshape[0]/4:imshape[0]*3/4,
             #  imshape[1]/4:imshape[1]*3/4]),
             #  vmin=numpy.min(res1[imshape[0]/4:imshape[0]*3/4,
@@ -168,7 +168,7 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
 
             #plt.subplot(212)
             #plt.imshow(res, interpolation='nearest', origin='lower',
-            #  aspect='equal', extent=[0, imshape[0], 0, imshape[1]],
+            #  aspect='equal', extent=[0, imshape[1], 0, imshape[0]],
             #  vmax=numpy.max(res[imshape[0]/4:imshape[0]*3/4,
             #  imshape[1]/4:imshape[1]*3/4]),
             #  vmin=numpy.min(res[imshape[0]/4:imshape[0]*3/4,
@@ -193,31 +193,35 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
             # ..where A1, A2 are the collector areas and for now 
             # ..sky_cube1 = sky_cube2 = sky_cube and A1 = A2 = ??. 
             f1 = sky_cube * m1_area * td0L * td0R * delta_wn * \
-              numpy.conj(amplitude_beam_1[jbeam1, ibeam1]) * \
-              amplitude_beam_2[jbeam2, ibeam2]
+              numpy.conj(amplitude_beam_1[:,jbeam1, ibeam1]) * \
+              amplitude_beam_2[:,jbeam2, ibeam2]
             sky_sum_1 = numpy.sum(
-              sky_cube * numpy.abs(amplitude_beam_1[jbeam1,ibeam1]), axis=(0,1))
+              sky_cube * numpy.abs(amplitude_beam_1[:,jbeam1,ibeam1]),
+              axis=(1,2))
             sky_sum_2 = numpy.sum(
-              sky_cube * numpy.abs(amplitude_beam_2[jbeam2,ibeam2]), axis=(0,1))
+              sky_cube * numpy.abs(amplitude_beam_2[:,jbeam2,ibeam2]),
+              axis=(1,2))
 
             # ..calculate the FT of the sky planes
             # ....move centre of sky image to origin
             # note to self, axis 2 is fastest changing in this array,
             # the ordering is not optimal
             padding = (pad_factor-1) * nx / 2
-            f1 = numpy.pad(f1, ((padding, padding), (padding, padding), (0,0)),
+            f1 = numpy.pad(f1, ((0,0), (padding, padding), (padding, padding)),
               'constant', constant_values=0) 
-            f1 = numpy.fft.fftshift(f1, axes=(0,1,))
+            f1 = numpy.fft.fftshift(f1, axes=(1,2,))
             # ....2d fft
-            sky_fft = numpy.fft.fft2(f1, axes=(0,1,))
+            sky_fft = numpy.fft.fft2(f1, axes=(1,2,))
             del f1
-            sky_fft = numpy.fft.fftshift(sky_fft, axes=(0,1,))
+            sky_fft = numpy.fft.fftshift(sky_fft, axes=(1,2,))
 
             interp = {}
             for iwn, wn in enumerate(wn_axis):
                 interp[iwn] = (
-                  scipy.interpolate.RectBivariateSpline(u, u, sky_fft[:,:,iwn].real),        
-                  scipy.interpolate.RectBivariateSpline(u, u, sky_fft[:,:,iwn].imag))        
+                  scipy.interpolate.RectBivariateSpline(u, u, 
+                  sky_fft[iwn,:,:].real),        
+                  scipy.interpolate.RectBivariateSpline(u, u, 
+                  sky_fft[iwn,:,:].imag))        
 
         ang_freq_u = numpy.zeros(wn_axis.shape)
         ang_freq_v = numpy.zeros(wn_axis.shape)
@@ -320,6 +324,9 @@ class Observe(object):
         size_per_cpu = 0.125 * memory / ncpus
         #size_per_cpu = 0.25 * memory / ncpus
         nchunks = max(ncpus, int(np.ceil(dsize / size_per_cpu)))
+
+        # make nchunks next greater multiple of ncpus
+#        nchunks = ((nchunks/ncpus) + 1) * ncpus
 
         chunks = []
         slice_size = len(fts_wn_truncated) / nchunks
@@ -540,26 +547,42 @@ class Observe(object):
                 amp_beam_2_chunk = amp_beam_2[model_b_2].data
 
                 indata = (
-                  sky_model[:,:,wn_chunk],
+                  sky_model[wn_chunk,:,:],
                   fts_wn_truncated[wn_chunk],
                   spatial_axis,
                   m1_area,
                   td0L,
                   td0R,
-                  amp_beam_1_chunk[:,:,wn_chunk],
-                  amp_beam_2_chunk[:,:,wn_chunk],
+                  amp_beam_1_chunk[wn_chunk,:,:],
+                  amp_beam_2_chunk[wn_chunk,:,:],
                   beam_angle, 
                   pointing_offset_1,
                   (0, 0),
                   obs_timeline_chunk,
                   True)
 
-                job_id = (times[0], times[-1], beam_angle, pointing_offset_1, wn_chunk.start,
-                  wn_chunk.stop)
+#                calculate_visibility(
+#                  sky_model[wn_chunk,:,:],
+#                  fts_wn_truncated[wn_chunk],
+#                  spatial_axis,
+#                  m1_area,
+#                  td0L,
+#                  td0R,
+#                  amp_beam_1_chunk[wn_chunk,:,:],
+#                  amp_beam_2_chunk[wn_chunk,:,:],
+#                  beam_angle, 
+#                  pointing_offset_1,
+#                  (0, 0),
+#                  obs_timeline_chunk,
+#                  True)
+
+                job_id = (times[0], len(times), beam_angle, pointing_offset_1,
+                  wn_chunk.start, wn_chunk.stop)
                 job = self.job_server.submit(calculate_visibility,
                   indata, (),
-                  ('numpy','collections','matplotlib.pyplot','time','scipy.interpolate',))
-                #print '....starting calculation chunk', job_id, len(times)
+                  ('numpy','collections','matplotlib.pyplot','time',
+                  'scipy.interpolate',))
+                print '....starting calculation chunk', job_id, len(times)
                 jobs.append((job_id, job))
 
                 if len(jobs) >= ncpus:
