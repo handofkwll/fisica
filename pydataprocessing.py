@@ -60,9 +60,9 @@ class PyDataProcessing(object):
         spatial_axis = self.result['dirtyimage']['spatial axis [arcsec]']
         wn_axis = self.result['dirtyimage']['wavenumber [cm-1]']
 
-        axis1 = co.Axis(data=spatial_axis, title='RA', units='arcsec')
+        axis1 = co.Axis(data=wn_axis, title='Frequency', units='cm-1')
         axis2 = co.Axis(data=spatial_axis, title='Dec', units='arcsec')
-        axis3 = co.Axis(data=wn_axis, title='Frequency', units='cm-1')
+        axis3 = co.Axis(data=spatial_axis, title='RA', units='arcsec')
         cube = co.Image(data=dirty_image, axes=[axis1, axis2, axis3])
 
         dirtyfitsfile = os.path.splitext(self.fitsfile)[0]
