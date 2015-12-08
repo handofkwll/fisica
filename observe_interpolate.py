@@ -71,9 +71,10 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
     igrid = grid[1] - centre
 
     # calculate the u/v axis values (u axis == v axis in this case)
+    # use abs in case axis is decreasing instead of increasing
     pad_factor = 4
-    u = numpy.fft.fftfreq(pad_factor * nx, 
-      spatial_axis[1] - spatial_axis[0])
+    u = numpy.fft.fftfreq(pad_factor * nx,
+      numpy.abs(spatial_axis[1] - spatial_axis[0]))
     u = numpy.fft.fftshift(u)
 
     obs_times = obs_timeline.keys()
@@ -223,20 +224,20 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
                   scipy.interpolate.RectBivariateSpline(u, u, 
                   sky_fft[iwn,:,:].imag))        
 
-        ang_freq_u = numpy.zeros(wn_axis.shape)
-        ang_freq_v = numpy.zeros(wn_axis.shape)
         for iwn, wn in enumerate(wn_axis):
             # find where the baseline falls on the sky_fft cube
             lamb = 1.0 / (wn * 100.0)
-            ang_freq_u[iwn] = 1.0 / (numpy.rad2deg(lamb / bx) * 3600.0)
-            ang_freq_v[iwn] = 1.0 / (numpy.rad2deg(lamb / by) * 3600.0)
+            ang_freq_u = 1.0 / (numpy.rad2deg(lamb / bx) * 3600.0)
+            ang_freq_v = 1.0 / (numpy.rad2deg(lamb / by) * 3600.0)
 
-        vis_real = interp[iwn][0](ang_freq_v, ang_freq_u, grid=False)
-        vis_imag = interp[iwn][1](ang_freq_v, ang_freq_u, grid=False)
-        vis = vis_real + 1j * vis_imag
+            vis_real = interp[iwn][0]([ang_freq_v], [ang_freq_u], grid=False)
+            vis_imag = interp[iwn][1]([ang_freq_v], [ang_freq_u], grid=False)
+            vis = vis_real + 1j * vis_imag
 
-        for iwn, wn in enumerate(wn_axis):
-            spectra[t][wn] = vis[iwn]
+#            if it==50:
+#                print wn, vis
+
+            spectra[t][wn] = vis[0]
             i1[t][wn] = sky_sum_1[iwn] * m1_area * td0L * delta_wn
             i2[t][wn] = sky_sum_2[iwn] * m1_area * td0R * delta_wn
 
