@@ -77,6 +77,9 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
       numpy.abs(spatial_axis[1] - spatial_axis[0]))
     u = numpy.fft.fftshift(u)
 
+    # is there any signal in the cube?
+    any_signal = numpy.max(numpy.abs(sky_cube)) > 0
+
     obs_times = obs_timeline.keys()
     obs_times.sort()
     first = True
@@ -88,6 +91,14 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
 
         # if the baseline is bad then there is no signal
         if config.baseline_flag:
+            for wn in wn_axis:
+                spectra[t][wn] = 0.0
+                i1[t][wn] = 0.0
+                i2[t][wn] = 0.0
+            continue
+
+        # if there is no signal in the model
+        if not any_signal:
             for wn in wn_axis:
                 spectra[t][wn] = 0.0
                 i1[t][wn] = 0.0
@@ -192,7 +203,7 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
             # .. Amp1 = sqrt (sky_cube1 * A1)
             # .. Amp2 = sqrt (sky_cube2 * A2)
             # ..where A1, A2 are the collector areas and for now 
-            # ..sky_cube1 = sky_cube2 = sky_cube and A1 = A2 = ??. 
+            # ..sky_cube1 = sky_cube2 = sky_cube and A1 = A2 = ??.
             f1 = sky_cube * m1_area * td0L * td0R * delta_wn * \
               numpy.conj(amplitude_beam_1[:,jbeam1, ibeam1]) * \
               amplitude_beam_2[:,jbeam2, ibeam2]
@@ -218,24 +229,28 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
 
             interp = {}
             for iwn, wn in enumerate(wn_axis):
-                interp[iwn] = (
-                  scipy.interpolate.RectBivariateSpline(u, u, 
-                  sky_fft[iwn,:,:].real),        
-                  scipy.interpolate.RectBivariateSpline(u, u, 
-                  sky_fft[iwn,:,:].imag))        
+                if numpy.max(numpy.abs(sky_cube[iwn,:,:])) > 0: 
+                    interp[iwn] = (
+                      scipy.interpolate.RectBivariateSpline(u, u, 
+                      sky_fft[iwn,:,:].real),        
+                      scipy.interpolate.RectBivariateSpline(u, u, 
+                      sky_fft[iwn,:,:].imag))        
+                else:
+                    # no signal at this frequency
+                    interp[iwn] = False
 
         for iwn, wn in enumerate(wn_axis):
-            # find where the baseline falls on the sky_fft cube
-            lamb = 1.0 / (wn * 100.0)
-            ang_freq_u = 1.0 / (numpy.rad2deg(lamb / bx) * 3600.0)
-            ang_freq_v = 1.0 / (numpy.rad2deg(lamb / by) * 3600.0)
+            if interp[iwn]:
+                # find where the baseline falls on the sky_fft cube
+                lamb = 1.0 / (wn * 100.0)
+                ang_freq_u = 1.0 / (numpy.rad2deg(lamb / bx) * 3600.0)
+                ang_freq_v = 1.0 / (numpy.rad2deg(lamb / by) * 3600.0)
 
-            vis_real = interp[iwn][0]([ang_freq_v], [ang_freq_u], grid=False)
-            vis_imag = interp[iwn][1]([ang_freq_v], [ang_freq_u], grid=False)
-            vis = vis_real + 1j * vis_imag
-
-#            if it==50:
-#                print wn, vis
+                vis_real = interp[iwn][0]([ang_freq_v], [ang_freq_u], grid=False)
+                vis_imag = interp[iwn][1]([ang_freq_v], [ang_freq_u], grid=False)
+                vis = vis_real + 1j * vis_imag
+            else:
+                vis = [0.0]
 
             spectra[t][wn] = vis[0]
             i1[t][wn] = sky_sum_1[iwn] * m1_area * td0L * delta_wn
@@ -446,7 +461,7 @@ class Observe(object):
                 if times:
                     # break times up into shorter chunks in crude
                     # avoid memory problems
-                    time_chunks = [times[i:i+100000] for i in range(0, len(times), 100000)]
+                    time_chunks = [times[i:i+25000] for i in range(0, len(times), 25000)]
                     for time_chunk in time_chunks:
                         band_chunks = []
                         for chunk in chunks:
@@ -592,8 +607,6 @@ class Observe(object):
                     job_id,job = jobs.popleft()
                     if job is None:
                         raise Exception, 'calculate_visibility has failed for planes %s' % str(job)
-                    #print '....calculation chunk', job_id, 'has completed'
-                    #print 'unpack', time.time()
                     powers, i1, i2 = job()
 
                     result_times = powers.keys()
@@ -601,7 +614,6 @@ class Observe(object):
                         spectra[t].update(powers[t])
                         i1_spectra[t].update(i1[t])
                         i2_spectra[t].update(i2[t])
-                    #print 'end unpack', time.time()
 
             # collect results from remaining jobs
             while len(jobs) > 0:
