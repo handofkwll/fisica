@@ -53,7 +53,7 @@ plt.imshow(np.abs(beam_image), interpolation='nearest',
 plt.axis('image')
 
 cbar = plt.colorbar(orientation='vertical', shrink=0.7)
-ax.set_xlabel(beam_cube.axes[0].title)
+ax.set_xlabel(beam_cube.axes[2].title)
 ax.set_ylabel(beam_cube.axes[1].title)
 ax.set_title('Amplitude %s' % component)
 small_font(ax)
@@ -63,13 +63,13 @@ cbar.ax.tick_params(labelsize=8)
 ax = fig.add_subplot(1, 2, 2)
 plt.imshow(np.angle(beam_image), interpolation='nearest',
   origin='lower',
-  aspect='equal', extent=[beam_cube.axes[0].data[0],
-  beam_cube.axes[0].data[-1], beam_cube.axes[1].data[0],
+  aspect='equal', extent=[beam_cube.axes[2].data[0],
+  beam_cube.axes[2].data[-1], beam_cube.axes[1].data[0],
   beam_cube.axes[1].data[-1]])
 plt.axis('image')
 
 cbar = plt.colorbar(orientation='vertical', shrink=0.7)
-ax.set_xlabel(beam_cube.axes[0].title)
+ax.set_xlabel(beam_cube.axes[2].title)
 ax.set_ylabel(beam_cube.axes[1].title)
 ax.set_title('Phase %s' % component)
 small_font(ax)
