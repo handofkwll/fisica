@@ -66,6 +66,8 @@ class SkyLoader(object):
         if 'DEG' in cunit1.upper():
             spatial_axis = (crval1 + 
               (np.arange(nx) + 1 - crpix1) * cdelt1) * 3600.0
+            # shift spatial axis to give coords relative to centre
+            spatial_axis -= np.mean(spatial_axis)
         else:
             raise Exception, 'cannot handle CUNIT1=%s' % cunit1
 
