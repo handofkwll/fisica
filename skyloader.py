@@ -5,8 +5,6 @@ import math
 import numpy as np
 import astropy.io.fits as pyfits
 
-#import matplotlib.pyplot as plt
-
 import common.commonobjects as co
 
 
@@ -66,8 +64,6 @@ class SkyLoader(object):
         if 'DEG' in cunit1.upper():
             spatial_axis = (crval1 + 
               (np.arange(nx) + 1 - crpix1) * cdelt1) * 3600.0
-            # shift spatial axis to give coords relative to centre
-            spatial_axis -= np.mean(spatial_axis)
         else:
             raise Exception, 'cannot handle CUNIT1=%s' % cunit1
 
@@ -85,41 +81,20 @@ class SkyLoader(object):
         # get the frequency range being observed by the FTS
         fts = self.previous_results['fts']
         fts_wn_truncated = fts['fts_wn_truncated']
-        fts_wn = fts['fts_wn']
 
         skymodel = np.zeros([len(fts_wn_truncated),ny,nx], np.float)
 
         # interpolate in the spectral dimension from the input model
-
-        # convolve notional input spectrum with boxcar with width
-        # of output cube
-        native_chan_width = np.abs(fvec_wn[1] - fvec_wn[0])
-        native_nchans = int(np.max(fts_wn) / np.abs(fvec_wn[1] - fvec_wn[0]))
-        fts_chan_width = fts_wn[1] - fts_wn[0]
-        native_per_fts = fts_chan_width / native_chan_width
-
         for i in range(nx):
             for j in range(ny):
-                d = skydata[:,j,i]
+                skymodel[:,j,i] = np.interp(fts_wn_truncated, fvec_wn,
+                  skydata[:,j,i], 0.0, 0.0)
 
-                spectrum = np.zeros(fts_wn_truncated.shape)
-                for iwn,wn in enumerate(fts_wn_truncated):
-                    spectrum[iwn] = \
-                      np.sum(d[np.abs(fvec_wn - wn) < (fts_chan_width / 2)]) /\
-                      native_per_fts
-
-                skymodel[:,j,i] = spectrum
-
-#                print '..plotting'
-#                plt.figure()
-
-#                plt.plot(fts_wn_truncated, spectrum)
-#                plt.plot(fvec_wn, d, 'g-')
-
-#                filename = 'test.png'
-#                plt.savefig(filename)
-#                plt.close()
-#                x=1/0
+        
+        # copying Matlab version, remove -ve numbers (noise) as unphysical
+        # ..now commented out as +ve noise leads to big I1 + I2 signal 
+        # ..which is unrealistic
+#        skymodel[skymodel<0.0] = 0.0
 
         # convert from Jy/pixel to W/m2/cm-1/pixel
         if 'JY/PIXEL' in bunit.upper():
