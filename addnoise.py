@@ -90,8 +90,11 @@ def addNoise(obs_timeline, NEPtot, NEPsky, NEPdet, efficiency,
     data = np.array(data)
 
     # get overall NEP
+    f_acq = 1 / (obs_times[1] - obs_times[0])
+    print 'f_acq reset to', f_acq
     NEPall = np.sqrt(NEPtot**2 + NEPsky**2 + NEPdet**2) / efficiency
     sigma = NEPall * np.sqrt(f_acq)
+    print 'sigma of added noise', sigma
     noise = sigma * np.random.standard_normal(data.shape)
 
     # 1/f noise
@@ -104,8 +107,9 @@ def addNoise(obs_timeline, NEPtot, NEPsky, NEPdet, efficiency,
     freq_vec[0] = freq_vec[1]
     f_noise = (1 + (knee_freq / np.abs(freq_vec)))**0.5
      
-    noise = np.fft.ifft(np.fft.fft(noise) * f_noise)
-    noise = noise.real
+    print '1/f noise NOT added'
+#    noise = np.fft.ifft(np.fft.fft(noise) * f_noise)
+#    noise = noise.real
 
     # set the modified values
     for it,t in enumerate(obs_times):
