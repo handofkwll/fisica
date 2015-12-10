@@ -187,6 +187,9 @@ class BackgroundNoise(object):
         NEPL4 = NEP2(1, det_eff, area * omegac, e3, td3L, Tstray, rm * sc.c)
         NEPL5 = NEP2(1, det_eff, area * omegac, Szodi, td0L, Tsun, rm * sc.c)
         NEPL6 = NEP2(1, det_eff, area * omegac, e4L, td4L, Tbox, rm * sc.c)
+        print 'fudging stray light contribution'
+        print 'to make instrument background comparable to sky background'
+        NEPL4 = 4e11 * NEPL1
 
         NEPR1 = NEP2(1, det_eff, area * omegac, e1, td1R, Ttel, rm * sc.c)
         NEPR2 = NEP2(1, det_eff, area * omegac, e2, td2R, Ttel, rm * sc.c)
@@ -194,6 +197,7 @@ class BackgroundNoise(object):
         NEPR4 = NEP2(1, det_eff, area * omegac, e3, td3R, Tstray, rm * sc.c)
         NEPR5 = NEP2(1, det_eff, area * omegac, Szodi, td0R, Tsun, rm * sc.c)
         NEPR6 = NEP2(1, det_eff, area * omegac, e4R, td4R, Tbox, rm * sc.c)
+        NEPR4 = 4e11 * NEPR1
 
         NEPL = NEPL1 + NEPL2 + NEPL3 + NEPL4 + NEPL5 + NEPL6
         NEPR = NEPR1 + NEPR2 + NEPR3 + NEPR4 + NEPR5 + NEPR6
