@@ -11,6 +11,35 @@ from skygenerator import BB_spectrum
 import writefits
 
 
+class AddCubes(object):
+
+    def __init__(self, in_cubes=[], cubename='total_cube.fits'):
+        self.in_cubes = in_cubes
+        self.cubename = cubename
+
+    def run(self):
+        print 'AddCubes.run'
+
+        print 'template FITS file', self.in_cubes[0]
+        hdulist = pyfits.open(self.in_cubes[0])
+        skydata = hdulist[0].data
+#        hdulist.close()
+
+        for file in self.in_cubes[1:]:
+            print 'adding file', file
+            new_hdulist = pyfits.open(file)
+            new_data = new_hdulist[0].data
+            print new_data.shape, skydata.shape
+            skydata += new_data
+            new_hdulist.close()
+
+        # write the cube to FITS
+        print 'writing', self.cubename
+        hdulist[0].data = skydata
+        hdulist.writeto(self.cubename, clobber=True)
+        hdulist.close()
+
+
 class MakeCube(object):
     """Class to make a cube from a 2-d image crossed with a spectrum. 
     """
@@ -47,7 +76,7 @@ class MakeImage(object):
     """
     """
 
-    def __init__(self, fits_image, max_baseline, wn_nominal, wn_max, wn_min,
+    def __init__(self, fits_image, max_baseline, wn_nominal, wn_min, wn_max,
       magnification, m1_diameter=2.0, plotname=None, verbose=False):
         assert wn_max > wn_min
 
@@ -242,7 +271,7 @@ class MakeImage(object):
         return image
 
 
-class MakeModelImage(object):
+class MakeModelThinRing(object):
     """
     """
 
@@ -298,7 +327,6 @@ class MakeModelImage(object):
         xlist += self.xcentre
         ylist += self.ycentre
          
-        indices = np.arange(len(target_axis))
         for i,x in enumerate(xlist):
             y = ylist[i]
 
@@ -343,12 +371,240 @@ class MakeModelImage(object):
         return image
 
 
+class MakeModelThickRing(object):
+    """
+    """
+
+    def __init__(self, name, rinner, router, tilt, rot, xcentre, ycentre,
+     max_baseline, wn_min, wn_max,  m1_diameter=2.0, verbose=False,
+     plotname=None):
+        self.name = name
+        self.rinner = rinner
+        self.router = router
+        self.tilt = tilt
+        self.rot = rot
+        self.xcentre = xcentre
+        self.ycentre = ycentre
+        self.max_baseline = max_baseline
+        self.wn_max = wn_max
+        self.wn_min = wn_min
+        self.m1_diameter = m1_diameter
+        self.verbose = verbose
+        self.plotname = plotname
+
+    def run(self):
+        print 'MakeModelThickRing.run'
+
+        # calculate pixel size of desired cube, should be as small as
+        # the Nyquist freq of the longest baseline / highest freq
+        pixsize = 1.0 / (self.wn_max * 100.0 * self.max_baseline)
+        pixsize /= 2.0
+        pixsize = np.rad2deg(pixsize) * 3600
+        print 'target pixel size', pixsize, 'arcsec'
+
+        # now get size of target image to be created. This will be 
+        # square, big enough to cover the primary beam, and centred at 
+        # the FITS data array centre
+        print self.wn_min, self.m1_diameter
+        primary_beam_r = 1.22 / (self.wn_min * 100 * self.m1_diameter)
+        primary_beam_r = np.rad2deg(primary_beam_r) * 3600 
+        target_extent = 2 * primary_beam_r
+        print 'primary beam diameter', primary_beam_r, 'arcsec'
+
+        tnpix = int(target_extent / pixsize)
+
+        trpix = int(tnpix / 2)
+        trval = 0
+        tdelt = pixsize
+        target_axis = trval + (np.arange(tnpix, dtype=np.float) - trpix) * \
+          tdelt 
+
+        print 'target image will be', tnpix, 'x', tnpix, 'square'
+
+        target_data = np.zeros([tnpix, tnpix])
+
+        # now make the thick ring
+        theta = np.arange(200) * 2 * np.pi / 200
+        rstep = (self.router - self.rinner) / 100
+
+        xlist = []
+        ylist = []
+        for ir in np.arange(100):
+            r = self.rinner + rstep * ir
+
+            xlist += list(r * np.sin(theta)) 
+            ylist += list(r * np.cos(theta))
+
+        # projection on sky
+        xlist = np.array(xlist)
+        ylist = np.array(ylist)
+
+        # tilt
+        ylist *= np.cos(np.deg2rad(self.tilt))
+
+        # rotation
+        yrlist = ylist * np.cos(np.deg2rad(self.rot)) - xlist * np.sin(np.deg2rad(self.rot))
+        xrlist = ylist * np.sin(np.deg2rad(self.rot)) + xlist * np.cos(np.deg2rad(self.rot))
+
+        # offset from centre
+        xrlist += self.xcentre
+        yrlist += self.ycentre
+         
+        for i,x in enumerate(xrlist):
+            y = yrlist[i]
+
+            ypix = np.argmin(np.abs(target_axis - y))
+            xpix = np.argmin(np.abs(target_axis - x))
+
+            ylo = int(np.floor(ypix - 4))
+            yhi = int(np.ceil(ypix + 4))
+            xlo = int(np.floor(xpix - 4))
+            xhi = int(np.ceil(xpix + 4))
+
+            for ypix in range(ylo, yhi):
+                for xpix in range(xlo, xhi):
+                    if ypix < 0 or ypix > len(target_axis)-1 or \
+                      xpix < 0 or xpix > len(target_axis)-1:
+                        continue
+                    r2 = (target_axis[ypix] - y)**2 + (target_axis[xpix] - x)**2
+                    r2 /= (target_axis[1] - target_axis[0])**2
+                    target_data[ypix, xpix] += np.exp(-r2)
+
+        if self.plotname is not None:
+
+            # plot the image
+            plt.figure()
+
+            plt.imshow(target_data, interpolation='nearest', origin='lower',
+              aspect='equal', extent=[target_axis[0], target_axis[-1],
+              target_axis[0], target_axis[-1]],
+              vmax=np.max(target_data), vmin=np.min(target_data))
+            plt.colorbar(orientation='vertical')
+            plt.axis('image')
+            plt.title(self.name)
+
+            plt.savefig(self.plotname)
+            plt.close()
+
+        axis1 = co.Axis(data=target_axis, title='RA', units='arcsec') 
+        axis2 = co.Axis(data=target_axis, title='Dec', units='arcsec') 
+        image = co.Image(target_data, title=self.name, axes=[axis2, axis1])
+        return image
+
+
+class MakeModelComet(object):
+    """
+    """
+
+    def __init__(self, name, xcentre, ycentre,
+     max_baseline, wn_min, wn_max,  m1_diameter=2.0, verbose=False,
+     plotname=None):
+        self.name = name
+        self.xcentre = xcentre
+        self.ycentre = ycentre
+        self.max_baseline = max_baseline
+        self.wn_max = wn_max
+        self.wn_min = wn_min
+        self.m1_diameter = m1_diameter
+        self.verbose = verbose
+        self.plotname = plotname
+
+    def run(self):
+        print 'MakeModelComet.run'
+
+        # calculate pixel size of desired cube, should be as small as
+        # the Nyquist freq of the longest baseline / highest freq
+        pixsize = 1.0 / (self.wn_max * 100.0 * self.max_baseline)
+        pixsize /= 2.0
+        pixsize = np.rad2deg(pixsize) * 3600
+        print 'target pixel size', pixsize, 'arcsec'
+
+        # now get size of target image to be created. This will be 
+        # square, big enough to cover the primary beam, and centred at 
+        # the FITS data array centre
+        print self.wn_min, self.m1_diameter
+        primary_beam_r = 1.22 / (self.wn_min * 100 * self.m1_diameter)
+        primary_beam_r = np.rad2deg(primary_beam_r) * 3600 
+        target_extent = 2 * primary_beam_r
+        print 'primary beam diameter', primary_beam_r, 'arcsec'
+
+        tnpix = int(target_extent / pixsize)
+
+        trpix = int(tnpix / 2)
+        trval = 0
+        tdelt = pixsize
+        target_axis = trval + (np.arange(tnpix, dtype=np.float) - trpix) * \
+          tdelt 
+
+        print 'target image will be', tnpix, 'x', tnpix, 'square'
+
+        target_data = np.zeros([tnpix, tnpix])
+
+        # now make the comet
+        thetas = (np.arange(200) * np.pi / 200) - (np.pi / 2)
+
+        i_centre = np.argmin(np.abs(target_axis - self.xcentre))
+        j_centre = np.argmin(np.abs(target_axis - self.ycentre))
+        k_centre = tnpix / 2
+        cube = np.zeros([tnpix,tnpix,tnpix])
+
+        jets = [(np.pi/3, 0.0, 100), (-4*np.pi/5, np.pi/5, 50)]
+
+        for k in np.arange(tnpix, dtype=np.float):
+            print k
+            for j in np.arange(tnpix, dtype=np.float):
+                i = np.arange(tnpix, dtype=np.float)
+                r2 = (i-i_centre)**2 + (j-j_centre)**2 + (k-k_centre)**2
+                rij = np.sqrt((i-i_centre)**2 + (j-j_centre)**2)
+
+                theta = np.arctan2((k-k_centre), rij)
+                phi = np.arctan2((j-j_centre), (i-i_centre))
+
+                density = np.ones(i.shape)
+                density[r2>1] = 1.0 / r2[r2>1]
+
+                for jet in jets:
+                    phi_jet = jet[0]
+                    theta_jet = jet[1]
+                    d_jet = jet[2]
+
+                    cos_dist_jet = np.sin(theta) * np.sin(theta_jet) + \
+                      np.cos(theta) * np.cos(theta_jet) * np.cos(phi - phi_jet)
+                    ind = np.logical_and(cos_dist_jet > np.cos(3 * np.pi / 180), (r2>1))
+                    density[ind] += d_jet / r2[ind]
+
+                cube[k,j,:] = density 
+
+        target_data = np.sum(cube, axis=0) 
+
+        if self.plotname is not None:
+
+            # plot the image
+            plt.figure()
+
+            plt.imshow(target_data, interpolation='nearest', origin='lower',
+              aspect='equal', extent=[target_axis[0], target_axis[-1],
+              target_axis[0], target_axis[-1]],
+              vmax=np.max(target_data), vmin=np.min(target_data))
+            plt.colorbar(orientation='vertical')
+            plt.axis('image')
+            plt.title(self.name)
+
+            plt.savefig(self.plotname)
+            plt.close()
+
+        axis1 = co.Axis(data=target_axis, title='RA', units='arcsec') 
+        axis2 = co.Axis(data=target_axis, title='Dec', units='arcsec') 
+        image = co.Image(target_data, title=self.name, axes=[axis2, axis1])
+        return image
+
+
 class MakeSpectrum(object):
     """
     """
 
     def __init__(self, temperature, beta, wn_min, wn_max, wn_step,
-      flux_normalise, wn_normalise, spectral_features=[], plotname=None):
+      peak_flux, spectral_features=[], plotname=None):
         assert wn_max > wn_min
         assert wn_step > 0
 
@@ -357,8 +613,7 @@ class MakeSpectrum(object):
         self.wn_min = wn_min
         self.wn_max = wn_max
         self.wn_step = wn_step
-        self.flux_normalise = flux_normalise
-        self.wn_normalise = wn_normalise
+        self.peak_flux = peak_flux
         self.plotname = plotname
 
         self.forsterite = [
@@ -404,11 +659,56 @@ class MakeSpectrum(object):
           (70.9,-0.1),
           (71.0,-0.15)]
 
+        self.protostar = [
+          (63.0,0.1),
+          (63.1,6.5),
+          (63.2,15.0),
+          (63.3,12.1),
+          (63.4,0.1),
+          (66.2,0.1),
+          (66.3,1),
+          (66.4,9.0),
+          (66.5,1.5),
+          (66.6,0.1),
+          (71.8,0.1),
+          (71.9,8.5),
+          (72.0,2.0),
+          (72.1,3.5),
+          (72.2,2.0),
+          (72.3,0.1),
+          (100.3,0.1),
+          (100.4,5),
+          (100.5,40),
+          (100.6,5),
+          (100.7,0.1),
+          (153.2,0.1),
+          (153.3,10),
+          (153.4,85.0),
+          (153.5,10),
+          (153.6,0.1),
+          (324.8,0.1),
+          (324.9,8),
+          (325.0,80),
+          (325.1,8),
+          (325.2,0.1)]
+
+        self.comet = [
+#          (66.0, 5e-3),
+#          (300.0, 5e-3)]
+          (66.0, 400*5e-3),
+          (300.0, 400*5e-3)]
+
         self.spectral_features = []
         for feature in spectral_features:
-            if isinstance(feature, basestring) and \
-              ('FORSTERITE' in feature.upper()):
-                self.spectral_features.append(self.forsterite)
+            if isinstance(feature, basestring):
+                if 'FORSTERITE' in feature.upper():
+                    self.spectral_features.append(self.forsterite)
+                elif 'PROTOSTAR' in feature.upper():
+                    self.spectral_features.append(self.protostar)
+                elif 'COMET' in feature.upper():
+                    self.spectral_features.append(self.comet)
+                else:
+                    raise Exception, 'unknown feature named'
             else:
                 self.spectral_features.append(feature)
 
@@ -423,19 +723,15 @@ class MakeSpectrum(object):
           cutoffmax=wn_vector[-2], emissivity=1.0)
         spectrum = bb.calculate()
 
-        # bb value at wn_normalise
-        bb = BB_spectrum(self.temperature, [self.wn_normalise], emissivity=1.0)
-        norm = bb.calculate()
-        norm = self.flux_normalise / norm
-
-        # and normalise the spectrum at wn_normalise
-        spectrum *= norm
-
         # now multiply by (lambda / lambda_normalise)**beta to mimic
         # dust emissivity variation
         emissivity = np.ones(np.shape(wn_vector))
-        emissivity *= (self.wn_normalise / wn_vector) ** self.beta
+        emissivity *= (wn_vector[0] / wn_vector) ** self.beta
         spectrum *= emissivity
+
+        # normalise the spectrum to the given peak
+        norm = self.peak_flux / np.max(spectrum)
+        spectrum *= norm
 
         # now add in spectral features
         for feature in self.spectral_features:
@@ -456,16 +752,24 @@ class MakeSpectrum(object):
                 lam_hi = 1e4 / wn_lo
 
                 feat = fluxes[np.logical_and(lambs > lam_lo, lambs < lam_hi)]
+                print feat
                 if len(feat):
                     feat = np.sum(feat) / len(feat)
                     spectrum[iwn] += feat
+
+        # bb value at wn_normalise
+#        bb = BB_spectrum(self.temperature, [self.wn_normalise], emissivity=1.0)
+#        norm = bb.calculate()
+#        norm = self.flux_normalise / norm
+
+        # and normalise the spectrum at wn_normalise
+#        spectrum *= norm
 
         if self.plotname is not None:
             # plot the spectrum
             plt.figure()
 
             plt.plot(wn_vector, spectrum, 'k')
-            plt.plot(wn_vector, spectrum / emissivity, 'b')
             plt.savefig(self.plotname)
             plt.close()
 
