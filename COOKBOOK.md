@@ -108,19 +108,21 @@ combining the 4 individual cubes with *makecube.AddCubes*. Thus:
   >... with different parameters. This will give you n FITS files: 'cube1.fits'  
   >... to 'cuben.fits'.  
   >
-  > In [20]: makecube.AddCubes(in_cubes=['cube1.fits', 'cube2.fits',  
-  >..., 'cuben.fits'])
+  > In [20]: m = makecube.AddCubes(in_cubes=['cube1.fits', 'cube2.fits',  
+  >..., 'cuben.fits'], cubename='total_cube.fits')  
+  >
+  > In [21]: m.run()  
 
 2. Specify the observation details by copying 'strawman.xlsx' to your 
 working directory and modifying it as follows:
-  * In FTSpectrograph select Band 2 (100-200cm-1).
-  * In Interferometer select 'Const L spiral' as the uv pattern.
+  * In **FTSpectrograph** select Band 2 (100-200cm-1).
+  * In **Interferometer** select 'Const L spiral' as the uv pattern.
 
 3. Run the simulator:
   > In [1]: import pyfiins  
   >
   > In [2]: f = pyfiins.PyFIInS(instrument_spreadsheet='strawman_copy.xlsx',
-  >   sky_file='your_target.fits',
+  >   sky_file='total_cube.fits',
   >   beam_model_dir='/Users/jfl/test2beam/fisica-pbmodels/beam_models/Smooth_Walled_Horn/Band 4 GRASP')  
 
 This will produce a weblog html tree rooted at 'fisica-sim-yyyymmddThhmmss'
