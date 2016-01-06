@@ -124,12 +124,14 @@ working directory and modifying it as follows:
   > In [2]: f = pyfiins.PyFIInS(instrument_spreadsheet='strawman_copy.xlsx',
   >   sky_file='total_cube.fits',
   >   beam_model_dir='/Users/jfl/test2beam/fisica-pbmodels/beam_models/Smooth_Walled_Horn/Band 4 GRASP')  
+  >
+  > In [3]: f.simulate()  
 
-This will produce a weblog html tree rooted at 'fisica-sim-yyyymmddThhmmss'
-dated at the time of the run, and a matching FITS file with the 
-simulated interferograms 'yyyymmddThhmmss.fits'
+   This will produce a weblog html tree rooted at 'fisica-sim-yyyymmddThhmmss'
+   dated at the time of the run, and a matching FITS file with the 
+   simulated interferograms 'yyyymmddThhmmss.fits'
 
-3. Reduce the interferograms.
+4. Reduce the interferograms:
   > In [3]: import pydataprocessing  
   >
   > In [4]: d=pydataprocessing.PyDataProcessing('your_interferograms.fits',  
