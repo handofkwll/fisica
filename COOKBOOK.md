@@ -5,36 +5,37 @@ This document describes how to use the FISICA simulator, with some examples.
 The simulation process can be broken into 3 stages.
 
 1. Generate a datacube of the target to be observed. The datacube
-is stored in FITS, the details are described into the companion document
+is stored in FITS format, the details are described into the companion document
 CUBEFORMAT.md. The datacube can be derived from existing observational
 data of the object, or built from scratch using the 'cube toolkit' 
 described below.
 
 2. Specify the interferometer configuration during the observation 
-in the 'instrument' Excel file. This file comprises several sheets  
-describing various aspects of the observation. Most users will just want 
+in the 'instrument' Excel file. This file comprises several sheets, each
+describing a particular aspect of the observation. Most users will just want 
 to set the waveband of the simulation and the uv pattern to be used.
   
 3. Run the simulator, giving the 'instrument' file and the
 target datacube as inputs. The simulator will output an html 'weblog' that
 can be examined with a browser, and a FITS file containing
-the interferograms generated.
+the generated interferograms.
 
 4. Run PyDataProcessing with the 'interferograms' file as input. This
-will run the data through a data reduction recipe and generate a 'dirty'
+will push the data through a data reduction recipe and generate a 'dirty'
 cube. In an ideal world this would equal the target cube convolved with
 the dirty beam of the interferometer, in reality noise and systematic errors
 will further affect the result.
 
-### Target Generation
-The PyFIIns simulator will read any target cube whose structure conforms
-to CUBEFORMAT.md. The 'makecube' module in the PyFIIns code has been written
-to make easier the construction of such cubes. Cube construction has four 
+Target Generation - the 'cube toolkit'
+--------------------------------------
+The simulator can read any target cube whose structure conforms
+to CUBEFORMAT.md. The 'makecube' module in the code collection has been written
+to make it easier to construct such cubes. Cube construction has four 
 parts:  
 
 1. Generation of a 2-d image of the target. This can be done by reading
-a FITS file with the observed image of a target and converting it to the 
-required size and spatial resolution (makecube.MakeImage). Alternatively, 
+a FITS file with the observed image of a target and interpolating it to the 
+required size and spatial resolution (*makecube.MakeImage*). Alternatively, 
 the image can be constructed from scratch (makecube.MakeModelThinRing,
 MakeModelThickRing or MakeModelComet). The scratch images
 are derived from simple models but have the advantage that they are noiseless.
