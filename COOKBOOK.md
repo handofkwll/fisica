@@ -134,12 +134,12 @@ working directory and modifying it as follows:
 4. Reduce the interferograms:
   > In [3]: import pydataprocessing  
   >
-  > In [4]: d=pydataprocessing.PyDataProcessing('your_interferograms.fits',  
+  > In [4]: d=pydataprocessing.PyDataProcessing('yyyymmddThhmmss.fits',  
   >   data_quality='pure')  
   >
   > In [5]: d.reduce()
 
-The 'data_quality' parameter in the PyDataProcessing constructor  
+The 'data_quality' parameter in the PyDataProcessing constructor
 specifies whether the 'pure' or 'noisy' interferograms are to be used.
 The pure interferograms are the direct output from the interferometric
 simulation, the noisy ones have detector noise, background noise, 
