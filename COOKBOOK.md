@@ -85,10 +85,11 @@ target cube involves the making of 4 separate 'cores', using
 *makecube.MakeModelThickRing* 4 times with different input parameters, then
 combining the 4 individual cubes with *makecube.AddCubes*. Thus:
 
-   > In import makecube
-   > In [2]: i1 = makecube.MakeModelThickRing(rinner=-0.4, router=1.0, 
-   >   tilt=20.0, rot=-90.0, xcentre=-0.7, ycentre=0.2, max_baseline=80.0, 
-   >   wn_min=100.0, wn_max=200.0)
+    In import makecube
+    In [2]: i1 = makecube.MakeModelThickRing(rinner=-0.4, router=1.0, 
+      tilt=20.0, rot=-90.0, xcentre=-0.7, ycentre=0.2, max_baseline=80.0, 
+      wn_min=100.0, wn_max=200.0)
+
 > In [3]: image1 = i1.run()
 > In [4]: s1 = makecube.MakeSpectrum(temperature=37, beta=-1.3, 
   >   wn_min=100.0, wn_max=200.0, wn_step=0.5, peak_flux=10.0, 
