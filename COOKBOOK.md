@@ -47,8 +47,10 @@ constructs a greybody spectrum of given temperature, emissivity index and
 peak flux. Some spectral features can be added to the greybody, currently 
 available are: 
 
-* 'forsterite' a complex feature near 70&mu;m 'protostar' [OI] 63 micron, a few water and CO 
-lines between 66 and 325 micron, 'comet' water lines at 66 and 300 micron.  
+  * 'forsterite'- a complex feature near 70&mu;m
+  * 'protostar' - a set of lines: [OI] 63&mu;m, several water and CO 
+lines between 66 and 325&mu;m
+  * 'comet' - water lines at 66 and 300&mu;m  
 
 3. Combination of the spatial image and the spectrum to produce a cube
 and write the result to a FITS file (*makecube.MakeCube*).
