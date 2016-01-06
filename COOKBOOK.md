@@ -85,9 +85,9 @@ target cube involves the making of 4 separate 'cores', using
 *makecube.MakeModelThickRing* 4 times with different input parameters, then
 combining the 4 individual cubes with *makecube.AddCubes*. Thus:
 
-  >In [1]: import makecube  
+  > In [1]: import makecube  
   >
-  >In [2]: i1 = makecube.MakeModelThickRing(rinner=-0.4, router=1.0,  
+  > In [2]: i1 = makecube.MakeModelThickRing(rinner=-0.4, router=1.0,  
   >	tilt=20.0, rot=-90.0, xcentre=-0.7, ycentre=0.2, max_baseline=80.0,  
   >	wn_min=100.0, wn_max=200.0)  
   >
@@ -95,14 +95,18 @@ combining the 4 individual cubes with *makecube.AddCubes*. Thus:
   >
   > In [4]: s1 = makecube.MakeSpectrum(temperature=37, beta=-1.3, 
   >   wn_min=100.0, wn_max=200.0, wn_step=0.5, peak_flux=10.0, 
-  >   spectral_features=['forsterite'])
+  >   spectral_features=['forsterite'])  
   >  
-  > In [5]: spectrum1 = s1.run()
-  > In [6]: c1 = makecube.MakeCube(image1, spectrum1, cubename='cube1.fits')
-  > In [7]: c1.run()
-  >... repeat this process n times to produce n 'cores' in n cubes, each
-  >... with different parameters. This will give you n FITS files: 'cube1.fits'
-  >... to 'cuben.fits'.
+  > In [5]: spectrum1 = s1.run()  
+  >
+  > In [6]: c1 = makecube.MakeCube(image1, spectrum1, cubename='cube1.fits')  
+  >
+  > In [7]: c1.run()  
+  >
+  >... repeat this process n times to produce n 'cores' in n cubes, each  
+  >... with different parameters. This will give you n FITS files: 'cube1.fits'  
+  >... to 'cuben.fits'.  
+  >
   > In [20]: makecube.AddCubes(['cube1.fits', 'cube2.fits', ..., 'cuben.fits'])
 
 2. Specify the observation details by copying 'strawman.xlsx' to your 
