@@ -99,7 +99,8 @@ combining the 4 individual cubes with *makecube.AddCubes*. Thus:
   >  
   > In [5]: spectrum1 = s1.run()  
   >
-  > In [6]: c1 = makecube.MakeCube(image1, spectrum1, cubename='cube1.fits')  
+  > In [6]: c1 = makecube.MakeCube(image=image1, spectrum=spectrum1,  
+  >   cubename='cube1.fits')  
   >
   > In [7]: c1.run()  
   >
@@ -107,30 +108,34 @@ combining the 4 individual cubes with *makecube.AddCubes*. Thus:
   >... with different parameters. This will give you n FITS files: 'cube1.fits'  
   >... to 'cuben.fits'.  
   >
-  > In [20]: makecube.AddCubes(['cube1.fits', 'cube2.fits', ..., 'cuben.fits'])
+  > In [20]: makecube.AddCubes(in_cubes=['cube1.fits', 'cube2.fits',  
+  >..., 'cuben.fits'])
 
 2. Specify the observation details by copying 'strawman.xlsx' to your 
 working directory and modifying it as follows:
-  * In the FTSpectrograph sheet select Band 2 (100-200cm-1).
+  * In FTSpectrograph select Band 2 (100-200cm-1).
   * In Interferometer select 'Const L spiral' as the uv pattern.
 
 3. Run the simulator:
-  > In [1]: import pyfiins
+  > In [1]: import pyfiins  
+  >
   > In [2]: f = pyfiins.PyFIInS(instrument_spreadsheet='strawman_copy.xlsx',
   >   sky_file='your_target.fits',
   >   beam_model_dir='/Users/jfl/test2beam/fisica-pbmodels/beam_models/Smooth_Walled_Horn/Band 4 GRASP')  
 
 This will produce a weblog html tree rooted at 'fisica-sim-yyyymmddThhmmss'
-for the time of the run, and a matching FITS file containing the 
+dated at the time of the run, and a matching FITS file with the 
 simulated interferograms 'yyyymmddThhmmss.fits'
 
 3. Reduce the interferograms.
-  > In [3]: import pydataprocessing
-  > In [4]: d=pydataprocessing.PyDataProcessing('your_interferograms.fits',
-  >   data_quality='pure')
+  > In [3]: import pydataprocessing  
+  >
+  > In [4]: d=pydataprocessing.PyDataProcessing('your_interferograms.fits',  
+  >   data_quality='pure')  
+  >
   > In [5]: d.reduce()
 
-The 'data_quality' parameter in the PyDataProcessing constructor call 
+The 'data_quality' parameter in the PyDataProcessing constructor  
 specifies whether the 'pure' or 'noisy' interferograms are to be used.
 The pure interferograms are the direct output from the interferometric
 simulation, the noisy ones have detector noise, background noise, 
