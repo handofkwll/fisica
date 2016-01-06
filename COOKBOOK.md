@@ -45,7 +45,9 @@ are derived from simple models but have the advantage that they are noiseless.
 2. Generation of the target spectrum (*makecube.MakeSpectrum*). This method 
 constructs a greybody spectrum of given temperature, emissivity index and 
 peak flux. Some spectral features can be added to the greybody, currently 
-available are: 'forsterite', 'protostar' [OI] 63 micron, a few water and CO 
+available are: 
+
+* 'forsterite' a complex feature near 70&mu;m 'protostar' [OI] 63 micron, a few water and CO 
 lines between 66 and 325 micron, 'comet' water lines at 66 and 300 micron.  
 
 3. Combination of the spatial image and the spectrum to produce a cube
