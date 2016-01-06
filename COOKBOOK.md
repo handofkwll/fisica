@@ -87,8 +87,8 @@ combining the 4 individual cubes with *makecube.AddCubes*. Thus:
 
   >  In [1]: import makecube  
   >  In [2]: i1 = makecube.MakeModelThickRing(rinner=-0.4, router=1.0,  
-  >  \ \ tilt=20.0, rot=-90.0, xcentre=-0.7, ycentre=0.2, max_baseline=80.0,  
-  >    wn_min=100.0, wn_max=200.0)  
+  >> tilt=20.0, rot=-90.0, xcentre=-0.7, ycentre=0.2, max_baseline=80.0,  
+  >> wn_min=100.0, wn_max=200.0)  
 
 
 > In [3]: image1 = i1.run()
