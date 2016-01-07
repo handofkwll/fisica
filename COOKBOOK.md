@@ -87,31 +87,23 @@ combining the 4 individual cubes with *makecube.AddCubes*. Thus:
 
   > In [1]: import makecube  
   >
-  > In [2]: i1 = makecube.MakeModelThickRing(rinner=-0.4, router=1.0,  
+  > In [2]: image1 = makecube.makeModelThickRing(rinner=-0.4, router=1.0,  
   >	tilt=20.0, rot=-90.0, xcentre=-0.7, ycentre=0.2, max_baseline=80.0,  
   >	wn_min=100.0, wn_max=200.0)  
   >
-  > In [3]: image1 = i1.run()
-  >
-  > In [4]: s1 = makecube.MakeSpectrum(temperature=37, beta=-1.3, 
+  > In [3]: spectrum1 = makecube.makeSpectrum(temperature=37, beta=-1.3, 
   >   wn_min=100.0, wn_max=200.0, wn_step=0.5, peak_flux=10.0, 
   >   spectral_features=['forsterite'])  
-  >  
-  > In [5]: spectrum1 = s1.run()  
   >
-  > In [6]: c1 = makecube.MakeCube(image=image1, spectrum=spectrum1,  
+  > In [4]: makecube.makeCube(image=image1, spectrum=spectrum1,  
   >   cubename='cube1.fits')  
-  >
-  > In [7]: c1.run()  
   >
   >... repeat this process n times to produce n 'cores' in n cubes, each  
   >... with different parameters. This will give you n FITS files: 'cube1.fits'  
   >... to 'cuben.fits'.  
   >
-  > In [20]: m = makecube.AddCubes(in_cubes=['cube1.fits', 'cube2.fits',  
+  > In [20]: makecube.addCubes(in_cubes=['cube1.fits', 'cube2.fits',  
   >..., 'cuben.fits'], cubename='total_cube.fits')  
-  >
-  > In [21]: m.run()  
 
 2. Specify the observation details by copying 'strawman.xlsx' to your 
 working directory and modifying it as follows:
