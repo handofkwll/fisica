@@ -1,3 +1,7 @@
+"""This module contains classes and methods used to save data from the
+simulated observation to a FITS file. 
+"""
+
 from __future__ import absolute_import
 
 import numpy as np
@@ -7,12 +11,17 @@ import astropy.io.fits as pyfits
 
 class WriteFITS(object):
     """Class to write out observed timeline in a FITS Table.
+
+    Contains methods:
+    __init__
+    run
+    __repr__
     """
 
     def __init__(self, previous_results):
         """Constructor.
 
-        Parameters:
+        Keyword parameters:
         previous_results - simulator result structure.
         """
         self.previous_results = previous_results
@@ -157,14 +166,19 @@ WriteFITS:
 
 
 class WriteFITSCube(object):
-    """Class to write out cube to a FITS Table.
+    """Class to write cube to a FITS primary HDU.
+
+    Contains methods:
+    __init__
+    run 
     """
 
-    def __init__(self, cube, fitsname=None):
+    def __init__(self, cube, fitsname='writefitscube.fits'):
         """Constructor.
 
-        Parameters:
-        previous_results - simulator result structure.
+        Keyword parameters:
+        cube     - the cube to be stored
+        fitsname - name of FITS file (default 'writefitscube.fits')
         """
         self.cube = cube
         self.fitsname = fitsname
@@ -175,11 +189,6 @@ class WriteFITSCube(object):
         """
         print 'WriteFITSCube.run'
 
-        if self.fitsname is None: 
-            # construct the name of the file
-            print 'need to construct FITS filename'
-            self.fitsname = 'writefitscube.fits'
-
         # create a Header object and primary HDU - this will contain
         # general information
         prihdr = pyfits.Header()
@@ -189,13 +198,6 @@ class WriteFITSCube(object):
         # data in Fortran order [ra, dec, wn].
         # Do some axis swapping to achieve this.
         data = self.cube.data
-        print data.shape
-        print self.cube.axes[0].data.shape
-        print self.cube.axes[1].data.shape
-        print self.cube.axes[2].data.shape
-#        data = np.swapaxes(data, 0, 2)
-#        data = np.swapaxes(data, 1, 2)
-        print data.shape
 
         axis3 = self.cube.axes[0].data
         axis2 = self.cube.axes[1].data

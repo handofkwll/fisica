@@ -1,3 +1,6 @@
+"""This module contains the UVMapGenerator class.
+"""
+
 from __future__ import absolute_import
 
 import collections
@@ -6,16 +9,27 @@ import numpy as np
 
 class UVMapGenerator(object):
     """Class to generate the UV map of the simulated observation.
+
+    Contains methods:
+    __init__
+    run
+    __repr__
     """
 
     def __init__(self, parameters, previous_results):
+        """Constructor.
+
+        Parameters:
+        parameters       - Dict with parameters from the Excel files.
+        previous_results - Current results structure of the simulation run.
+        """
         self.parameters = parameters
         self.previous_results = previous_results
         self.result = collections.OrderedDict()
 
     def run(self):
-        #print 'UVMapGenerator.run'
-
+        """Method invoked to calculate the uv pattern timeline.
+        """
         interferometer = self.parameters['substages']['Interferometer']
 
         # slightly awkward getting pattern value as it's keyed by its

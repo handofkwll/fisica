@@ -1,3 +1,7 @@
+"""This module contains classes and methods used to calculate the
+interferograms from the observing timeline.
+"""
+
 from __future__ import absolute_import
 
 import collections
@@ -12,6 +16,13 @@ import time
 def data_size(sky_cube, amplitude_beam_1, amplitude_beam_2):
     """Routine to calculate size of dominant data arrays in
     calculate_visibility.
+
+    Keyword parameters:
+    sky_cube         -- the target cube
+    amplitude_beam_1 -- the corresponding p.b. cube for collector 1
+    amplitude_beam_2 -- p.b. cube for collector 2
+
+    Returns: an estimate of the total size of the given cubes.
     """
     # multiplier must match the amount that the sky cube is 
     # padded out by for the fft = calculate_visibility.pad_factor**2
@@ -26,7 +37,7 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
     """Routine to calculate the visibility for a specified
     baseline for all planes in a sky model.
 
-    Parameters:
+    Keyword parameters:
     sky_cube          - 3d sky cube [wn,j,i]
     wn_axis           - wavenumbers of frequency axis in cm-1
     spatial_axis      - the spatial offsets of i,j axes
@@ -46,6 +57,12 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
                         to be simulated 
     parallel          - is this method being run in parallel with other
                         instances
+
+    Returns:
+    spectra           - Dict holding complex visibility at each time and
+                        wavenumber
+    i1                - Dict holding total flux from collector 1
+    i2                - Dict holding total flux from collector 2
     """ 
     nwn,ny,nx = numpy.shape(sky_cube)
 
@@ -261,6 +278,11 @@ def calculate_visibility(sky_cube, wn_axis, spatial_axis,
 
 class Observe(object):
     """Class to compute interferograms.
+
+    Contains methods:
+    __init__
+    run 
+    __repr__
     """
 
     def __init__(self, parameters, previous_results, job_server):

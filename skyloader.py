@@ -1,3 +1,6 @@
+"""This module contains classes and methods used to read in the target model.
+"""
+
 from __future__ import absolute_import
 
 import collections
@@ -10,20 +13,31 @@ import common.commonobjects as co
 
 class SkyLoader(object):
     """Class to load a model sky from a FITS file.
+
+    Contains methods:
+    __init__
+    run
+    __repr__
     """
 
-    def __init__(self, parameters, previous_results):
-        self.parameters = parameters
+    def __init__(self, sky_fits, previous_results):
+        """Constructor.
+
+        Parameters:
+          sky_fits         - The name of the FITS file containing the model
+                             sky cube.
+          previous_results - Current results structure of the simulation run.
+        """
+        self.sky_fits = sky_fits
         self.previous_results = previous_results
         self.result = collections.OrderedDict()
 
     def run(self):
-        print 'SkyLoader.run'
+        """Method invoked to do the work.
+        """
+        #print 'SkyLoader.run'
 
-        loadparam = self.previous_results['loadparameters']
-        sky_fits = loadparam['substages']['Sky']['FITS file'][0]
-
-        hdulist = pyfits.open(sky_fits)
+        hdulist = pyfits.open(self.sky_fits)
         print hdulist.info()
         prihdr = hdulist[0].header
         print repr(prihdr)
@@ -94,7 +108,7 @@ class SkyLoader(object):
         # copying Matlab version, remove -ve numbers (noise) as unphysical
         # ..now commented out as +ve noise leads to big I1 + I2 signal 
         # ..which is unrealistic
-#        skymodel[skymodel<0.0] = 0.0
+        # skymodel[skymodel<0.0] = 0.0
 
         # convert from Jy/pixel to W/m2/cm-1/pixel
         if 'JY/PIXEL' in bunit.upper():
@@ -106,6 +120,7 @@ class SkyLoader(object):
 #        skymodel[skymodel > 0.0] = 0.0
 #        skymodel[:,nx/2,nx/2] = 1.0
 
+        self.result['sky_fits'] = self.sky_fits
         self.result['sky model'] = skymodel
         self.result['spatial axis [arcsec]'] = spatial_axis
         self.result['frequency axis'] = fts_wn_truncated 
@@ -118,12 +133,14 @@ class SkyLoader(object):
     def __repr__(self):
         return '''
 SkyLoader:
+  file        : {file}
   nx, ny, nf  : {shape}
   wnmin       : {wnmin}
   wnmax       : {wnmax}
   native wnmin: {native_wnmin}
   native wnmax: {native_wnmax}
 '''.format(
+          file=self.sky_fits,
           shape=np.shape(self.result['sky model']),
           wnmin=np.min(self.result['frequency axis']),
           wnmax=np.max(self.result['frequency axis']),

@@ -1,3 +1,6 @@
+"""This is the double Fourier interferometry simulator PyFIIns.
+"""
+
 from __future__ import absolute_import
 
 import astropy.io.fits as pyfits
@@ -13,7 +16,6 @@ import loadparameters
 import observe_interpolate as observe
 import pbmodelgenerator
 import renderer
-import skygenerator
 import skyloader
 import telescope
 import timelinegenerator
@@ -23,11 +25,28 @@ import xlrd
 
 
 class PyFIInS(object):
-    """FISICA simulator.
+    """Class containing the Far-Infrared Instrument Simulator.
+
+    Methods:
+    __init__
+    simulate
+    __repr__
     """
+
     def __init__(self, sky_file='ringcube.fits',
       instrument_spreadsheet='FIInS_Instrument.xlsx',
       beam_model_dir='.'):
+        """The PyFIInS constructor.
+
+        Keyword arguments:
+        sky_file               -- the name of the FITS file containing the
+                                  target cube to be observed
+        instrument_spreadsheet -- the name of the Excel file specifying the
+                                  instrument configuration and observation
+                                  timeline
+        beam_model_dir         -- the directory to be searched for beam models
+        """
+
         self.sky_fits = sky_file
         self.instrument_spreadsheet = instrument_spreadsheet
         self.beam_model_dir = beam_model_dir
@@ -41,13 +60,15 @@ class PyFIInS(object):
           self.job_server.get_ncpus()
 
     def simulate(self):
+        """Method that runs the simulation.
+        """
+
         # store data and time of run
         now = datetime.datetime.today()
         self.result['runtime'] = now.strftime('%Y%m%dT%H%M%S')
 
         # read parameters
         loadparams = loadparameters.LoadParameters(
-          sky_fits=self.sky_fits,
           instrument_spreadsheet=self.instrument_spreadsheet)
         obs_specification = loadparams.run()
         self.result['loadparameters'] = obs_specification
@@ -81,8 +102,7 @@ class PyFIInS(object):
 
         # construct sky
         skyload = skyloader.SkyLoader(
-          parameters=obs_specification,
-          previous_results=self.result)
+          sky_fits=self.sky_fits, previous_results=self.result)
         self.result['skymodel'] = skyload.run()
         print skyload
         del skyload   
@@ -104,7 +124,9 @@ class PyFIInS(object):
         del timeline
 
         # calculate detector noise
-        dn = detectornoise.DetectorNoise(parameters=obs_specification,
+#        dn = detectornoise.KIDetectorNoise(parameters=obs_specification,
+#          previous_results=self.result)
+        dn = detectornoise.IdealDetectorNoise(parameters=obs_specification,
           previous_results=self.result)
         self.result['detectornoise'] = dn.run()
         print dn

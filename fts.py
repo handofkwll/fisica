@@ -1,3 +1,6 @@
+"""This module contains the FTS class.
+"""
+
 from __future__ import absolute_import
 
 import collections
@@ -5,10 +8,21 @@ import numpy as np
 
 
 class FTS(object):
-    """Class to describe the Fourier Transform Spectrometer.
+    """Class describing the Fourier Transform Spectrometer used to combine
+    the interferometer beams.
+
+    Contains the methods:
+    __init__
+    run
+    __repr__
     """
 
     def __init__(self, parameters):
+        """FTS constructor.
+
+        Keyword arguments:
+        parameters -- dict with parameters from the Excel configuration file.
+        """
         self.parameters = parameters
 
         # read params from FTSpectrograph sheet
@@ -59,7 +73,9 @@ class FTS(object):
           2.0 * abs(smec_start) / smec_velocity
     
     def run(self):
-        #print 'FTS.run'        
+        """Method returns a structure containing the derived FTS 
+        parameters.
+        """
         return self.result
 
     def __repr__(self):

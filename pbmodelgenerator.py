@@ -1,3 +1,7 @@
+"""This module contains classes and methods used to calculate the
+primary beams.
+"""
+
 from __future__ import absolute_import
 
 import collections
@@ -12,11 +16,12 @@ def _getfilelist(filedir, fileroot):
     directory 'filedir' whose names start with the string in
     'fileroot'.
 
+    Keyword parameters:
     filedir  - The name of the directory containing the files.
     fileroot - Returned files will have names starting with this
                string.
 
-    returns:
+    Returns:
              - A list of all the files in 'filedir' whose
                names begin with the string in 'fileroot'.
     """
@@ -32,11 +37,12 @@ def _get_baseline_wavelength_models(filedir, filelist):
     and return a dictionary of the model data for
     each (baseline, wavelength) present.
 
+    Keyword parameters:
     filedir  - The name of the directory containing the files.
     filelist - List of files names of form 
                <blah>_bas<baseline>_wav<wavelength>
 
-    returns:
+    Returns:
              - A dictionary whose keys are tuples
                (baseline, wavelength) derived by parsing
                the names in 'filelist'. The value at
@@ -46,6 +52,9 @@ def _get_baseline_wavelength_models(filedir, filelist):
                holding the extent of the modelled area
                and matrices with the x, y, z components
                of the E field. 
+             - rotation resolution [deg]. When the angle of the
+               p.b. on the sky changes by more than this value then
+               the beam should be 'rotated' to suit.
     """
     result = {}
     baseline_re = re.compile('.*bas([0-9]+).*')
@@ -84,11 +93,12 @@ def _readpbfile(filedir, pbfile):
     """Utility routine to read in a primary beam model from
     a Maynooth format file.
 
+    Keyword parameters:
     filedir  - The name of the directory containing the file.
     pbfile   - The name of the file containing the primary beam
                model.
 
-    returns:
+    Returns:
              - xmin. The minimum of the x extent covered.
              - ymin. The minimum of the y extent covered.
              - xmax. The maximum of the x extent covered.
@@ -166,13 +176,17 @@ def _get_perfect_baseline_wavelength_model(m1_diameter):
     result that is just even illumination across the
     collector primary.
 
+    Keyword parameters:
     m1_diameter - Diameter of collector primary in metres.
 
-    returns:
+    Returns:
              - A dictionary with one key (50.0, 100.0)
                whose value is a model with even 
                illumination across the collector 
                primary.
+             - rotation resolution [deg]. When the angle of the
+               p.b. on the sky changes by more than this value then
+               the beam should be 'rotated' to suit.
     """
     result = {}
 
@@ -221,6 +235,7 @@ def calculate_primary_beam_from_pbmodel(npix, pixsize, m1_diameter, wn,
     """Routine to calculate the primary beams on a 
     sky map with npix x npix pixels of specified pixsize.
     
+    Keyword parameters:
     npix        - x, y dim of square sky map
     pixsize     - pixel size of sky map (radians)
     m1_diameter - Diameter of the flux collector primary
@@ -232,7 +247,7 @@ def calculate_primary_beam_from_pbmodel(npix, pixsize, m1_diameter, wn,
     xmax        - maximum x coord of pbmodel.
     ymax        - maximum y coord of pbmodel.
 
-    returns:    
+    Returns:    
     primary_beam - npix by npix numpy complex array with amplitude
                    primary beam.
 
@@ -293,10 +308,6 @@ def calculate_primary_beam_from_pbmodel(npix, pixsize, m1_diameter, wn,
 
             primary_amplitude_beam += contribution
 
-    # DON'T LEAVE THIS IN
-#    primary_amplitude_beam = numpy.abs(primary_amplitude_beam) + 1j * numpy.zeros([npix, npix])
-
-
     # normalise
     beam_max = numpy.max(numpy.abs(primary_amplitude_beam))
     if beam_max > 0.0:
@@ -307,11 +318,20 @@ def calculate_primary_beam_from_pbmodel(npix, pixsize, m1_diameter, wn,
 
 class PrimaryBeamsGenerator(object):
     """Class to generate the primary beam(s) of the simulated observation.
+
+    Contains methods:
+    __init__
+    _calculate_beam_
+    run
+    __repr__
     """
 
     def __init__(self, previous_results, beam_model_dir, job_server):
         """Constructor.
-        previous_results - Current results structure of the simulation run.
+
+        Keyword parameters:
+        previous_results - Results structure of the simulation run.
+        beam_model_dir   - Directory to be searched for beam models.
         job_server       - ParallelPython job server.
         """
         self.previous_results = previous_results
@@ -324,7 +344,27 @@ class PrimaryBeamsGenerator(object):
 
     def _calculate_beam(self, beam_model_type, beam_model_dir, 
       beam_model_pol, wn, npix, pixsize, m1_diameter):
-        """
+        """Private method invoked to calculate the beams.
+
+        Keyword parameters:
+        beam_model_type - 'perfect' will give the beams for a perfectly
+                          illuminated primary, any other string is the rootname
+                          of a set of beam models in beam_model_dir that are
+                          to be used.
+        beam_model_dir  - directory to be searched for beam models
+        beam_model_pol  - polarization of model to be used: 'X', 'Y' or 'Z'
+        wn              - frequencies for which beams to be calculated [cm-1]
+        npix            - beam maps have dimensions [npix,npix]
+        pixsize         - pixel size of beam maps [rad]
+        m1_diameter     - diameter of primary mirror [m]
+
+        Returns:
+        intensity_beams - intensity beam (Amp.Amp*) cube [nwn, npix, npix]
+        amplitude_beams - complex amplitude beam cube [nwn, npix, npix]
+        models          - dictionary containing beam models used
+        rotation_res    - [deg]. When the angle of the
+                          p.b. on the sky changes by more than this value then
+                          the beam should be 'rotated' to suit.
         """
 
         # spatial axes same for all wavelengths/model types
@@ -403,7 +443,7 @@ class PrimaryBeamsGenerator(object):
                   xmin, ymin, xmax, ymax,)
                 jobs[wavenum] = self.job_server.submit(
                   calculate_primary_beam_from_pbmodel,
-                  indata, (), ('numpy', 'math', 'zernike',))
+                  indata, (), ('numpy', 'math',))
 
             # collect results
             intensity_beam = np.zeros([len(wn),npix,npix], np.float)

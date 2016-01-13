@@ -1,3 +1,7 @@
+"""This module contains classes and methods used to oversee the rendering
+of the web log.
+"""
+
 from __future__ import absolute_import
 
 import collections
@@ -13,13 +17,23 @@ import templates.resources as resources
 
 
 class Renderer(object):
-    """Class to render results into html.
+    """Class to oversee rendering of results into html.
     """
 
     def __init__(self, result):
+        """Constructor.
+
+        Keyword arguments:
+          result - structure holding the results of the simulation run.
+        """
         self.result = result
 
     def copy_resources(self, dirname):
+        """Method to copy web resources into the target directory.
+
+        Keyword arguments:
+          dirname -- target directory.
+        """
         outdir = os.path.join(dirname, 'resources')
 
         # shutil.copytree complains if the output directory exists
@@ -41,6 +55,15 @@ class Renderer(object):
 #        z.extractall(outdir)
 
     def run(self, prefix=''):
+        """Method called to do the work.
+
+        Keyword arguments:
+        prefix -- string to insert into name of directory holding the
+                  weblog. Used to differentiate between simulator and
+                  reduction results when using the same code to write 
+                  the weblogs. Default ''. 
+        """
+
         # make a directory to contain this result
         runtime = self.result['runtime']
         if prefix=='':

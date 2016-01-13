@@ -1,3 +1,7 @@
+"""This module contains classes and methods used to calculate the
+observation timeline.
+"""
+
 from __future__ import absolute_import
 
 import collections
@@ -25,7 +29,7 @@ def find_unflagged_sections(flag):
     that points from flag[start] up to but not including
     flag[end] are False.
 
-    Parameters:
+    Keyword parameters:
     flag - 1-d boolean array
  
     Returns:
@@ -61,12 +65,17 @@ def find_unflagged_sections(flag):
 
 class TimeLineGenerator(object):
     """Class to generate timeline of the simulated observation.
+
+    Contains methods:
+    __init__
+    run
+    __repr__
     """
 
     def __init__(self, previous_results):
         """Constructor.
         
-        Parameters:
+        Keyword parameters:
             previous_results - dict containing ongoing results structure
                                for the simulation.
         """

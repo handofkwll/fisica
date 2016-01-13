@@ -1,3 +1,6 @@
+"""This module contains the Telescope class.
+"""
+
 from __future__ import absolute_import
 
 import collections
@@ -5,10 +8,20 @@ import numpy as np
 
 
 class Telescope(object):
-    """Class to describe the flux collectors.
+    """Class describing the flux collectors.
+
+    Contains the methods:
+    __init__
+    run
+    __repr__
     """
 
     def __init__(self, parameters):
+        """Telescope constructor.
+
+        Keyword arguments:
+        parameters -- dict with parameters from the Excel configuration file.
+        """
         self.parameters = parameters
 
         # read params from Telescope sheet
@@ -28,7 +41,9 @@ class Telescope(object):
         self.result['beam_model_pol'] = telparm['Beam model polarization']
 
     def run(self):
-        #print 'Telescope.run'        
+        """Method returns a structure containing the derived Telescope
+        parameters.
+        """
         return self.result
 
     def __repr__(self):

@@ -1,3 +1,6 @@
+"""This module contains the LoadParameters class.
+"""
+
 from __future__ import absolute_import
 
 import collections
@@ -7,17 +10,24 @@ import xlrd
 
 
 class LoadParameters:
-    """Class to compute interferograms.
+    """Class to load parameters from the Excel instrument spreadsheet.
+
+    It contains the methods:
+    __init__
+    run
     """
 
-    def __init__(self, sky_fits=None,
-      instrument_spreadsheet='FIInS_Instrument_cor3.xlsx'):
+    def __init__(self, instrument_spreadsheet):
+        """LoadParameters constructor.
+   
+        Keyword arguments:
+        instrument_spreadsheet -- the name of the Excel file specifying
+                                  the instrument configuration and 
+                                  observation timeline to be simulated
+        """
+
         self.result = collections.OrderedDict()
         self.result['substages'] = collections.OrderedDict()
-
-        # clunky dictionary structure to mimic that from the old Excel file
-        # version
-        self.result['substages']['Sky'] = {'FITS file':{0:sky_fits}}
 
         # the instrument spreadsheet
         instrument_book = xlrd.open_workbook(instrument_spreadsheet)
@@ -202,4 +212,6 @@ class LoadParameters:
                 print 'loadparameters skipping', sheet.name
 
     def run(self):
+        """Method that returns a structure containing the loaded parameters.
+        """
         return self.result

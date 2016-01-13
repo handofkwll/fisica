@@ -1,3 +1,7 @@
+"""This module contains classes and methods used to add background and
+detector noise, cosmic ray strikes, detector time constant to the datastream.
+"""
+
 from __future__ import absolute_import
 
 import collections
@@ -6,6 +10,10 @@ import numpy as np
 def addDetectorTimeConstant(obs_timeline, time_constant):
     """This function convolves the data stream with exp(-t/tau) (t>0)
     where tau is the detector time constant.
+
+    Keyword arguments:
+    obs_timeline  -- Dict containing the observation timeline
+    time_constant -- time const of detector [sec]
     """
     if time_constant < 0.0:
         raise Exception, 'invalid detector time constant: %s' % time_constant
@@ -46,6 +54,12 @@ def addGlitches(obs_timeline, timesOfGlitches, widthsOfGlitches,
   peaksOfGlitches):
     """This function generates the profiles for the CR glitches and puts them 
     at predetermined positions on the detector timeline.
+
+    Keyword arguments:
+    obs_timeline     -- Dict containing the observation timeline
+    timesOfGlitches  -- times at which glitch occurred [sec]
+    widthsOfGlitches -- width of glitches [sec]
+    peaksOfGlitches  -- height of glitches
     """
     obs_times = obs_timeline.keys()
     obs_times.sort()
@@ -76,8 +90,17 @@ def addGlitches(obs_timeline, timesOfGlitches, widthsOfGlitches,
 def addNoise(obs_timeline, NEPtot, NEPsky, NEPdet, efficiency,
   f_acq, knee_freq):
     """This function generates random noise corresponding to the 
-    total NEP, folds in the effect of 1/f noise and adds the
-    result to the detector timeline.
+    total NEP, folds in the effect of 1/f noise and puts the
+    result in the detector timeline.
+
+    Keyword arguments:
+    obs_timeline -- Dict containing the observation timeline
+    NEPtot       -- NEP due to instrument and cosmic background
+    NEPsky       -- NEP due to target emission
+    NEPdet       -- detector NEP
+    efficiency   -- detector absorption efficiency
+    f_acq        -- acquisition frequency [Hz]
+    knee_freq    -- knee frequency of 1/f noise [Hz]
     """
     obs_times = obs_timeline.keys()
     obs_times.sort()
@@ -107,9 +130,9 @@ def addNoise(obs_timeline, NEPtot, NEPsky, NEPdet, efficiency,
     freq_vec[0] = freq_vec[1]
     f_noise = (1 + (knee_freq / np.abs(freq_vec)))**0.5
      
-    print '1/f noise NOT added'
-#    noise = np.fft.ifft(np.fft.fft(noise) * f_noise)
-#    noise = noise.real
+#    print '1/f noise NOT added'
+    noise = np.fft.ifft(np.fft.fft(noise) * f_noise)
+    noise = noise.real
 
     # set the modified values
     for it,t in enumerate(obs_times):
@@ -124,6 +147,11 @@ def generatePeaks():
     is used.
     The code is adapted from an original version written by G.Makiwa, 
     U.Lethbridge, Canada.
+
+    Returns:
+    myRandomPeaks -- the random peaks to use
+    moyal         -- the Moyal distribution from which the peaks were selected
+    x             -- the x-axis of the distribution
     """
     # p contains the parameters describing the Moyal distribution
     # of the cosmic ray amplitudes from Spire FTS data [peak, offset, width]
@@ -153,14 +181,19 @@ def generatePeaks():
     return myRandomPeaks, moyal, x
 
 def generateRandomGlitches(obs_timeline, cr_rate):
-    """Given the length of the observed timeline, this function 
-    returns the following information:
-    - numberOfGlitches: number of cosmic ray (CR) hits in the detector
+    """Method to calculate cosmic ray strikes for the given timeline.
+
+    Keyword arguments:
+    obs_timeline     -- Dict containing the observation timeline
+    cr_rate          -- Average cosmic rays per sec
+
+    Returns:
+    numberOfGlitches -- number of cosmic ray (CR) hits in the detector
                         timeline. On average there are 2.5 CR hits 
                         in 66.6s.
-    - timesOfGlitches : sample times when CR hits occur 
-    - widthsOfGlitches: widths of CR glitches 
-    - peaksOfGlitches: peaks of CR glitches                 
+    timesOfGlitches  -- sample times when CR hits occur 
+    widthsOfGlitches -- widths of CR glitches 
+    peaksOfGlitches  -- peaks of CR glitches                 
     """
     obs_times = obs_timeline.keys()
     obs_times.sort()
@@ -181,59 +214,46 @@ def generateRandomGlitches(obs_timeline, cr_rate):
     #print 'widthsOfGlitches =', widthsOfGlitches
     #print 'peaksOfGlitches  =', peaksOfGlitches
 
-    return numberOfGlitches, timesOfGlitches, widthsOfGlitches, peaksOfGlitches,\
-      moyal, x
+    return numberOfGlitches, timesOfGlitches, widthsOfGlitches,\
+      peaksOfGlitches, moyal, x
 
-def nepSky(obs_timeline, cr_rate):
-    """Given the length of the observed timeline, this function 
-    returns the following information:
-    - numberOfGlitches: number of cosmic ray (CR) hits in the detector
-                        timeline. On average there are 2.5 CR hits 
-                        in 66.6s.
-    - timesOfGlitches : sample times when CR hits occur 
-    - widthsOfGlitches: widths of CR glitches 
-    - peaksOfGlitches: peaks of CR glitches                 
+def nepSky(obs_timeline):
+    """Function to return the NEP due to target emission itself.
+
+    Returns:
+    Currently a placeholder function that returns 0.
     """
-    obs_times = obs_timeline.keys()
-    obs_times.sort()
-    timespan = obs_times[-1] - obs_times[0]
-
-    numberOfGlitches = np.ceil(timespan * cr_rate)
-    timesOfGlitches = np.random.uniform(0, timespan, numberOfGlitches)
-    myRandomPeaks, moyal, x = generatePeaks()
-    peaksOfGlitches = myRandomPeaks[:numberOfGlitches]
-
-    # All Spire FTS glitches had similar widths: 0.00097
-    widthsOfGlitches = np.ones(numberOfGlitches) * 0.00097
+    print 'nep sky set to 0.0' 
+    nep = 0.0
     
-    #print 'timespan =', timespan
-    #print 'cr rate =', cr_rate
-    #print 'numberOfGlitches =', numberOfGlitches 
-    #print 'timesOfGlitches =', timesOfGlitches
-    #print 'widthsOfGlitches =', widthsOfGlitches
-    #print 'peaksOfGlitches  =', peaksOfGlitches
-
-    return numberOfGlitches, timesOfGlitches, widthsOfGlitches, peaksOfGlitches,\
-      moyal, x
+    return nep
 
 
 class AddNoise(object):
     """Class to add simulated noise, cosmic rays and detector
        time response to the simulated observation.
+
+    Contains methods:
+    __init__
+    run
+    __repr__
     """
 
     def __init__(self, parameters, previous_results):
         """Constructor.
         
-        Parameters:
-            previous_results - dict containing ongoing results structure
-                               for the simulation.
+        Keyword parameters:
+          parameters       - Structure containing parameters defining
+                             the simulation, read from Excel.
+          previous_results - Results structure of the simulation run.
         """
         self.parameters = parameters
         self.previous_results = previous_results
         self.result = collections.OrderedDict()
 
     def run(self):
+        """Method invoked to do the work.
+        """
         #print 'AddNoise.run'
 
         # get relevant parameters read from Excel file
@@ -270,9 +290,7 @@ class AddNoise(object):
           moyalx = generateRandomGlitches(obs_timeline, cosmic_ray_rate)
 
         # add background and detector noise to data
-        print 'dummy NEPsky'
-        NEPsky = 0.0
-        print NEPtot, NEPsky, NEPdet, eta, f_acq, knee_freq
+        NEPsky = nepSky(obs_timeline)
         addNoise(obs_timeline, NEPtot, NEPsky, NEPdet, eta,
           f_acq, knee_freq)
 
@@ -300,5 +318,3 @@ AddNoise:
 '''.format(
           cr_rate=self.result['cosmic ray rate'],
           detector_time_constant=self.result['detector time constant'])
-
-
