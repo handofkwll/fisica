@@ -1,3 +1,8 @@
+"""This module contains classes and methods used to reduce the interferogram 
+scans taken at each baseline position and convert them to a spectrum through
+the uv cube at that point.
+"""
+
 from __future__ import absolute_import
 
 import collections
@@ -51,6 +56,11 @@ class ReduceInterferogram(object):
     """Class to reduce the interferogram scans taken at each 
     baseline position and convert them to a spectrum through
     the uv cube at that point.
+
+    Contains methods:
+    __init__
+    run
+    __repr__
     """
 
     def __init__(self, previous_results, data_quality, job_server):
@@ -71,6 +81,8 @@ class ReduceInterferogram(object):
         self.result['data_quality'] = data_quality
 
     def run(self):
+        """Method to invoke to do the work.
+        """
 #        print 'ReduceInterferogram.run'
 
         # namedtuple to hold UVspectrum result

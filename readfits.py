@@ -1,3 +1,7 @@
+"""This module contains classes and methods used to read data from a FITS
+file holding an observation simulated by PyFIInS.
+"""
+
 from __future__ import absolute_import
 
 import collections
@@ -10,12 +14,17 @@ import timelinegenerator
 
 class ReadFITS(object):
     """Class to read in an observed timeline from a FITS Table.
+
+    Contains methods:
+    __init__
+    run
+    __repr__
     """
 
     def __init__(self, fitsfile):
         """Constructor.
 
-        Parameters:
+        Keyword parameters:
         fitsfile - Name of the FITS file containing the data.
         """
         self.fitsfile = fitsfile

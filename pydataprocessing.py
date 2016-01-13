@@ -1,3 +1,7 @@
+"""This file contains classes and methods for reducing data produced by
+PyFIIns.
+"""
+
 from __future__ import absolute_import
 
 import astropy.io.fits as pyfits
@@ -16,9 +20,24 @@ import writefits
 
 
 class PyDataProcessing(object):
-    """Data processing module to reduce data from FISICA simulator.
+    """Class to reduce data from FISICA simulator.
+ 
+    Contains methods:
+    __init__
+    reduce
+    __repr__
     """
+
     def __init__(self, fitsfile, data_quality='noisy'):
+        """Constructor.
+
+        Keyword parameters:
+        fitsfile     -- name of FITS file with data
+        data_quality -- type of data to be reduced:
+                        'pure' will take simulated data with
+                          background/detector noise not added
+                        'noisy' will take simulated data with added noise
+        """ 
         self.fitsfile = fitsfile
         if data_quality not in ['noisy', 'pure']:
             raise Exception, 'bad data_quality: %s' % data_quality
@@ -33,6 +52,9 @@ class PyDataProcessing(object):
           self.job_server.get_ncpus()
 
     def reduce(self):
+        """Method invoked to do the work.
+        """
+
         # store data and time of run
         now = datetime.datetime.today()
         self.result['runtime'] = now.strftime('%Y%m%dT%H%M%S')

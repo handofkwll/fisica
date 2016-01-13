@@ -1,3 +1,7 @@
+"""This module contains classes and methods used to calculate the dirty image
+and dirty beam from the uv data.
+"""
+
 from __future__ import absolute_import
 
 import collections
@@ -6,23 +10,24 @@ import numpy as np
 import pickle
 
 def calculate_dirty_plane(b_x_list, b_y_list, spectra, wn_spectra,
-  iwn, wn, spatial_axis, npix):
-    """Routine to calculate one plane of a dirty image cube.
+  wn, spatial_axis, npix):
+    """Routine to calculate one plane of a dirty image cube, 
+    corresponding dirty and clean beams.
 
     Parameters:
-    b_x_list     -
-    b_y_list     -
-    spectra      -
-    wn_spectra   -
-    iwn          - 
-    wn           -
-    spatial_axis -
+    b_x_list     - list of baseline x [m]
+    b_y_list     - list of baseline y [m]
+    spectra      - list of uv spectra for each baseline x,y
+    wn_spectra   - list of wavenumbers of spectrum 
+    wn           - wavenumber of dirty plane to calculate
+    spatial_axis - spatial axis of dirty map (x=y)
     npix         - image plane has dimnesions [npix, npix]
 
     Returns:
     image        - [npix, npix] float array with dirty image 
-    beam         - [npix, npix] float array with dirty beam
-
+    dirtybeam    - [npix, npix] float array with dirty beam
+    cleanbeam    - [npix, npix] float array with clean beam (Gaussian
+                   fitted to central peak of dirty beam)
     """
 
     # arrays to hold the results
@@ -94,6 +99,11 @@ def calculate_dirty_plane(b_x_list, b_y_list, spectra, wn_spectra,
 
 class DirtyImage(object):
     """Class to compute dirty image cube from uvspectra.
+
+    Contains methods:
+    __init__
+    run
+    __repr__
     """
 
     def __init__(self, previous_results, job_server):
@@ -110,6 +120,8 @@ class DirtyImage(object):
         self.nuvspectra = None      
 
     def run(self):
+        """Method invoked to do the work.
+        """
 #        print 'DirtyImage.run'
 
         # get relevant fts and spatial info
@@ -150,7 +162,7 @@ class DirtyImage(object):
         jobs = {}
         for iwn,wn in enumerate(wavenumber):
             # submit jobs
-            indata = (b_x_list, b_y_list, spectra, wn_spectra, iwn, wn, 
+            indata = (b_x_list, b_y_list, spectra, wn_spectra, wn, 
               spatial_axis, npix,)
             jobs[wn] = self.job_server.submit(
               calculate_dirty_plane, 
@@ -164,10 +176,6 @@ class DirtyImage(object):
                 raise Exception, 'calculate_dirty_plane has failed'
 
             dirtyimage[iwn,:,:], dirtybeam[iwn,:,:], cleanbeam[iwn,:,:] = jobs[wn]()
-#            if iwn==0:
-#                f=open('dirty.pickle', 'w')
-#                pickle.dump(dirtybeam[:,:,iwn], f)
-#                f.close()
 
         self.result['dirtyimage'] = dirtyimage
         self.result['dirtybeam'] = dirtybeam
