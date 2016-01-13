@@ -1,3 +1,7 @@
+"""This module contains the classes and methods used to calculate the
+background noise falling on the FIRI detector.
+"""
+
 from __future__ import absolute_import
 __author__ = 'rjuanola'
 import collections
@@ -6,18 +10,41 @@ import scipy.constants as sc
 
 def black_body(temperature, wavenumber):
     """Function to calculate Planck function.
-       temperature - Kelvin
-       wavenumber - frequency in cm-1
+
+    Keyword arguments:
+    temperature - Kelvin
+    wavenumber  - frequency [cm-1]
+
+    Returns:
+    value of Planck function
     """
     freq = wavenumber * sc.c * 100
-    bb = 2 * sc.h * np.power(freq, 3) / (np.power(sc.c, 2) / (np.exp((sc.h * freq) / (sc.k * temperature)) - 1.0))
+    bb = 2 * sc.h * freq**3 / \
+      (sc.c**2 * (np.exp((sc.h * freq) / (sc.k * temperature)) - 1.0))
     return bb
 
-def NEP2(eta_spillover, eta_feed, throughput, emissivity, trans2det, temp, freq):
-    den = np.exp(sc.h * freq / sc.k / temp) - 1
+def NEP2(eta_feed, throughput, emissivity, trans2det, temp, freq):
+    """Function to calculate Noise Equivalent Power (NEP) following the
+    method described in Roser Juanola's thesis p117, which references
+    J.M.Lamarre, "Photon noise in photometric instruments at far-infrared
+    and sub-millimeter wavelengths", Appl. Opt., 25, 870-876,
+    Mar 1986.
+
+    Keyword arguments:
+    eta_feed   -- detector efficiency
+    throughput -- A * omega
+    emissivity -- emissivity of emitter
+    trans2det  -- transmission to detector
+    temp       -- emitter temperature [K]
+    freq       -- frequency grid [Hz]
+
+    Returns:
+    value of NEP**2
+    """
+    den = np.exp(sc.h * freq / (sc.k * temp)) - 1
     a = 1 + (emissivity * trans2det * eta_feed / den)
-    b = throughput * emissivity * trans2det * eta_feed * np.power(freq, 4) / den
-    cte = 4 * eta_spillover * np.power(sc.h / sc.c, 2)
+    b = throughput * emissivity * trans2det * eta_feed * freq**4 / den
+    cte = 4 * (sc.h / sc.c)**2
     d = a * b * (freq[2] - freq[1])
     nep2 = cte * np.sum(d)
     return nep2
@@ -25,6 +52,11 @@ def NEP2(eta_spillover, eta_feed, throughput, emissivity, trans2det, temp, freq)
 
 class BackgroundNoise(object):
     """Class to generate the NEP of the simulated observation.
+
+    Contains methods:
+    __init__
+    run
+    __repr__
     """
 
     def __init__(self, parameters, previous_results):
@@ -42,11 +74,8 @@ class BackgroundNoise(object):
         """Method invoked to do the work.
         """
 
-        background = self.parameters['substages']['Background']
-        coldoptics = self.parameters['substages']['ColdOptics']
-        warmoptics = self.parameters['substages']['WarmOptics']
-
         # Loading background parameters
+        background = self.parameters['substages']['Background']
         row = background['CMB temp'].keys()[0]
         Tcmb = background['CMB temp'][row]
         row = background['CIB temp'].keys()[0]
@@ -63,8 +92,11 @@ class BackgroundNoise(object):
         Szodi = background['Zodi scattering coeff'][row]
         row = background['Tstray'].keys()[0]
         Tstray = background['Tstray'][row]
+        row = background['Stray coeff'].keys()[0]
+        stray_coeff = background['Stray coeff'][row]
 
         #Loading cold optics parameters
+        coldoptics = self.parameters['substages']['ColdOptics']
         row = coldoptics['Optical efficiency (Oeff)'].keys()[0]
         Oeff = coldoptics['Optical efficiency (Oeff)'][row]
         row = coldoptics['Number of mirrors (NmirrorsL)'].keys()[0]
@@ -99,6 +131,7 @@ class BackgroundNoise(object):
         NmirrorsR = NmirrorsL - 1
 
         # Loading warm optics parameters
+        warmoptics = self.parameters['substages']['WarmOptics']
         row = warmoptics['BSM temperature'].keys()[0]
         Tbsm = warmoptics['BSM temperature'][row]
         row = warmoptics['BSM emissivity'].keys()[0]
@@ -120,19 +153,17 @@ class BackgroundNoise(object):
         Etel = tel['telescope_emissivity']
         Dtel = tel['m1_diameter']
 
-        # Calculating blackbody emission
-        B_tel = black_body(Ttel, fts_wn_truncated) * sc.c
-        B_stray = black_body(Tstray, fts_wn_truncated) * sc.c
-        B_box = black_body(Tbox, fts_wn_truncated) * sc.c
-        B_bsm = black_body(Tbsm, fts_wn_truncated) * sc.c
-        B_k = black_body(Tk, fts_wn_truncated) * sc.c
-        B_sun = black_body(Tsun,fts_wn_truncated) * sc.c
+        # load detector parameters
+        detectors = self.parameters['substages']['Detectors']
+        row = detectors['Detector optical absorption efficiency'].keys()[0]
+        det_eff = detectors['Detector optical absorption efficiency'][row]
 
         # Cold optics transmission
         # ..Box left arm to detector 1
-        t4L = Weff * NFdicT * np.power(1 - COEmis, NmirrorsL) * DicT * FilT * CoT
+        # .. windw * NIRdichroic * coldopt**nopt * dichroic * filt * combiner
+        t4L = Weff * NFdicT * (1 - COEmis)**NmirrorsL * DicT * FilT * CoT
         # ..Box right arm to detector 1
-        t4R = Weff * NFdicT * np.power(1 - COEmis, NmirrorsR) * DicT * FilT * CoR 
+        t4R = Weff * NFdicT * (1 - COEmis)**NmirrorsR * DicT * FilT * CoR 
 
         # Cold optics emissivities
         e4L = 1 - t4L
@@ -148,8 +179,7 @@ class BackgroundNoise(object):
         e2 = 1 - t2
         ebsm = 1 - tbsm
         ek = 1 - tk
-        Estray = 0.2 * Etel
-        e3 = Estray
+        e3 = Etel
 
         #transmissions to detector 1 from left
         td0L = t1 * t2 * tbsm * t4L
@@ -174,33 +204,29 @@ class BackgroundNoise(object):
 
         # Computing neps for instrument
         rm = fts_wn_truncated * 100
-        det_eff = 0.57
-        area = np.pi * np.power(Dtel/2, 2)
 
-        # temporary throughput ? is this correct looks more like the beam but 
-        # out by a factor 5 or so
-        omegac = np.power(1./rm, 2) / area
+        # Assuming single mode optics A * omega = etendue = lambda**2
+        etendue = (1 / rm)**2
 
-        NEPL1 = NEP2(1, det_eff, area * omegac, e1, td1L, Ttel, rm * sc.c)
-        NEPL2 = NEP2(1, det_eff, area * omegac, e2, td2L, Ttel, rm * sc.c)
-        NEPL3 = NEP2(1, det_eff, area * omegac, ebsm, td12L, Ttel, rm * sc.c)
-        NEPL4 = NEP2(1, det_eff, area * omegac, e3, td3L, Tstray, rm * sc.c)
-        NEPL5 = NEP2(1, det_eff, area * omegac, Szodi, td0L, Tsun, rm * sc.c)
-        NEPL6 = NEP2(1, det_eff, area * omegac, e4L, td4L, Tbox, rm * sc.c)
-        print 'fudging stray light contribution'
-        print 'to make instrument background comparable to sky background'
-        NEPL4 = 4e11 * NEPL1
+        # NEP due to emission from primary
+        NEPL1 = NEP2(det_eff, etendue, e1, td1L, Ttel, rm * sc.c)
+        # NEP due to emission from secondary
+        NEPL2 = NEP2(det_eff, etendue, e2, td2L, Ttel, rm * sc.c)
+        # NEP due to emission from beamsplitter
+        NEPL3 = NEP2(det_eff, etendue, ebsm, td12L, Ttel, rm * sc.c)
+        # NEP due to stray light not from collector optics, this is a fudge
+        NEPL4 = NEP2(det_eff, etendue, e3, stray_coeff, Tstray, rm * sc.c)
+        # NEP due to emission from cold box
+        NEPL5 = NEP2(det_eff, etendue, e4L, td4L, Tbox, rm * sc.c)
 
-        NEPR1 = NEP2(1, det_eff, area * omegac, e1, td1R, Ttel, rm * sc.c)
-        NEPR2 = NEP2(1, det_eff, area * omegac, e2, td2R, Ttel, rm * sc.c)
-        NEPR3 = NEP2(1, det_eff, area * omegac, ebsm, td12R, Tbsm, rm * sc.c)
-        NEPR4 = NEP2(1, det_eff, area * omegac, e3, td3R, Tstray, rm * sc.c)
-        NEPR5 = NEP2(1, det_eff, area * omegac, Szodi, td0R, Tsun, rm * sc.c)
-        NEPR6 = NEP2(1, det_eff, area * omegac, e4R, td4R, Tbox, rm * sc.c)
-        NEPR4 = 4e11 * NEPR1
+        NEPR1 = NEP2(det_eff, etendue, e1, td1R, Ttel, rm * sc.c)
+        NEPR2 = NEP2(det_eff, etendue, e2, td2R, Ttel, rm * sc.c)
+        NEPR3 = NEP2(det_eff, etendue, ebsm, td12R, Tbsm, rm * sc.c)
+        NEPR4 = NEP2(det_eff, etendue, e3, stray_coeff, Tstray, rm * sc.c)
+        NEPR5 = NEP2(det_eff, etendue, e4R, td4R, Tbox, rm * sc.c)
 
-        NEPL = NEPL1 + NEPL2 + NEPL3 + NEPL4 + NEPL5 + NEPL6
-        NEPR = NEPR1 + NEPR2 + NEPR3 + NEPR4 + NEPR5 + NEPR6
+        NEPL = NEPL1 + NEPL2 + NEPL3 + NEPL4 + NEPL5
+        NEPR = NEPR1 + NEPR2 + NEPR3 + NEPR4 + NEPR5
 
         # TOTAL BACKGROUND NEP
         # ..from instrument)
@@ -211,22 +237,22 @@ class BackgroundNoise(object):
         EcmbL = 1 - e1 - e2 - ebsm - e4L
         EcmbR = 1 - e1 - e2 - ebsm - e4R
 
-        NEPcmbL = NEP2(1, det_eff, area*omegac, EcmbL, td3L, Tcmb, rm*sc.c)
-        NEPcmbR = NEP2(1, det_eff, area*omegac, EcmbR, td3R, Tcmb, rm*sc.c)
+        NEPcmbL = NEP2(det_eff, etendue, EcmbL, td3L, Tcmb, rm*sc.c)
+        NEPcmbR = NEP2(det_eff, etendue, EcmbR, td3R, Tcmb, rm*sc.c)
         NEPcmb2 = NEPcmbL + NEPcmbR
         NEPcmb = np.sqrt(NEPcmb2)
 
         # ..CIB (cosmic infrared background)
         Ecib = Ecib * 200e-6 * rm
-        NEPcibL = NEP2(1, det_eff, area*omegac, Ecib, td3L, Tcib, rm*sc.c)
-        NEPcibR = NEP2(1, det_eff, area*omegac, Ecib, td3R, Tcib, rm*sc.c)
+        NEPcibL = NEP2(det_eff, etendue, Ecib, td3L, Tcib, rm*sc.c)
+        NEPcibR = NEP2(det_eff, etendue, Ecib, td3R, Tcib, rm*sc.c)
         NEPcib2 = NEPcibL + NEPcibR
         NEPcib = np.sqrt(NEPcib2)
 
         # ..from zodiacal light
         Ezodi = Ezodi * np.sqrt(30e-6 * rm)
-        NEPzodiL = NEP2(1, det_eff, area*omegac, Ezodi, td3L, Tzodi, rm*sc.c)
-        NEPzodiR = NEP2(1, det_eff, area*omegac, Ezodi, td3R, Tzodi, rm*sc.c)
+        NEPzodiL = NEP2(det_eff, etendue, Ezodi, td3L, Tzodi, rm*sc.c)
+        NEPzodiR = NEP2(det_eff, etendue, Ezodi, td3R, Tzodi, rm*sc.c)
         NEPzodi2 = NEPzodiL + NEPzodiR
         NEPzodi = np.sqrt(NEPzodi2)
 
@@ -240,6 +266,19 @@ class BackgroundNoise(object):
 
         self.result['td0L'] = td0L
         self.result['td0R'] = td0R
+
+        self.result['NEPTelR'] = np.sqrt(NEPR1)
+        self.result['NEPSecondaryR'] = np.sqrt(NEPR2)
+        self.result['NEPBeamsplitterR'] = np.sqrt(NEPR3)
+        self.result['NEPStrayR'] = np.sqrt(NEPR4)
+        self.result['NEPColdboxR'] = np.sqrt(NEPR5)
+
+        self.result['NEPTelL'] = np.sqrt(NEPL1)
+        self.result['NEPSecondaryL'] = np.sqrt(NEPL2)
+        self.result['NEPBeamsplitterL'] = np.sqrt(NEPL3)
+        self.result['NEPStrayL'] = np.sqrt(NEPL4)
+        self.result['NEPColdboxL'] = np.sqrt(NEPL5)
+
         self.result['NEPtotInst'] = NEPtotInst
         self.result['NEPcmb'] = NEPcmb
         self.result['NEPcib'] = NEPcib
@@ -249,14 +288,46 @@ class BackgroundNoise(object):
 
         return self.result
 
-
     def __repr__(self):
         return '''
 BackgroundNoise:
   NEP Instrument        : {ni}
   NEP Background        : {nb}
   NEP total             : {nt}
+
+  NEP Tel R             : {telR}
+  NEP Secondary R       : {secR}
+  NEP Beamsplitter R    : {bsR}
+  NEP Stray R           : {strayR}
+  NEP Cold Box R        : {coldboxR}
+
+  NEP Tel L             : {telL}
+  NEP Secondary L       : {secL}
+  NEP Beamsplitter L    : {bsL}
+  NEP Stray L           : {strayL}
+  NEP Cold Box L        : {coldboxL}
+
+  NEP cmb               : {cmb}
+  NEP cib               : {cib}
+  NEP zodiacal          : {zodi}
+
 '''.format(
           ni=self.result['NEPtotInst'],
           nb=self.result['NEPtotBg'],
-          nt=self.result['NEPtot'])
+          nt=self.result['NEPtot'],
+
+          telR=self.result['NEPTelR'],
+          secR=self.result['NEPSecondaryR'],
+          bsR=self.result['NEPBeamsplitterR'],
+          strayR=self.result['NEPStrayR'],
+          coldboxR=self.result['NEPColdboxR'],
+
+          telL=self.result['NEPTelL'],
+          secL=self.result['NEPSecondaryL'],
+          bsL=self.result['NEPBeamsplitterL'],
+          strayL=self.result['NEPStrayL'],
+          coldboxL=self.result['NEPColdboxL'],
+
+          cmb=self.result['NEPcmb'],
+          cib=self.result['NEPcib'],
+          zodi=self.result['NEPzodi'])
