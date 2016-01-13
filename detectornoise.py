@@ -1,3 +1,7 @@
+"""This module contains classes and methods used to calculate the
+detector noise.
+"""
+
 from __future__ import absolute_import
 __author__ = 'rjuanola'
 import collections
@@ -5,12 +9,19 @@ import numpy as np
 import bisect
 import scipy.constants as sc
 
-class DetectorNoise(object):
-    """Class to compute the kid detector noise
+
+class KIDetectorNoise(object):
+    """Class to compute the KID detector noise
+
+    Contains methods:
+    __init__
+    run
+    __repr__
     """
 
     def __init__(self, parameters, previous_results):
-        """
+        """Constructor.
+
         Parameters:
           parameters       - Structure containing parameters defining
                              the simulation, read from Excel.
@@ -21,7 +32,8 @@ class DetectorNoise(object):
         self.result = collections.OrderedDict()
 
     def run(self):
-
+        """Method invoked to do the work.
+        """
         # read some parameters describing the FTS
         fts = self.previous_results['fts']
 
@@ -71,10 +83,6 @@ class DetectorNoise(object):
         index = bisect.bisect(freqNEP, f_acq)
         kNEPval = NEP[index]
 
-        self.result['delta_t'] = delta_t
-        self.result['n_total'] = n_total
-        self.result['freq_vec'] = freq_vec
-        self.result['f_noise'] = f_noise
         self.result['NEP'] = kNEPval
         self.result['eta'] = eta
 
@@ -82,7 +90,7 @@ class DetectorNoise(object):
 
     def __repr__(self):
         return '''
-Detector Noise:
+KIDDetector Noise:
   Delta t               : {dt}
   Total samples         : {nt}
   NEP                   : {nep}
@@ -91,3 +99,56 @@ Detector Noise:
           dt=self.result['delta_t'],
           nt=self.result['n_total'],
           nep=self.result['NEP'])
+
+
+class IdealDetectorNoise(object):
+    """Class to compute the noise of an ideal detector, one whose noise
+    is 0.25 the background NEP.
+
+    Contains methods:
+    __init__
+    run
+    __repr__
+    """
+
+    def __init__(self, parameters, previous_results):
+        """Constructor.
+
+        Parameters:
+          parameters       - Structure containing parameters defining
+                             the simulation, read from Excel.
+          previous_results - Current results structure of the simulation run.
+        """
+        self.parameters = parameters
+        self.previous_results = previous_results
+        self.result = collections.OrderedDict()
+
+    def run(self):
+        """Method invoked to do the work.
+        """
+        # get the totel NEP due to background, calculated earlier
+        background = self.previous_results['backgroundnoise']
+        NEPtot = background['NEPtot']
+
+        # set detector NEP to 0.25 that of the background
+        NEPdet = 0.25 * NEPtot
+
+        # some detector parameters from the Excel file
+        detector = self.parameters['substages']['Detectors']
+        row = detector['Detector optical absorption efficiency'].keys()[0]
+        eta = detector['Detector optical absorption efficiency'][row]
+
+        self.result['NEP'] = NEPdet
+        self.result['eta'] = eta
+
+        return self.result
+
+    def __repr__(self):
+        return '''
+Ideal Detector Noise:
+  NEP                   : {nep}
+  eta                   : {eta}
+
+'''.format(
+          nep=self.result['NEP'],
+          eta=self.result['eta'])
