@@ -1,4 +1,3 @@
-test
 # fisica
 
 ###The FISICA Project
