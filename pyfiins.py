@@ -1,7 +1,6 @@
 """This is the double Fourier interferometry simulator PyFIIns.
 """
 
-
 from __future__ import absolute_import
 
 import astropy.io.fits as pyfits
