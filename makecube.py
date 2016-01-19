@@ -3,6 +3,8 @@ simulator.
 
 The methods are:
     addCubes
+    black_body
+    BB_spectrum
     makeCube
     makeImage
     makeModelThinRing
@@ -13,14 +15,15 @@ The methods are:
 
 from __future__ import absolute_import
 
+import math
 import numpy as np
 import scipy.interpolate as interpolate
+import scipy.constants as sc
 import astropy.io.fits as pyfits
 
 import matplotlib.pyplot as plt
 
 import common.commonobjects as co
-from skygenerator import BB_spectrum
 import writefits
 
 def addCubes(in_cubes=[], cubename='total_cube.fits'):
@@ -48,6 +51,55 @@ def addCubes(in_cubes=[], cubename='total_cube.fits'):
     hdulist[0].data = skydata
     hdulist.writeto(cubename, clobber=True)
     hdulist.close()
+
+def black_body(temperature, wavenumber):
+    """Function to calculate Planck function. 
+       temperature - Kelvin
+       wavenumber - frequency in cm-1
+  
+       Returns jnu in W/m^2/Sr/Hz
+    """
+    freq = wavenumber * sc.c * 100.0
+    if freq > 0:
+        jnu = 2.0 * sc.h * pow(freq,3) / (pow(sc.c,2) *
+          (math.exp((sc.h * freq) / (sc.k * temperature)) - 1.0))
+    else:
+        jnu = 0.0
+
+    return jnu
+
+def BB_spectrum(temperature, frequency_axis, cutoffmin=None,
+      cutoffmax=None, emissivity=1.0):
+    """Method to generate a black body spectrum.
+
+    Keyword parameters:
+    temperature    -- [K].
+    frequency_axis -- frequency points at which bb to be calculated [cm-1]
+    cutoffmin      -- freq below which emission is set to 0 (default None)
+    cutoffmax      -- freq above which emission is set to 0 (default None)
+    emissivity     -- scalar or array (default 1.0)
+
+    Returns:
+    spectrum       -- bb spectrum 
+    """
+
+    spectrum = np.zeros(np.shape(frequency_axis))
+    # ignore floating point errors
+    old_settings = np.seterr(all='ignore')
+
+    for iwn,wn in enumerate(frequency_axis):
+        spectrum[iwn] = black_body(temperature, wn) * emissivity
+
+    # make sure spectrum is zero beyond cutoffs
+    if cutoffmin is not None:
+        spectrum[frequency_axis <= cutoffmin] = 0.0
+    if cutoffmax is not None:
+        spectrum[frequency_axis >= cutoffmax] = 0.0
+
+    # restore fp behaviour
+    ignore = np.seterr(**old_settings)
+
+    return spectrum
 
 def makeCube(image, spectrum, cubename='cube.fits'):
     """Method to make a cube from a 2-d image crossed with a spectrum. 
@@ -733,9 +785,8 @@ def makeSpectrum(temperature, beta, wn_min, wn_max, wn_step, peak_flux,
     wn_vector = wn_min + np.arange(nwn) * wn_step
 
     # spectrum
-    bb = BB_spectrum(temperature, wn_vector, cutoffmin=wn_vector[2],
+    spectrum = BB_spectrum(temperature, wn_vector, cutoffmin=wn_vector[2],
       cutoffmax=wn_vector[-2], emissivity=1.0)
-    spectrum = bb.calculate()
 
     # now multiply by (lambda / lambda_normalise)**beta to mimic
     # dust emissivity variation
