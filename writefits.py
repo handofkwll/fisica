@@ -200,22 +200,97 @@ class WriteFITSCube(object):
         data = self.cube.data
 
         axis3 = self.cube.axes[0].data
+        title3 = self.cube.axes[0].title
+        units3 = self.cube.axes[0].units
         axis2 = self.cube.axes[1].data
+        title2 = self.cube.axes[1].title
+        units2 = self.cube.axes[1].units
         axis1 = self.cube.axes[2].data
+        title1 = self.cube.axes[2].title
+        units1 = self.cube.axes[2].units
 
         # calculate some header values
-        cdelt1 = (axis1[1] - axis1[0]) / 3600.0
-        cdelt2 = (axis2[1] - axis2[0]) / 3600.0
-        # assuming freq axis is in cm-1
-        cdelt3 = (axis3[1] - axis3[0]) * 3.0e10
-
         crpix1 = float(1)
         crpix2 = float(1)
         crpix3 = float(1)
 
-        crval1 = axis1[crpix1-1] / 3600.0
-        crval2 = axis2[crpix2-1] / 3600.0
-        crval3 = axis3[crpix3-1] * 3.0e10
+        if 'ARCSEC' in units1.upper():
+            cdelt1 = (axis1[1] - axis1[0]) / 3600.0
+            crval1 = axis1[crpix1-1] / 3600.0
+            cunit1 = 'DEG     '
+            ctype1 = 'RA---SIN'
+        elif 'CM-1' in  units1.upper():
+            cdelt1 = (axis1[1] - axis1[0]) * 3.0e10
+            crval1 = axis1[crpix1-1] * 3.0e10
+            cunit1 = 'HZ      '
+            ctype1 = 'FREQ    '
+        elif 'HZ' in  units1.upper():
+            cdelt1 = (axis1[1] - axis1[0])
+            crval1 = axis1[crpix1-1]
+            cunit1 = 'HZ      '
+            ctype1 = 'FREQ    '
+        elif 'AU' in units1.upper():
+            cdelt1 = axis1[1] - axis1[0]
+            crval1 = axis1[crpix1-1]
+            cunit1 = 'AU      '
+            ctype1 = 'X-OFFSET'
+        else:
+            cdelt1 = axis1[1] - axis1[0]
+            crval1 = axis1[crpix1-1]
+            cunit1 = 'UNKNOWN '
+            ctype1 = 'UNKNOWN '
+
+        if 'ARCSEC' in units2.upper():
+            cdelt2 = (axis2[1] - axis2[0]) / 3600.0
+            crval2 = axis2[crpix2-1] / 3600.0
+            cunit2 = 'DEG     '
+            ctype2 = 'DEC--SIN'
+        elif 'CM-1' in  units2.upper():
+            cdelt2 = (axis2[1] - axis2[0]) * 3.0e10
+            crval2 = axis2[crpix2-1] * 3.0e10
+            cunit2 = 'HZ      '
+            ctype2 = 'FREQ    '
+        elif 'HZ' in  units1.upper():
+            cdelt2 = (axis2[1] - axis2[0])
+            crval2 = axis2[crpix2-1]
+            cunit2 = 'HZ      '
+            ctype2 = 'FREQ    '
+        elif 'AU' in units2.upper():
+            cdelt2 = axis2[1] - axis2[0]
+            crval2 = axis2[crpix2-1]
+            cunit2 = 'AU      '
+            ctype2 = 'Y-OFFSET'
+        else:
+            cdelt2 = axis2[1] - axis2[0]
+            crval2 = axis2[crpix2-1]
+            cunit2 = 'UNKNOWN '
+            ctype2 = 'UNKNOWN '
+
+        if 'ARCSEC' in units3.upper():
+            cdelt3 = (axis3[1] - axis3[0]) / 3600.0
+            crval3 = axis3[crpix3-1] / 3600.0
+            cunit3 = 'DEG     '
+            ctype3 = 'UNKNOWN '
+        elif 'CM-1' in  units3.upper():
+            cdelt3 = (axis3[1] - axis3[0]) * 3.0e10
+            crval3 = axis3[crpix3-1] * 3.0e10
+            cunit3 = 'HZ      '
+            ctype3 = 'FREQ    '
+        elif 'HZ' in  units3.upper():
+            cdelt3 = (axis3[1] - axis3[0])
+            crval3 = axis3[crpix3-1]
+            cunit3 = 'HZ      '
+            ctype3 = 'FREQ    '
+        elif 'AU' in units3.upper():
+            cdelt3 = axis3[1] - axis3[0]
+            crval3 = axis3[crpix3-1]
+            cunit3 = 'AU      '
+            ctype3 = 'OFFSET  '
+        else:
+            cdelt3 = axis3[1] - axis3[0]
+            crval3 = axis3[crpix3-1]
+            cunit3 = 'UNKNOWN '
+            ctype3 = 'UNKNOWN '
 
         prihdr['CDELT1'] = cdelt1
         prihdr['CDELT2'] = cdelt2
@@ -229,13 +304,13 @@ class WriteFITSCube(object):
         prihdr['CRPIX2'] = crpix2
         prihdr['CRPIX3'] = crpix3
 
-        prihdr['CUNIT1'] = 'DEG     '
-        prihdr['CUNIT2'] = 'DEG     '
-        prihdr['CUNIT3'] = 'HZ      '
+        prihdr['CUNIT1'] = cunit1
+        prihdr['CUNIT2'] = cunit2
+        prihdr['CUNIT3'] = cunit3
 
-        prihdr['CTYPE1'] = 'RA---SIN'
-        prihdr['CTYPE2'] = 'DEC--SIN'
-        prihdr['CTYPE3'] = 'FREQ    '
+        prihdr['CTYPE1'] = ctype1
+        prihdr['CTYPE2'] = ctype2
+        prihdr['CTYPE3'] = ctype3
    
         prihdr['BTYPE'] = 'Intensity'
         prihdr['BUNIT'] = 'JY/PIXEL'
