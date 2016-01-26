@@ -61,8 +61,8 @@ def black_body(temperature, wavenumber):
     """
     freq = wavenumber * sc.c * 100.0
     if freq > 0:
-        jnu = 2.0 * sc.h * pow(freq,3) / (pow(sc.c,2) *
-          (math.exp((sc.h * freq) / (sc.k * temperature)) - 1.0))
+        jnu = 2.0 * sc.h * freq**3 / (sc.c**2 *
+          (np.exp((sc.h * freq) / (sc.k * temperature)) - 1.0))
     else:
         jnu = 0.0
 
