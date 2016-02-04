@@ -33,8 +33,8 @@ class PyFIInS(object):
     __repr__
     """
 
-    def __init__(self, sky_file='ringcube.fits',
-      instrument_spreadsheet='FIInS_Instrument.xlsx',
+    def __init__(self, sky_file='ringcube-25-50.fits',
+      instrument_spreadsheet='strawman.xlsx',
       beam_model_dir='.'):
         """The PyFIInS constructor.
 
