@@ -6,15 +6,15 @@ FISICA stands for 'Far Infra-red Space Interferometer Critical Assessment':
 Scientific Definition and Technology Development for the Next Generation 
 THz Space Interferometer
 
-The project has received funding from the European Union’s Seventh Programme 
+The project received funding from the European Union’s Seventh Programme 
 for research, technological development and demonstration under Grant 
 agreement No 312818 - FISICA.
 
-The project is funded for three years, starting January 2013.
+The project was funded for three years, starting January 2013.
 
 ###pyfiins
 
-As part of the FISICA project a python program is being written to simulate 
+As part of the FISICA project a python program is was written to simulate 
 the data taken by a 'strawman design' double Fourier interferometer in space.
 This program is called **pyfiins**.
 
@@ -23,40 +23,48 @@ Mac.
 
 ###Installation
 
-This describes the installation procedure for a Mac. We will attempt to automate
-the installation process in the near future and make sure that it works for
-other OS.
+To run the simulator you will need a Python installation with the following
+modules available for import (version numbers of my currently working 
+installation in square brackets):
 
-1. Follow ipython.org/install instructions to install Anaconda and then use 
-that to install IPython and the other modules needed:
+  * astropy (.io.pyfits used for FITS file access) [1.0.3]
+  * matplotlib (for plotting) [1.4.3]
+  * numpy (for fast array processing) [1.9.2]
+  * parallelpython (for parallel processing) [1.6.4]
+  * psutil (system utilities) [ 2.2.1]
+  * scipy (scientific functions and constants) [0.15.1]
+  * xlrd (for access to Excel files) [0.9.3]
 
-  * numpy (for fast array processing)
-  * scipy (scientific functions and constants)
-  * matplotlib (for plotting) 
+Your python installation is suitable if you can start it up and type:
 
-  The following package may not be known to Anaconda so you should install it
-  following the installation instructions at www.parallelpython.com
-
-  * parallelpython (for parallel processing)
- 
-  If the installations have worked then you should be able to type ipython, then:
-
-  * In [1]: import numpy
-  * In [2]: import scipy
-  * In [3]: import matplotlib
+  * In [1]: import astropy.io.fits
+  * In [2]: import matplotlib
+  * In [3]: import numpy
   * In [4]: import pp
+  * In [5]: import psutil
+  * In [6]: import scipy
+  * In [7]: import xlrd
 
-  with no errors.
+with no errors.
 
-2. Check out the code from GitHub, install it in a fresh directory.
+If you have a Mac with no pre-existing python then follow 
+ipython.org/install instructions to install Anaconda and then use 
+it to install IPython and all the necessary modules that it can.
+'pp' or parallelpython may not be known to Anaconda so you should install it
+following the installation instructions at www.parallelpython.com
 
-3. Create a different 'working' directory to run the simulator from
+Once you have a working Python installation you should follow
+the following procedure to install the simulator:
+
+1. Check out the code from GitHub, install it in a fresh directory.
+
+2. Create a different 'working' directory to run the simulator from
 and copy the .xlsx files from fisica/excel into it - that is where 
 the code will look for them. In addition, 'gunzip' 
 fisica/data/ringcube.fits.gz and copy that into the working
 directory.
 
-4. Start up python then:
+3. Start up python then:
 
   tell python where to look for the code and 'import' it
 
@@ -76,6 +84,9 @@ directory.
   * .....
   * rendering observe
   * rendering writefits
+
+  Note that at the rendering stage there is often a warning of 
+  'tight_layout: falling back to Agg renderer'. It is harmless.
 
   If it has worked then you should see a new directory in your working 
   directory with name of form 'fisica-sim-yyyymmddThhmmss', which contains 
