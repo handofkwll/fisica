@@ -25,7 +25,7 @@ Windows.
 
 To run the simulator you will need a Python installation with the following
 modules available for import (version numbers of a working 
-installation in square brackets, though these should not be important):
+installation in square brackets, though these are not known to be important):
 
   * astropy (.io.pyfits used for FITS file access) [1.0.3]
   * matplotlib (for plotting) [1.4.3]
