@@ -14,18 +14,18 @@ The project was funded for three years, starting January 2013.
 
 ###pyfiins
 
-As part of the FISICA project a python program is was written to simulate 
+As part of the FISICA project a python program was written to simulate 
 the data taken by a 'strawman design' double Fourier interferometer in space.
 This program is called **pyfiins**.
 
-Currently, it is run from IPython (see ipython.org) built on python 2.7 on a 
-Mac.
+It has been successfully run under python 2.7 on a Mac and on a machine running
+Windows.
 
 ###Installation
 
 To run the simulator you will need a Python installation with the following
-modules available for import (version numbers of my currently working 
-installation in square brackets):
+modules available for import (version numbers of a working 
+installation in square brackets, though these should not be important):
 
   * astropy (.io.pyfits used for FITS file access) [1.0.3]
   * matplotlib (for plotting) [1.4.3]
@@ -76,7 +76,7 @@ directory.
   to use, and indicating where the beam models can be found
   (relative to the working directory)
 
-  * In [4]: f=pyfiins.PyFIInS(sky_file='ringcube.fits', beam_model_dir='../fisica/beam_models/Smooth_Walled_Horn/Band 4 GRASP')
+  * In [4]: f=pyfiins.PyFIInS(instrument_spreadsheet='strawman.xlsx', sky_file='ringcube-25-50.fits', beam_model_dir='../fisica/beam_models/Smooth_Walled_Horn/Band 4 GRASP')
   * In [5]: f.simulate()
 
   It should run for 150 minutes or so, eventually finishing with:
