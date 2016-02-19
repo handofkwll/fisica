@@ -39,6 +39,7 @@ class Telescope(object):
         self.result['c1_beam_model_type'] = telparm['Collector 1 beam model type']
         self.result['c2_beam_model_type'] = telparm['Collector 2 beam model type']
         self.result['beam_model_pol'] = telparm['Beam model polarization']
+        self.result['field_rotator'] = bool(telparm['Field rotator'])
 
     def run(self):
         """Method returns a structure containing the derived Telescope
@@ -58,6 +59,7 @@ Telescope:
   collector 1 beam model : {model1}
   collector 2 beam model : {model2}
   polarization           : {pol}
+  field rotator          : {field_rot}
 '''.format(
           diameter=self.result['m1_diameter'],
           temp=self.result['mirror_temp'],
@@ -67,5 +69,6 @@ Telescope:
           pointing2=self.result['c2_pointing_error_type'],
           model1=self.result['c1_beam_model_type'],
           model2=self.result['c2_beam_model_type'],
-          pol=self.result['beam_model_pol'])
+          pol=self.result['beam_model_pol'],
+          field_rot=self.result['field_rotator'])
 
