@@ -30,7 +30,7 @@ def _getfilelist(filedir, fileroot):
     files = [file for file in files if regexp.match(file)]
     return files
 
-def _get_baseline_wavelength_models(filedir, filelist):
+def _get_baseline_wavelength_models(filedir, filelist, field_rotator):
     """Utility routine to process a list Maynooth
     beam model files with names
     of form ..._bas<baseline>_wav<wavelength>...
@@ -41,6 +41,8 @@ def _get_baseline_wavelength_models(filedir, filelist):
     filedir  - The name of the directory containing the files.
     filelist - List of files names of form 
                <blah>_bas<baseline>_wav<wavelength>
+    field_rotator - True if a field rotator is used to stop the primary
+                    beam pattern rotating on the sky
 
     Returns:
              - A dictionary whose keys are tuples
@@ -82,10 +84,15 @@ def _get_baseline_wavelength_models(filedir, filelist):
           'limits': (xmin, ymin, xmax, ymax),
           'ex':ex, 'ey':ey, 'ez':ez}
 
-    # these models are generally not circularly symmetric so  
-    # need to be rotated with the baseline. Set the angular shift
-    # requiring the beam to recalculated.
-    rotation_resolution = 5.0
+    # set restoration_res to 360 (no resampling needed) if a field
+    # rotator is being used. Otherwise, these models are generally
+    # not circularly symmetric so need to be rotated with the 
+    # baseline. Set the angular shift that would require the beam
+    # to recalculated.
+    if field_rotator:
+       rotation_resolution = 360.0
+    else:
+       rotation_resolution = 5.0
 
     return result, rotation_resolution
 
@@ -343,7 +350,7 @@ class PrimaryBeamsGenerator(object):
         self.result['beam_model_dir'] = beam_model_dir
 
     def _calculate_beam(self, beam_model_type, beam_model_dir, 
-      beam_model_pol, wn, npix, pixsize, m1_diameter):
+      beam_model_pol, wn, npix, pixsize, m1_diameter, field_rotator):
         """Private method invoked to calculate the beams.
 
         Keyword parameters:
@@ -357,6 +364,8 @@ class PrimaryBeamsGenerator(object):
         npix            - beam maps have dimensions [npix,npix]
         pixsize         - pixel size of beam maps [rad]
         m1_diameter     - diameter of primary mirror [m]
+        field_rotator   - True if a field rotator is used to stop the primary
+                          beam pattern rotating on the sky
 
         Returns:
         intensity_beams - intensity beam (Amp.Amp*) cube [nwn, npix, npix]
@@ -392,7 +401,7 @@ class PrimaryBeamsGenerator(object):
 
             # get the grid of models available for baselines/wavelengths
             models, rotation_res = _get_baseline_wavelength_models(
-              beam_model_dir, filelist)
+              beam_model_dir, filelist, field_rotator)
 
         primary_illumination = models
 
@@ -481,6 +490,8 @@ class PrimaryBeamsGenerator(object):
           telescope['Collector 2 beam model type']
         self.result['beam_model_pol'] = beam_model_pol = \
           telescope['Beam model polarization']
+        self.result['field_rotator'] = field_rotator = bool(
+          telescope['Field rotator'])
 
         # gather relevant instrument configuration 
         cubeparams = self.previous_results['skymodel']
@@ -494,7 +505,7 @@ class PrimaryBeamsGenerator(object):
           self.result['collector 1 primary illumination'],\
           self.result['collector 1 rotation resolution'] = \
           self._calculate_beam(c1_beam_model_type, self.beam_model_dir,
-            beam_model_pol, wn, npix, pixsize, m1_diameter)
+            beam_model_pol, wn, npix, pixsize, m1_diameter, field_rotator)
 
         # get result for collector 2
         if c2_beam_model_type == c1_beam_model_type:
@@ -512,7 +523,7 @@ class PrimaryBeamsGenerator(object):
               self.result['collector 2 primary illumination'],\
               self.result['collector 2 rotation resolution'] = \
               self._calculate_beam(c2_beam_model_type, self.beam_model_dir,
-                wn, npix, pixsize, m1_diameter)
+                beam_model_pol, wn, npix, pixsize, m1_diameter, field_rotator)
 
         return self.result
 
@@ -530,10 +541,12 @@ PrimaryBeamsGenerator:
     Models read from directory - '{dir}'
     from files with root - '{root}'
     with polarization - '{pol}'
+    with field rotator - {field_rot}
     Baseline Wavenumber'''.format(
               dir=self.result['beam_model_dir'],
               root=self.result['c1_beam_model_type'],
-              pol=self.result['beam_model_pol'])
+              pol=self.result['beam_model_pol'],
+              field_rot=self.result['field_rotator'])
 
             keys = self.result['collector 1 primary illumination'].keys()
             if keys:
@@ -562,10 +575,12 @@ PrimaryBeamsGenerator:
     Models read from directory - '{dir}'
     from files with root - '{root}'
     with polarization - '{pol}'
+    with field rotator - {field_rot}
     Baseline Wavenumber'''.format(
               dir=self.result['beam_model_dir'],
               root=self.result['c2_beam_model_type'],
-              pol=self.result['beam_model_pol'])
+              pol=self.result['beam_model_pol'],
+              field_rot=self.result['field_rotator'])
 
             keys = self.result['collector 2 primary illumination'].keys()
             if keys:
