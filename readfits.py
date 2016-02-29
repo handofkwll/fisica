@@ -42,6 +42,7 @@ class ReadFITS(object):
         print repr(prihdr)
 
         # general info needed by the reduction
+        obs_date = prihdr['DATE']
         smec_opd_to_mpd = prihdr['smec_o2m']
         wnmin = prihdr['wnmin']
         spatial_axis = hdulist[1].data
@@ -87,6 +88,7 @@ class ReadFITS(object):
         self.result['wnmin'] = wnmin
         self.result['spatial axis [arcsec]'] = spatial_axis
         self.result['fitsfile'] = self.fitsfile
+        self.result['obs date'] = obs_date
         return self.result
 
     def __repr__(self):

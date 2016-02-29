@@ -97,6 +97,7 @@ class WriteFITS(object):
         prihdr = pyfits.Header()
         prihdr['COMMENT'] = 'This FITS file was created by pyfiins at %s' % \
           runtime
+        prihdr['DATE'] = runtime
         prihdr['smec_o2m'] = smec_opd_to_mpd 
         prihdr['wnmin'] = wnmin
         prihdr['npix'] = npix
