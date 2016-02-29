@@ -89,6 +89,7 @@ class ReduceInterferogram(object):
         UVspectrum = collections.namedtuple(
           'uvspectrum', [
           'scan_number',
+          'time',
           'baseline_x',
           'baseline_y',
           'baseline_z',
@@ -120,6 +121,7 @@ class ReduceInterferogram(object):
             if scan not in scanset:
                 if data is not None:
                     data = np.array(data)
+                    times = np.array(times)
                     smec_position = np.array(smec_position)
                     flag = np.array(flag)        
                     baseline_x = np.array(baseline_x)
@@ -128,6 +130,7 @@ class ReduceInterferogram(object):
 
                     smec_sorted = np.argsort(smec_position)
                     data = data[smec_sorted]
+                    times = times[smec_sorted]
                     smec_position = smec_position[smec_sorted]
                     flag = flag[smec_sorted]
                     baseline_x = baseline_x[smec_sorted]
@@ -136,6 +139,7 @@ class ReduceInterferogram(object):
 
                     scans_data[current_scan] = (
                       data,
+                      times,
                       smec_position,
                       flag,
                       baseline_x,
@@ -147,6 +151,7 @@ class ReduceInterferogram(object):
                 else:
                     data = [config.data]
                 smec_position = [config.smec_nominal_position]
+                times = [config.time]
                 flag = [config.flag]
                 baseline_x = [config.baseline_x]
                 baseline_y = [config.baseline_y]
@@ -159,6 +164,7 @@ class ReduceInterferogram(object):
                 else:
                     data.append(config.data)
                 smec_position.append(config.smec_nominal_position)
+                times.append(config.time)
                 flag.append(config.flag)
                 baseline_x.append(config.baseline_x)
                 baseline_y.append(config.baseline_y)
@@ -170,7 +176,7 @@ class ReduceInterferogram(object):
         scan_uvspectra = {}
 
         for scan in scans:
-            data, smec_position, flag, baseline_x, baseline_y, \
+            data, times, smec_position, flag, baseline_x, baseline_y, \
               baseline_z = scans_data[scan]       
 
             interferogram = data[flag==False]
@@ -232,6 +238,7 @@ class ReduceInterferogram(object):
                 # save it
                 uvspectrum = UVspectrum(
                   scan_number=scan,
+                  time=times,
                   baseline_x = baseline_x,
                   baseline_y = baseline_y,
                   baseline_z = baseline_z,
