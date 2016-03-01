@@ -152,5 +152,5 @@ Once you have a working Python installation you should follow
 the following procedure to install pyfitsidi:
 
 1. Download the code from the [github repository]
-(www.github.com/handofkwll/pyfitsidi) and install it in
+(https://github.com/handofkwll/pyfitsidi) and install it in
 a fresh directory, different to pyfiins.
