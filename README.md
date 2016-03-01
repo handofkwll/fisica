@@ -81,7 +81,7 @@ file describes the structure of the FITS IDI file.*
   * In [2]: sys.path.append('\*your code directory\*/fisica')
   * _In [3]: sys.path.append('\*your code directory\*/pyfitsidi')_
 
-  * In [3]: import pyfiins
+  * In [4]: import pyfiins
 
   construct the simulator specifying a file with the sky model 
   to use, and indicating where the beam models can be found
@@ -151,5 +151,6 @@ available at the same place.
 Once you have a working Python installation you should follow
 the following procedure to install pyfitsidi:
 
-1. Download the code from github.com/handofkwll/pyfitsidi, install it in
-a fresh directory different to pyfiins.
+1. Download the code from the [github repository]
+(www.github.com/handofkwll/pyfitsidi) and install it in
+a fresh directory, different to pyfiins.
