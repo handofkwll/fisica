@@ -55,18 +55,16 @@ it to install IPython and all the necessary modules that it can.
 'pp' or parallelpython may not be known to Anaconda so you should install it
 following the installation instructions at www.parallelpython.com.
 
-If you want the simulator to export the simulated visibilities in FITS
-IDI format (Interferometry Data Interchange), for later import to CASA
-or AIPS then you will also need to install pyfitsidi. How to do this is 
-described below.
-
 Once you have a working Python installation you should follow
 the following procedure to install the simulator (instructions with
 *emphasis* tell how to write visibilities in FITS IDI):
 
 1. Check out the code from GitHub, install it in a fresh directory.
 
-2. *Install fitisidi - described below.*
+2. *If you want the simulator to export the simulated visibilities in FITS
+IDI format (Interferometry Data Interchange), for later import to CASA
+or AIPS then you will also need to install pyfitsidi. How to do this is 
+described in a later section.*
 
 3. Create a different 'working' directory to run the simulator from
 and copy the .xlsx files from fisica/excel into it - that is where 
