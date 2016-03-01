@@ -53,7 +53,7 @@ ipython.org/install instructions to install Anaconda and then use
 it to install IPython and all the necessary modules that it can.
 
 'pp' or parallelpython may not be known to Anaconda so you should install it
-following the installation instructions [here](www.parallelpython.com).
+following the installation instructions [here](http://www.parallelpython.com).
 
 Once you have a working Python installation you should follow
 the following procedure to install the simulator (instructions with
