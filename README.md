@@ -62,7 +62,7 @@ described below.
 
 Once you have a working Python installation you should follow
 the following procedure to install the simulator (instructions with
-*emphasisis* show commands used to write visibilities to FITS IDI):
+*emphasis* tell how to write visibilities in FITS IDI):
 
 1. Check out the code from GitHub, install it in a fresh directory.
 
@@ -81,7 +81,7 @@ file describes the structure of the FITS IDI file.*
 
   * In [1]: import sys
   * In [2]: sys.path.append('\*your code directory\*/fisica')
-  * *In [3]: sys.path.append('\*your code directory\*/pyfitsidi')*
+  * _In [3]: sys.path.append('\*your code directory\*/pyfitsidi')_
 
   * In [3]: import pyfiins
 
@@ -101,7 +101,7 @@ file describes the structure of the FITS IDI file.*
   Note that at the rendering stage there is often a warning of 
   'tight_layout: falling back to Agg renderer'. It is harmless.
 
-  If it has worked then you should see a new directory in your working 
+  All being well you should see a new directory in your working 
   directory with name of form 'fisica-sim-yyyymmddThhmmss', which contains 
   the browsable weblog for the run just made, and a file with name of
   form 'yyyymmddThhmmss.fits' that contains the simulated interferograms
@@ -154,6 +154,4 @@ Once you have a working Python installation you should follow
 the following procedure to install pyfitsidi:
 
 1. Download the code from github.com/handofkwll/pyfitsidi, install it in
-a fresh directory (different to pyfiins).
-
-2. To use it with pyfiins follow the red instructions above.
+a fresh directory different to pyfiins.
