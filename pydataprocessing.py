@@ -13,7 +13,6 @@ import pp
 import common.commonobjects as co
 import cleanimage
 import dirtyimage
-import writefits_idi
 import reduceinterferogram
 import renderer
 import readfits
@@ -78,6 +77,8 @@ class PyDataProcessing(object):
         print reduceint
 
         if write_idi:
+            import writefits_idi
+
             # write uv data to FITS-IDI
             fitsidi = writefits_idi.WriteFITS_IDI(previous_results=self.result)
             self.result['fits-idi'] = fitsidi.run()
