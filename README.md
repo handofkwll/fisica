@@ -53,7 +53,7 @@ ipython.org/install instructions to install Anaconda and then use
 it to install IPython and all the necessary modules that it can.
 
 'pp' or parallelpython may not be known to Anaconda so you should install it
-following the installation instructions at www.parallelpython.com.
+following the installation instructions [here](www.parallelpython.com).
 
 Once you have a working Python installation you should follow
 the following procedure to install the simulator (instructions with
@@ -143,10 +143,10 @@ Your python installation is suitable if you can start it up and type:
 
   * In [1]: import ephem
 
-If you need to install 'ephem', you can download the source code from 
-pypi.python.org/pypi/ephem and build it on Mac OSX or Linux by typing
-'python setup.py install'. Windows installers for it are available
-at the same place.
+If you need to install 'ephem', you can download the source code from
+[here](https://pypi.python.org/pypi/ephem) and build it on Mac OSX or 
+Linux by typing 'python setup.py install'. Windows installers for it are 
+available at the same place.
 
 Once you have a working Python installation you should follow
 the following procedure to install pyfitsidi:
