@@ -199,7 +199,7 @@ def generateRandomGlitches(obs_timeline, cr_rate):
     obs_times.sort()
     timespan = obs_times[-1] - obs_times[0]
 
-    numberOfGlitches = np.ceil(timespan * cr_rate)
+    numberOfGlitches = int(np.ceil(timespan * cr_rate))
     timesOfGlitches = np.random.uniform(0, timespan, numberOfGlitches)
     myRandomPeaks, moyal, x = generatePeaks()
     peaksOfGlitches = myRandomPeaks[:numberOfGlitches]
