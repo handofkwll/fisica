@@ -154,7 +154,7 @@ class WriteFITS(object):
           array=np.array(pointing2_y))])))
 
         # write the HDU list to a file
-        hdulist.writeto(fitsname, clobber=True)
+        hdulist.writeto(fitsname, overwrite=True)
         self.result['fitsfile'] = fitsname
 
         return self.result
@@ -211,9 +211,9 @@ class WriteFITSCube(object):
         units1 = self.cube.axes[2].units
 
         # calculate some header values
-        crpix1 = float(1)
-        crpix2 = float(1)
-        crpix3 = float(1)
+        crpix1 = 1
+        crpix2 = 1
+        crpix3 = 1
 
         if 'ARCSEC' in units1.upper():
             cdelt1 = (axis1[1] - axis1[0]) / 3600.0
@@ -301,9 +301,9 @@ class WriteFITSCube(object):
         prihdr['CRVAL2'] = crval2
         prihdr['CRVAL3'] = crval3
 
-        prihdr['CRPIX1'] = crpix1
-        prihdr['CRPIX2'] = crpix2
-        prihdr['CRPIX3'] = crpix3
+        prihdr['CRPIX1'] = float(crpix1)
+        prihdr['CRPIX2'] = float(crpix2)
+        prihdr['CRPIX3'] = float(crpix3)
 
         prihdr['CUNIT1'] = cunit1
         prihdr['CUNIT2'] = cunit2
@@ -327,7 +327,7 @@ class WriteFITSCube(object):
         hdulist = pyfits.HDUList([prihdu])
 
         # write the HDU list to a file
-        hdulist.writeto(self.fitsname, clobber=True)
+        hdulist.writeto(self.fitsname, overwrite=True)
         self.result['fitsfile'] = self.fitsname
 
         return self.result

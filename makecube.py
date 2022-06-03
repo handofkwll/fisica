@@ -49,7 +49,7 @@ def addCubes(in_cubes=[], cubename='total_cube.fits'):
     # write the cube to FITS
     print 'writing', cubename
     hdulist[0].data = skydata
-    hdulist.writeto(cubename, clobber=True)
+    hdulist.writeto(cubename, overwrite=True)
     hdulist.close()
 
 def black_body(temperature, wavenumber):
