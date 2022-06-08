@@ -138,6 +138,8 @@ spectrum = uvspectrum.spectrum[uvspectrum.wavenumber >= 0]
 
 ax.plot(xaxis_data[xaxis_sort], spectrum.real[xaxis_sort], 'b-')
 ax.plot(xaxis_data[xaxis_sort], spectrum.imag[xaxis_sort], 'r-')
+ax.annotate('real', (0.9,0.15), xycoords='figure fraction', color='b')
+ax.annotate('imag', (0.9,0.12), xycoords='figure fraction', color='r')
 xlabel = ' '.join([v for v in [xaxis_title, xaxis_units] if v is not None])
 ax.set_xlabel(xlabel)
 small_font(ax)
